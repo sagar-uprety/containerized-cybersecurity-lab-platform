@@ -1,0 +1,93 @@
+---
+- name: Create lab runtime directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: "{{ thesis_admin_group }}"
+    mode: "0750"
+  loop: "{{ lab_runtime_directories }}"
+
+- name: Create labadmin user
+  ansible.builtin.user:
+    name: "{{ thesis_labadmin_user }}"
+    home: "{{ thesis_labadmin_home }}"
+    shell: /usr/sbin/nologin
+    create_home: true
+    groups: "{{ thesis_admin_group }}"
+    append: true
+    state: present
+
+- name: Install labadmin student registry
+  ansible.builtin.template:
+    src: students.txt.j2
+    dest: "{{ lab_runtime_student_registry }}"
+    owner: root
+    group: "{{ thesis_admin_group }}"
+    mode: "0640"
+
+- name: Install restricted labctl SSH wrapper
+  ansible.builtin.template:
+    src: labctl-ssh-wrapper.py.j2
+    dest: "{{ thesis_labctl_wrapper_path }}"
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Create labadmin SSH directory
+  ansible.builtin.file:
+    path: "{{ thesis_labadmin_home }}/.ssh"
+    state: directory
+    owner: "{{ thesis_labadmin_user }}"
+    group: "{{ thesis_labadmin_user }}"
+    mode: "0700"
+
+- name: Configure labadmin authorized key when controller key is provided
+  ansible.builtin.copy:
+    content: "command=\"{{ thesis_labctl_wrapper_path }}\",no-pty,no-agent-forwarding,no-X11-forwarding,no-port-forwarding {{ thesis_controller_public_key }}\n"
+    dest: "{{ thesis_labadmin_home }}/.ssh/authorized_keys"
+    owner: "{{ thesis_labadmin_user }}"
+    group: "{{ thesis_labadmin_user }}"
+    mode: "0600"
+  when: thesis_controller_public_key | length > 0
+
+- name: Install least-privilege labadmin sudoers rule
+  ansible.builtin.template:
+    src: labadmin.sudoers.j2
+    dest: /etc/sudoers.d/thesis-labadmin
+    owner: root
+    group: root
+    mode: "0440"
+    validate: "visudo -cf %s"
+
+- name: Install lab image build hook
+  ansible.builtin.template:
+    src: thesis-build-lab-images.sh.j2
+    dest: /usr/local/sbin/thesis-build-lab-images
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Install lab cleanup systemd service
+  ansible.builtin.template:
+    src: thesis-lab-cleanup.service.j2
+    dest: /etc/systemd/system/thesis-lab-cleanup.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Install lab cleanup systemd timer
+  ansible.builtin.template:
+    src: thesis-lab-cleanup.timer.j2
+    dest: /etc/systemd/system/thesis-lab-cleanup.timer
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Reload systemd
+
+- name: Enable lab cleanup timer
+  ansible.builtin.service:
+    name: thesis-lab-cleanup.timer
+    state: started
+    enabled: true

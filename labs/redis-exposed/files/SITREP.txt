@@ -1,0 +1,20 @@
+Monitoring noticed direct connections to the order cache service that do not appear to come from the application.
+
+The order application still works, but the cache may be exposed on the internal network.
+
+Your mission:
+
+1. Use the browser terminal to inspect the lab network.
+2. Identify the cache service and determine whether it requires credentials.
+3. Demonstrate the impact using only the fake demo data.
+4. Harden Redis without breaking the order application.
+5. Run the portal check and record the result.
+6. Complete REFLECTION.md.
+
+Useful paths:
+
+- Redis configuration: /lab/redis/redis.conf
+- Demo app configuration: /lab/demo-app/app-config.env
+- Reflection template: ~/REFLECTION.md
+
+If the browser terminal is unavailable, use the assigned SSH fallback endpoint.

@@ -1,0 +1,6 @@
+---
+- name: Configure lab worker hosts
+  ansible.builtin.import_playbook: lab-worker.yml
+
+- name: Configure management hosts
+  ansible.builtin.import_playbook: management.yml

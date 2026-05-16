@@ -1,0 +1,12 @@
+bind 0.0.0.0
+protected-mode no
+port 6379
+
+dir /data
+dbfilename dump.rdb
+appendonly yes
+appendfilename "appendonly.aof"
+
+save 60 1
+loglevel notice
+daemonize no

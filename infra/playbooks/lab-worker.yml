@@ -1,0 +1,8 @@
+---
+- name: Configure thesis lab worker
+  hosts: lab_workers
+  become: true
+  roles:
+    - common
+    - docker
+    - lab-runtime

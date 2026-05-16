@@ -1,0 +1,71 @@
+# OS/editor noise
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Python/cache artifacts
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Node/build artifacts
+node_modules/
+dist/
+build/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+
+# Local Ansible runtime cache
+.ansible/
+
+# Logs and process files
+logs/
+*.log
+*.pid
+*.sock
+
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+credentials/
+secrets/
+*.secret
+*.key
+*.pem
+id_ed25519
+id_rsa
+
+# Generated lab/controller runtime state
+/runtime/
+/state/
+/var/
+/generated/
+/rendered/
+**/rendered/
+**/.runtime/
+*.rendered.yml
+*.rendered.yaml
+check-results/
+results/
+
+# Tool caches
+.cache/
+.ansible/
+
+# Packaged archives
+*.tar
+*.tar.gz
+*.tgz
+*.zip

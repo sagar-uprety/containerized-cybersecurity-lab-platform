@@ -1,0 +1,73 @@
+---
+- name: Verify common platform baseline without changing hosts
+  hosts: platform
+  become: true
+  gather_facts: true
+  tasks:
+    - name: Check required platform directories
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ thesis_common_directories }}"
+      register: thesis_common_dir_stats
+      changed_when: false
+
+    - name: Assert required platform directories exist
+      ansible.builtin.assert:
+        that:
+          - item.stat.isdir
+        fail_msg: "Missing required platform directory: {{ item.item }}"
+      loop: "{{ thesis_common_dir_stats.results }}"
+
+- name: Verify lab worker platform baseline without changing hosts
+  hosts: lab_workers
+  become: true
+  tasks:
+    - name: Check Docker CLI
+      ansible.builtin.command:
+        argv:
+          - docker
+          - version
+          - --format
+          - "{{ '{{' }}.Server.Version{{ '}}' }}"
+      register: docker_version_check
+      changed_when: false
+
+    - name: Check Docker Compose plugin
+      ansible.builtin.command:
+        argv:
+          - docker
+          - compose
+          - version
+      register: docker_compose_check
+      changed_when: false
+
+    - name: Check labadmin wrapper
+      ansible.builtin.stat:
+        path: "{{ thesis_labctl_wrapper_path }}"
+      register: labctl_wrapper_check
+      changed_when: false
+
+    - name: Assert lab worker services are present
+      ansible.builtin.assert:
+        that:
+          - docker_version_check.rc == 0
+          - docker_compose_check.rc == 0
+          - labctl_wrapper_check.stat.executable
+
+- name: Verify management platform baseline without changing hosts
+  hosts: management
+  become: true
+  tasks:
+    - name: Check management directories
+      ansible.builtin.stat:
+        path: "{{ item }}"
+      loop: "{{ management_directories }}"
+      register: management_dir_stats
+      changed_when: false
+
+    - name: Assert management directories exist
+      ansible.builtin.assert:
+        that:
+          - item.stat.isdir
+        fail_msg: "Missing management directory: {{ item.item }}"
+      loop: "{{ management_dir_stats.results }}"

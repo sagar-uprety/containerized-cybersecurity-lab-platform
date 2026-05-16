@@ -1,0 +1,48 @@
+---
+- name: Remove generated lab instances and runtime artifacts
+  hosts: lab_workers
+  become: true
+  tasks:
+    - name: Stop thesis lab containers by Compose project label
+      ansible.builtin.command:
+        argv:
+          - docker
+          - ps
+          - --filter
+          - label=thesis.platform={{ thesis_platform_name }}
+          - --format
+          - "{{ '{{' }}.ID{{ '}}' }}"
+      register: thesis_lab_container_ids
+      changed_when: false
+      failed_when: false
+
+    - name: Remove discovered thesis lab containers
+      ansible.builtin.command:
+        argv:
+          - docker
+          - rm
+          - -f
+          - "{{ item }}"
+      loop: "{{ thesis_lab_container_ids.stdout_lines | default([]) }}"
+      when: item | length > 0
+
+    - name: Remove generated lab state directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ lab_runtime_rendered_root }}"
+        - "{{ lab_runtime_results_root }}"
+        - "{{ thesis_state_root }}/tmp"
+
+    - name: Recreate generated lab state directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: directory
+        owner: root
+        group: "{{ thesis_admin_group }}"
+        mode: "0750"
+      loop:
+        - "{{ lab_runtime_rendered_root }}"
+        - "{{ lab_runtime_results_root }}"
+        - "{{ thesis_state_root }}/tmp"

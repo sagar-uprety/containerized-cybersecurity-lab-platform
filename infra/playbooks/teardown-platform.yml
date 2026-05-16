@@ -1,0 +1,47 @@
+---
+- name: Remove thesis platform services and generated host state
+  hosts: platform
+  become: true
+  tasks:
+    - name: Stop platform services when present
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: stopped
+        enabled: false
+      loop:
+        - thesis-lab-cleanup.timer
+        - thesis-lab-cleanup.service
+        - cadvisor
+      failed_when: false
+
+    - name: Remove thesis platform systemd units
+      ansible.builtin.file:
+        path: "/etc/systemd/system/{{ item }}"
+        state: absent
+      loop:
+        - thesis-lab-cleanup.timer
+        - thesis-lab-cleanup.service
+        - cadvisor.service
+
+    - name: Remove thesis sudoers and logrotate files
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - /etc/sudoers.d/thesis-labadmin
+        - /etc/logrotate.d/thesis-labs
+
+    - name: Remove thesis runtime, state, log, and config directories
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ thesis_runtime_root }}"
+        - "{{ thesis_state_root }}"
+        - "{{ thesis_log_root }}"
+        - "{{ thesis_config_root }}"
+
+    - name: Reload systemd after unit removal
+      ansible.builtin.systemd:
+        daemon_reload: true
+      failed_when: false

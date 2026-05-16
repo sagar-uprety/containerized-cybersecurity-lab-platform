@@ -1,0 +1,31 @@
+---
+docker_rhel_repository_url: https://download.docker.com/linux/rhel/docker-ce.repo
+docker_packages:
+  - docker-ce
+  - docker-ce-cli
+  - containerd.io
+  - docker-buildx-plugin
+  - docker-compose-plugin
+
+lab_runtime_code_root: "{{ thesis_runtime_root }}/labs"
+lab_runtime_rendered_root: "{{ thesis_state_root }}/rendered"
+lab_runtime_results_root: "{{ thesis_state_root }}/results"
+lab_runtime_student_registry: "{{ thesis_config_root }}/students.txt"
+lab_runtime_scenario_root: "{{ lab_runtime_code_root }}"
+
+lab_runtime_directories:
+  - "{{ lab_runtime_code_root }}"
+  - "{{ lab_runtime_rendered_root }}"
+  - "{{ lab_runtime_results_root }}"
+  - "{{ thesis_state_root }}/tmp"
+
+lab_runtime_image_builds:
+  - name: redis-exposed-workstation
+    context: "{{ lab_runtime_code_root }}/redis-exposed"
+    dockerfile: files/workstation.Dockerfile
+  - name: redis-exposed-redis-host
+    context: "{{ lab_runtime_code_root }}/redis-exposed"
+    dockerfile: files/redis-host.Dockerfile
+  - name: redis-exposed-demo-app
+    context: "{{ lab_runtime_code_root }}/redis-exposed"
+    dockerfile: demo-app/Dockerfile

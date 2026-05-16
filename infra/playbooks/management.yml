@@ -1,0 +1,7 @@
+---
+- name: Configure thesis management host
+  hosts: management
+  become: true
+  roles:
+    - common
+    - management-services

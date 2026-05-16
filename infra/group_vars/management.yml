@@ -1,0 +1,9 @@
+---
+management_controller_root: "{{ thesis_runtime_root }}/controller"
+management_docs_root: "{{ thesis_runtime_root }}/docs"
+management_backup_root: "{{ thesis_state_root }}/backups"
+
+management_directories:
+  - "{{ management_controller_root }}"
+  - "{{ management_docs_root }}"
+  - "{{ management_backup_root }}"

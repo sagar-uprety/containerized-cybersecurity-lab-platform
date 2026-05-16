@@ -1,0 +1,1 @@
+Harden Redis by requiring authentication, then update /lab/demo-app/app-config.env so the application can still authenticate to Redis. Restart Redis with sudo /usr/local/sbin/restart-redis on redis-host if needed.

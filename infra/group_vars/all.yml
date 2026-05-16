@@ -1,0 +1,50 @@
+---
+thesis_platform_name: thesis-labs
+
+thesis_runtime_root: /opt/thesis-labs
+thesis_state_root: /var/lib/thesis-labs
+thesis_log_root: /var/log/thesis-labs
+thesis_config_root: /etc/thesis-labs
+
+thesis_admin_group: thesis-admins
+thesis_labadmin_user: labadmin
+thesis_labadmin_home: /var/lib/labadmin
+thesis_labctl_path: /usr/local/bin/labctl
+thesis_labctl_wrapper_path: /usr/local/sbin/labctl-ssh-wrapper
+
+thesis_base_packages:
+  - ca-certificates
+  - curl
+  - git
+  - jq
+  - logrotate
+  - openssh-server
+  - python3
+  - rsync
+  - sudo
+  - tar
+  - tmux
+  - unzip
+
+thesis_common_directories:
+  - "{{ thesis_runtime_root }}"
+  - "{{ thesis_state_root }}"
+  - "{{ thesis_log_root }}"
+  - "{{ thesis_config_root }}"
+
+thesis_ssh_port: 22
+thesis_sshd_service: sshd
+thesis_manage_ssh_hardening: false
+thesis_ssh_password_authentication: "no"
+thesis_ssh_permit_root_login: "prohibit-password"
+
+thesis_student_terminal_port_range: "19001-19999"
+thesis_student_ssh_port_range: "22001-22999"
+thesis_student_app_port_range: "18001-18999"
+
+thesis_controller_public_key: ""
+thesis_labadmin_allowed_students:
+  - student01
+
+thesis_max_concurrent_students: 1
+thesis_evaluation_mode: false

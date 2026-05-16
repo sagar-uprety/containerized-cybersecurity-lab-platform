@@ -1,0 +1,1 @@
+Redis commonly listens on port 6379. Try connecting with redis-cli and check whether commands work before authentication.

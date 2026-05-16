@@ -1,0 +1,1 @@
+Start by listing the services reachable from the workstation. A port scan against nearby service names can reveal what is running.

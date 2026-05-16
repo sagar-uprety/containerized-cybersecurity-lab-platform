@@ -1,0 +1,6 @@
+SET session:alice "demo-only session for alice"
+SET session:bob "demo-only session for bob"
+SET cart:1001 "coffee:2,notebook:1"
+SET cart:1002 "tea:1,pen:3"
+SET feature_flag:admin_mode "false"
+SET support_token:demo-only-token "not-a-real-secret"

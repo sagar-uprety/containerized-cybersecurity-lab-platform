@@ -1,0 +1,9 @@
+---
+- name: Create management service directories
+  ansible.builtin.file:
+    path: "{{ item }}"
+    state: directory
+    owner: root
+    group: "{{ thesis_admin_group }}"
+    mode: "0750"
+  loop: "{{ management_directories }}"

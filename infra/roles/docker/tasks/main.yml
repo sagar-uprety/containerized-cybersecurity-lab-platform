@@ -1,0 +1,47 @@
+---
+- name: Install Docker repository prerequisites
+  ansible.builtin.package:
+    name:
+      - ca-certificates
+      - curl
+      - dnf-plugins-core
+    state: present
+
+- name: Configure Docker CE repository for RHEL
+  ansible.builtin.get_url:
+    url: "{{ docker_rhel_repository_url }}"
+    dest: /etc/yum.repos.d/docker-ce.repo
+    owner: root
+    group: root
+    mode: "0644"
+  when: ansible_os_family == "RedHat"
+
+- name: Refresh dnf cache after Docker repository changes
+  ansible.builtin.dnf:
+    update_cache: true
+  when: ansible_os_family == "RedHat"
+
+- name: Fail on unsupported Docker host OS family
+  ansible.builtin.fail:
+    msg: "This project currently targets RHEL 9.x hosts for Docker provisioning."
+  when: ansible_os_family != "RedHat"
+
+- name: Install Docker Engine and Compose plugin
+  ansible.builtin.package:
+    name: "{{ docker_packages }}"
+    state: present
+
+- name: Install Docker daemon configuration
+  ansible.builtin.template:
+    src: daemon.json.j2
+    dest: /etc/docker/daemon.json
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart docker
+
+- name: Enable Docker service
+  ansible.builtin.service:
+    name: docker
+    state: started
+    enabled: true
