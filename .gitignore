@@ -19,6 +19,9 @@ htmlcov/
 node_modules/
 dist/
 build/
+/site/
+test-results/
+playwright-report/
 
 # Virtual environments
 .venv/
@@ -28,6 +31,9 @@ env/
 
 # Local Ansible runtime cache
 .ansible/
+infra/host_vars/
+infra/files/controller_key
+infra/files/controller_key.pub
 
 # Logs and process files
 logs/
@@ -59,6 +65,10 @@ id_rsa
 *.rendered.yaml
 check-results/
 results/
+cookies.txt
+portal.png
+patch.yml
+nginx-thesis.conf
 
 # Tool caches
 .cache/
