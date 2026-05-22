@@ -1,0 +1,15 @@
+---
+- name: Fail on unsupported Podman host OS family
+  ansible.builtin.fail:
+    msg: "This project currently targets RHEL 9.x hosts for Podman provisioning."
+  when: ansible_os_family != "RedHat"
+
+- name: Fail when Podman is not enabled for this host architecture
+  ansible.builtin.fail:
+    msg: "Podman provisioning is not configured for architecture {{ ansible_architecture }}. Supported architectures: {{ podman_supported_architectures | join(', ') }}."
+  when: ansible_architecture not in podman_supported_architectures
+
+- name: Install Podman runtime packages
+  ansible.builtin.package:
+    name: "{{ podman_packages }}"
+    state: present

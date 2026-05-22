@@ -2,7 +2,8 @@
 set -eu
 
 {% for image in lab_runtime_image_builds %}
-docker build \
+{{ lab_runtime_image_builder }} build \
+  --label thesis.platform={{ thesis_platform_name }} \
   --tag {{ image.name }} \
   --file {{ image.context }}/{{ image.dockerfile }} \
   {{ image.context }}

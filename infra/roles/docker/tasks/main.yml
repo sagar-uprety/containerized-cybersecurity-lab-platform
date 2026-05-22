@@ -7,6 +7,18 @@
       - dnf-plugins-core
     state: present
 
+- name: Fail when Docker CE is not available for this host architecture
+  ansible.builtin.fail:
+    msg: "Docker CE repository provisioning is not configured for architecture {{ ansible_architecture }}. Supported architectures: {{ docker_supported_architectures | join(', ') }}."
+  when: ansible_architecture not in docker_supported_architectures
+
+- name: Check whether Docker CE repository already exists
+  ansible.builtin.stat:
+    path: /etc/yum.repos.d/docker-ce.repo
+  register: docker_repo_stat
+  changed_when: false
+  when: ansible_os_family == "RedHat"
+
 - name: Configure Docker CE repository for RHEL
   ansible.builtin.get_url:
     url: "{{ docker_rhel_repository_url }}"
@@ -19,17 +31,40 @@
 - name: Refresh dnf cache after Docker repository changes
   ansible.builtin.dnf:
     update_cache: true
-  when: ansible_os_family == "RedHat"
+  when:
+    - ansible_os_family == "RedHat"
+    - not ansible_check_mode or docker_repo_stat.stat.exists
 
 - name: Fail on unsupported Docker host OS family
   ansible.builtin.fail:
     msg: "This project currently targets RHEL 9.x hosts for Docker provisioning."
   when: ansible_os_family != "RedHat"
 
+- name: Determine whether Docker Engine tasks can run in this mode
+  ansible.builtin.set_fact:
+    docker_engine_tasks_enabled: "{{ not (ansible_check_mode and ansible_os_family == 'RedHat' and not docker_repo_stat.stat.exists) }}"
+  changed_when: false
+
+- name: Explain Docker Engine install skipped in initial check mode
+  ansible.builtin.debug:
+    msg: "Skipping Docker Engine package/service tasks in check mode because the Docker CE repo is not present yet; a real run would create it first."
+  changed_when: false
+  when: not docker_engine_tasks_enabled | bool
+
 - name: Install Docker Engine and Compose plugin
   ansible.builtin.package:
     name: "{{ docker_packages }}"
     state: present
+  when: docker_engine_tasks_enabled | bool
+
+- name: Ensure Docker configuration directory exists
+  ansible.builtin.file:
+    path: /etc/docker
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: docker_engine_tasks_enabled | bool
 
 - name: Install Docker daemon configuration
   ansible.builtin.template:
@@ -39,9 +74,11 @@
     group: root
     mode: "0644"
   notify: Restart docker
+  when: docker_engine_tasks_enabled | bool
 
 - name: Enable Docker service
   ansible.builtin.service:
     name: docker
     state: started
     enabled: true
+  when: docker_engine_tasks_enabled | bool

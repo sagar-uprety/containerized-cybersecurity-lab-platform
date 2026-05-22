@@ -1,17 +1,19 @@
 ---
-docker_rhel_repository_url: https://download.docker.com/linux/rhel/docker-ce.repo
-docker_packages:
-  - docker-ce
-  - docker-ce-cli
-  - containerd.io
-  - docker-buildx-plugin
-  - docker-compose-plugin
+lab_worker_container_runtime: "{{ thesis_container_runtime }}"
+lab_runtime_image_builder: podman
 
+lab_runtime_build_images: true
+lab_runtime_local_scenario_root: "{{ playbook_dir }}/../../labs"
 lab_runtime_code_root: "{{ thesis_runtime_root }}/labs"
 lab_runtime_rendered_root: "{{ thesis_state_root }}/rendered"
 lab_runtime_results_root: "{{ thesis_state_root }}/results"
 lab_runtime_student_registry: "{{ thesis_config_root }}/students.txt"
+lab_runtime_student_credentials: "{{ thesis_config_root }}/students.yml"
+lab_runtime_scenario_registry: "{{ thesis_config_root }}/scenarios.txt"
 lab_runtime_scenario_root: "{{ lab_runtime_code_root }}"
+
+thesis_lab_scenarios:
+  - redis-exposed
 
 lab_runtime_directories:
   - "{{ lab_runtime_code_root }}"
@@ -20,12 +22,12 @@ lab_runtime_directories:
   - "{{ thesis_state_root }}/tmp"
 
 lab_runtime_image_builds:
-  - name: redis-exposed-workstation
+  - name: thesis-labs/redis-exposed-workstation:latest
     context: "{{ lab_runtime_code_root }}/redis-exposed"
     dockerfile: files/workstation.Dockerfile
-  - name: redis-exposed-redis-host
+  - name: thesis-labs/redis-exposed-redis:latest
     context: "{{ lab_runtime_code_root }}/redis-exposed"
     dockerfile: files/redis-host.Dockerfile
-  - name: redis-exposed-demo-app
+  - name: thesis-labs/redis-exposed-demo-app:latest
     context: "{{ lab_runtime_code_root }}/redis-exposed"
     dockerfile: demo-app/Dockerfile

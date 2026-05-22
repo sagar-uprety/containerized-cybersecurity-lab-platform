@@ -1,0 +1,292 @@
+---
+- name: Smoke test Redis lab container images
+  hosts: lab_workers
+  become: true
+  gather_facts: false
+  vars:
+    workstation_smoke_port: "19099"
+    workstation_image: thesis-labs/redis-exposed-workstation:latest
+    redis_image: thesis-labs/redis-exposed-redis:latest
+    demo_app_image: thesis-labs/redis-exposed-demo-app:latest
+  tasks:
+    - name: Verify workstation image has required tools
+      ansible.builtin.command:
+        argv:
+          - podman
+          - run
+          - --rm
+          - --entrypoint
+          - /bin/sh
+          - "{{ workstation_image }}"
+          - -c
+          - >-
+            test -x /usr/local/bin/ttyd
+            && /usr/local/bin/ttyd --version
+            && command -v sshd
+            && command -v redis-cli
+            && command -v nmap
+            && command -v curl
+            && command -v jq
+      changed_when: false
+
+    - name: Smoke test workstation browser terminal entrypoint
+      block:
+        - name: Remove stale workstation smoke container
+          ansible.builtin.command:
+            argv:
+              - podman
+              - rm
+              - -f
+              - "{{ workstation_smoke_container }}"
+          changed_when: false
+          failed_when: false
+
+        - name: Start workstation smoke container
+          ansible.builtin.command:
+            argv:
+              - podman
+              - run
+              - -d
+              - --name
+              - "{{ workstation_smoke_container }}"
+              - --label
+              - "thesis.platform={{ thesis_platform_name }}"
+              - -e
+              - TTYD_CREDENTIAL=student:smoke-password
+              - -e
+              - STUDENT_PASSWORD=smoke-password
+              - -p
+              - "127.0.0.1:{{ workstation_smoke_port }}:19000"
+              - "{{ workstation_image }}"
+
+        - name: Wait for authenticated ttyd token endpoint
+          ansible.builtin.command:
+            argv:
+              - curl
+              - -fsS
+              - -u
+              - student:smoke-password
+              - "http://127.0.0.1:{{ workstation_smoke_port }}/token"
+          register: ttyd_token_smoke
+          until: ttyd_token_smoke.rc == 0
+          retries: 10
+          delay: 1
+          changed_when: false
+
+        - name: Verify ttyd rejects unauthenticated token request
+          ansible.builtin.command:
+            argv:
+              - curl
+              - -sS
+              - -o
+              - /dev/null
+              - -w
+              - "%{http_code}"
+              - "http://127.0.0.1:{{ workstation_smoke_port }}/token"
+          register: ttyd_unauthenticated_smoke
+          changed_when: false
+          failed_when: false
+
+        - name: Inspect ttyd runtime flags
+          ansible.builtin.command:
+            argv:
+              - podman
+              - exec
+              - "{{ workstation_smoke_container }}"
+              - pgrep
+              - -a
+              - ttyd
+          register: ttyd_process_smoke
+          changed_when: false
+
+        - name: Assert ttyd safety flags
+          ansible.builtin.assert:
+            that:
+              - ttyd_unauthenticated_smoke.stdout == "401"
+              - "'--credential' in ttyd_process_smoke.stdout"
+              - "'--writable' in ttyd_process_smoke.stdout"
+              - "'--max-clients 1' in ttyd_process_smoke.stdout"
+              - "'--url-arg' not in ttyd_process_smoke.stdout"
+      always:
+        - name: Remove workstation smoke container
+          ansible.builtin.command:
+            argv:
+              - podman
+              - rm
+              - -f
+              - "{{ workstation_smoke_container }}"
+          changed_when: false
+          failed_when: false
+
+    - name: Smoke test Redis and demo-app images together
+      block:
+        - name: Remove stale smoke containers
+          ansible.builtin.command:
+            argv:
+              - podman
+              - rm
+              - -f
+              - "{{ item }}"
+          loop:
+            - "{{ redis_smoke_container }}"
+            - "{{ demo_app_smoke_container }}"
+          changed_when: false
+          failed_when: false
+
+        - name: Remove stale smoke network
+          ansible.builtin.command:
+            argv:
+              - podman
+              - network
+              - rm
+              - "{{ redis_smoke_network }}"
+          changed_when: false
+          failed_when: false
+
+        - name: Create smoke network
+          ansible.builtin.command:
+            argv:
+              - podman
+              - network
+              - create
+              - --label
+              - "thesis.platform={{ thesis_platform_name }}"
+              - "{{ redis_smoke_network }}"
+
+        - name: Start Redis smoke container
+          ansible.builtin.command:
+            argv:
+              - podman
+              - run
+              - -d
+              - --name
+              - "{{ redis_smoke_container }}"
+              - --label
+              - "thesis.platform={{ thesis_platform_name }}"
+              - --network
+              - "{{ redis_smoke_network }}"
+              - --network-alias
+              - redis-host
+              - "{{ redis_image }}"
+
+        - name: Wait for Redis to answer PING
+          ansible.builtin.command:
+            argv:
+              - podman
+              - exec
+              - "{{ redis_smoke_container }}"
+              - redis-cli
+              - -h
+              - 127.0.0.1
+              - ping
+          register: redis_ping_smoke
+          until:
+            - redis_ping_smoke.rc == 0
+            - redis_ping_smoke.stdout == "PONG"
+          retries: 10
+          delay: 1
+          changed_when: false
+
+        - name: Verify Redis seed data exists
+          ansible.builtin.command:
+            argv:
+              - podman
+              - exec
+              - "{{ redis_smoke_container }}"
+              - redis-cli
+              - -h
+              - 127.0.0.1
+              - get
+              - feature_flag:admin_mode
+          register: redis_seed_smoke
+          changed_when: false
+
+        - name: Assert Redis seed data was loaded
+          ansible.builtin.assert:
+            that:
+              - redis_seed_smoke.stdout == "false"
+
+        - name: Restart Redis through lab helper
+          ansible.builtin.command:
+            argv:
+              - podman
+              - exec
+              - "{{ redis_smoke_container }}"
+              - /usr/local/sbin/restart-redis
+          changed_when: false
+
+        - name: Verify Redis answers after helper restart
+          ansible.builtin.command:
+            argv:
+              - podman
+              - exec
+              - "{{ redis_smoke_container }}"
+              - redis-cli
+              - -h
+              - 127.0.0.1
+              - ping
+          register: redis_restart_ping_smoke
+          until:
+            - redis_restart_ping_smoke.rc == 0
+            - redis_restart_ping_smoke.stdout == "PONG"
+          retries: 10
+          delay: 1
+          changed_when: false
+
+        - name: Start demo-app smoke container
+          ansible.builtin.command:
+            argv:
+              - podman
+              - run
+              - -d
+              - --name
+              - "{{ demo_app_smoke_container }}"
+              - --label
+              - "thesis.platform={{ thesis_platform_name }}"
+              - --network
+              - "{{ redis_smoke_network }}"
+              - --network-alias
+              - demo-app
+              - "{{ demo_app_image }}"
+
+        - name: Wait for demo app health
+          ansible.builtin.command:
+            argv:
+              - podman
+              - exec
+              - "{{ demo_app_smoke_container }}"
+              - python
+              - -c
+              - >-
+                import urllib.request;
+                print(urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3).read().decode().strip())
+          register: demo_app_health_smoke
+          until:
+            - demo_app_health_smoke.rc == 0
+            - demo_app_health_smoke.stdout == "ok"
+          retries: 10
+          delay: 1
+          changed_when: false
+      always:
+        - name: Remove smoke containers
+          ansible.builtin.command:
+            argv:
+              - podman
+              - rm
+              - -f
+              - "{{ item }}"
+          loop:
+            - "{{ redis_smoke_container }}"
+            - "{{ demo_app_smoke_container }}"
+          changed_when: false
+          failed_when: false
+
+        - name: Remove smoke network
+          ansible.builtin.command:
+            argv:
+              - podman
+              - network
+              - rm
+              - "{{ redis_smoke_network }}"
+          changed_when: false
+          failed_when: false
