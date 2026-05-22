@@ -266,30 +266,55 @@
         panel.innerHTML = `<h2>Check Result: ${escapeHtml(result.status || 'unknown').toUpperCase()}</h2><ul>${items}</ul>`;
     }
 
-    document.querySelectorAll('form[data-async-check="true"]').forEach((form) => {
+    document.querySelectorAll('form.action-form').forEach((form) => {
         form.addEventListener('submit', async (event) => {
             event.preventDefault();
             const button = form.querySelector('button[type="submit"]');
             const originalText = button.textContent;
             button.disabled = true;
-            button.textContent = 'Checking...';
+            button.textContent = 'Working...';
             try {
                 const response = await fetch(form.action, {
                     method: 'POST',
                     body: new FormData(form),
                     headers: { 'X-Requested-With': 'fetch' },
                 });
-                const payload = await response.json();
-                if (!response.ok) {
-                    throw new Error(payload.detail || 'Check failed');
+                
+                // If this is the async check form, handle JSON locally
+                if (form.getAttribute('data-async-check') === 'true') {
+                    const payload = await response.json();
+                    if (!response.ok) throw new Error(payload.detail || 'Check failed');
+                    renderCheckResult(payload);
+                    button.disabled = false;
+                    button.textContent = originalText;
+                    return;
                 }
-                renderCheckResult(payload);
+                
+                // For Start/Stop/Reset/End, we want to reload the page to show new state
+                if (response.ok || response.redirected) {
+                    // Setting location.href bypasses iframe beforeunload issues better than reload
+                    // But first, let's remove the iframe so it doesn't prompt
+                    const iframe = document.getElementById('terminal-iframe');
+                    if (iframe) {
+                        iframe.src = 'about:blank';
+                        iframe.remove();
+                    }
+                    window.location.href = window.location.pathname;
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    alert('Action failed: ' + (errorData.detail || response.statusText));
+                    button.disabled = false;
+                    button.textContent = originalText;
+                }
             } catch (error) {
-                renderCheckResult({
-                    status: 'broken',
-                    checks: [{ name: error.message, passed: false }],
-                });
-            } finally {
+                if (form.getAttribute('data-async-check') === 'true') {
+                    renderCheckResult({
+                        status: 'broken',
+                        checks: [{ name: error.message, passed: false }],
+                    });
+                } else {
+                    alert('Error: ' + error.message);
+                }
                 button.disabled = false;
                 button.textContent = originalText;
             }

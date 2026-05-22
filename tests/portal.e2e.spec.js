@@ -5,6 +5,10 @@ const expectLive = process.env.PORTAL_EXPECT_LIVE === 'true';
 const portalUser = process.env.PORTAL_USER || 'student01';
 
 test('student can open the portal and lab page', async ({ page }) => {
+  page.on('dialog', dialog => {
+    throw new Error(`Unexpected dialog appeared: ${dialog.message()}`);
+  });
+
   await page.goto('/portal');
   await expect(page.getByRole('heading', { name: 'Available Labs' })).toBeVisible();
   await page.getByRole('link', { name: 'Open Lab' }).first().click();
