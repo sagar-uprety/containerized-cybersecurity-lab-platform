@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Instructor View</h1>
+
+<h2>Lab State</h2>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Lab</th>
+            <th>Student</th>
+            <th>Status</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for row in rows %}
+            <tr>
+                <td>{{ row.title }} <span class="muted">({{ row.lab_id }})</span></td>
+                <td>{{ row.student }}</td>
+                <td>
+                    <span class="badge {% if row.status == 'running' %}badge-running{% elif row.status == 'stopped' %}badge-stopped{% elif row.status == 'error' %}badge-error{% endif %}">
+                        {{ row.status }}
+                    </span>
+                </td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2 style="margin-top: 1.5rem;">Recent Events</h2>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Time</th>
+            <th>Lab</th>
+            <th>Student</th>
+            <th>Action</th>
+            <th>Result</th>
+            <th>Duration</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for event in events %}
+            <tr>
+                <td>{{ event.timestamp }}</td>
+                <td>{{ event.lab }}</td>
+                <td>{{ event.student }}</td>
+                <td>{{ event.action }}</td>
+                <td>{{ event.result }}</td>
+                <td>{% if event.duration_seconds is defined %}{{ event.duration_seconds }}s{% else %}<span class="muted">n/a</span>{% endif %}</td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="6" class="muted">No lifecycle events recorded yet.</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}

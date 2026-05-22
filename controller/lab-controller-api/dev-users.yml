@@ -1,0 +1,9 @@
+users:
+  - username: student01
+    password: smoke-password
+    role: student
+    student_id: student01
+    number: 1
+  - username: instructor
+    password: admin-password
+    role: admin

@@ -1,0 +1,438 @@
+#!/usr/bin/env python3
+import argparse
+import json
+import logging
+import os
+import re
+import subprocess
+import sys
+import yaml
+from jinja2 import Environment, FileSystemLoader
+
+try:
+    import jsonschema
+except ImportError:
+    print("jsonschema module not found. Please install it.", file=sys.stderr)
+    sys.exit(1)
+
+# Default Paths
+BASE_DIR = "/opt/thesis-labs"
+STATE_DIR = "/var/lib/thesis-labs"
+
+LABS_DIR = os.path.join(BASE_DIR, "labs")
+RENDERED_DIR = os.path.join(STATE_DIR, "rendered")
+RESULTS_DIR = os.path.join(STATE_DIR, "results")
+STUDENT_CREDENTIALS = "/etc/thesis-labs/students.yml"
+
+# Local testing paths fallback
+if not os.path.exists(BASE_DIR) and os.path.exists("labs"):
+    BASE_DIR = os.path.abspath(".")
+    LABS_DIR = os.path.join(BASE_DIR, "labs")
+    STATE_DIR = os.path.join(BASE_DIR, "state")
+    RENDERED_DIR = os.path.join(STATE_DIR, "rendered")
+    RESULTS_DIR = os.path.join(STATE_DIR, "results")
+
+for d in [RENDERED_DIR, RESULTS_DIR]:
+    os.makedirs(d, exist_ok=True)
+
+def setup_logging():
+    logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+
+def run_command(args, check=True):
+    logging.debug(f"Running command: {' '.join(args)}")
+    result = subprocess.run(args, capture_output=True, text=True)
+    if check and result.returncode != 0:
+        logging.error(f"Command failed: {' '.join(args)}")
+        logging.error(f"STDOUT: {result.stdout}")
+        logging.error(f"STDERR: {result.stderr}")
+        sys.exit(1)
+    return result
+
+def validate_scenario(lab_id, scenario_data):
+    schema_path = os.path.join(LABS_DIR, "scenario.schema.json")
+    if not os.path.exists(schema_path):
+        logging.error(f"Schema file not found at {schema_path}")
+        sys.exit(1)
+    with open(schema_path, "r") as f:
+        schema = json.load(f)
+    try:
+        jsonschema.validate(instance=scenario_data, schema=schema)
+    except jsonschema.ValidationError as e:
+        logging.error(f"Validation failed for scenario.yaml of lab {lab_id}: {e.message}")
+        sys.exit(1)
+
+def get_student_num(student_id):
+    match = re.match(r"^student([0-9]{2,4})$", student_id)
+    if not match:
+        logging.error(f"Invalid student_id format: {student_id}")
+        sys.exit(1)
+    return int(match.group(1))
+
+def get_student_record(student_id):
+    if os.path.exists(STUDENT_CREDENTIALS):
+        with open(STUDENT_CREDENTIALS, "r") as f:
+            data = yaml.safe_load(f) or {}
+        for student in data.get("students", []):
+            if student.get("id") == student_id:
+                return student
+    logging.error(f"Student credential record not found for {student_id}")
+    sys.exit(1)
+
+def container_dependency_names(container):
+    names = {container.get("name"), container.get("hostname")}
+    for alias in container.get("network", {}).get("aliases", []):
+        names.add(alias)
+    return {name for name in names if name}
+
+def sort_containers(containers):
+    pending = list(containers)
+    ordered = []
+    started_names = set()
+
+    while pending:
+        progressed = False
+        for container in list(pending):
+            depends_on = set(container.get("depends_on", []))
+            if depends_on.issubset(started_names):
+                ordered.append(container)
+                started_names.update(container_dependency_names(container))
+                pending.remove(container)
+                progressed = True
+        if not progressed:
+            unresolved = ", ".join(c.get("name", "<unnamed>") for c in pending)
+            logging.error(f"Container dependency cycle or unknown dependency: {unresolved}")
+            sys.exit(1)
+
+    return ordered
+
+def command_start(lab_id, student_id):
+    lab_dir = os.path.join(LABS_DIR, lab_id)
+    scenario_path = os.path.join(lab_dir, "scenario.yaml")
+    
+    if not os.path.exists(scenario_path):
+        logging.error(f"Lab {lab_id} not found at {scenario_path}")
+        sys.exit(1)
+        
+    with open(scenario_path, "r") as f:
+        scenario = yaml.safe_load(f)
+        
+    validate_scenario(lab_id, scenario)
+    
+    student = get_student_record(student_id)
+    student_num = int(student.get("number") or get_student_num(student_id))
+    student_password = str(student.get("password") or "")
+    if not student_password:
+        logging.error(f"Student password missing for {student_id}")
+        sys.exit(1)
+    runtime_project = f"{lab_id}_{student_id}"
+    
+    context = {
+        "lab_id": lab_id,
+        "student_id": student_id,
+        "runtime_project": runtime_project,
+        "thesis_platform_name": "thesis-labs",
+        "student_password": student_password,
+        "ttyd_credential": f"{student_id}:{student_password}",
+        "host_bind_ip": "0.0.0.0",
+        "ssh_port": 22000 + student_num,
+        "app_port": 18000 + student_num,
+        "browser_terminal_port": 19000 + student_num,
+        "resources": scenario.get("resources", {}),
+        "images": {
+            "workstation": f"thesis-labs/{lab_id}-workstation:latest",
+            "redis_host": f"thesis-labs/{lab_id}-redis:latest",
+            "demo_app": f"thesis-labs/{lab_id}-demo-app:latest"
+        }
+    }
+    
+    env = Environment(loader=FileSystemLoader(lab_dir))
+    template = env.get_template("podman.yml.tpl")
+    rendered_yaml = template.render(context)
+    
+    rendered_path = os.path.join(RENDERED_DIR, f"{runtime_project}.yml")
+    with open(rendered_path, "w") as f:
+        f.write(rendered_yaml)
+    
+    logging.info(f"Rendered template saved to {rendered_path}")
+    
+    parsed_yaml = yaml.safe_load(rendered_yaml)
+    
+    network_name = parsed_yaml.get("network", {}).get("name")
+    if network_name:
+        res = run_command(["podman", "network", "exists", network_name], check=False)
+        if res.returncode != 0:
+            logging.info(f"Creating network {network_name}")
+            network_args = ["podman", "network", "create"]
+            if parsed_yaml.get("network", {}).get("internal"):
+                network_args.append("--internal")
+            for k, v in parsed_yaml.get("network", {}).get("labels", {}).items():
+                network_args.extend(["--label", f"{k}={v}"])
+            network_args.append(network_name)
+            run_command(network_args)
+            
+    for vol in parsed_yaml.get("volumes", []):
+        vol_name = vol.get("name")
+        res = run_command(["podman", "volume", "exists", vol_name], check=False)
+        if res.returncode != 0:
+            logging.info(f"Creating volume {vol_name}")
+            volume_args = ["podman", "volume", "create"]
+            for k, v in vol.get("labels", {}).items():
+                volume_args.extend(["--label", f"{k}={v}"])
+            volume_args.append(vol_name)
+            run_command(volume_args)
+            
+    for container in sort_containers(parsed_yaml.get("containers", [])):
+        container_name = container.get("name")
+        image = container.get("image")
+        
+        args = ["podman", "run", "-d", "--name", container_name]
+        
+        if container.get("init"):
+            args.append("--init")
+            
+        restart = container.get("restart")
+        if restart:
+            args.extend(["--restart", restart])
+            
+        hostname = container.get("hostname")
+        if hostname:
+            args.extend(["--hostname", hostname])
+
+        for k, v in container.get("sysctls", {}).items():
+            args.extend(["--sysctl", f"{k}={v}"])
+            
+        env_vars = container.get("environment", {})
+        for k, v in env_vars.items():
+            args.extend(["-e", f"{k}={v}"])
+            
+        for p in container.get("ports", []):
+            host_ip = p.get("host_ip", "0.0.0.0")
+            host_port = p.get("host_port")
+            container_port = p.get("container_port")
+            args.extend(["-p", f"{host_ip}:{host_port}:{container_port}"])
+            
+        for p in container.get("expose", []):
+            args.extend(["--expose", str(p)])
+            
+        for v in container.get("volumes", []):
+            source = v.get("source")
+            target = v.get("target")
+            args.extend(["-v", f"{source}:{target}"])
+            
+        net = container.get("network", {})
+        net_name = net.get("name")
+        if net_name:
+            args.extend(["--network", net_name])
+            for alias in net.get("aliases", []):
+                args.extend(["--network-alias", alias])
+                
+        hc = container.get("healthcheck", {})
+        if hc:
+            cmd = hc.get("command")
+            if isinstance(cmd, list):
+                if cmd[0] == "CMD-SHELL":
+                    args.extend(["--health-cmd", cmd[1]])
+                else:
+                    args.extend(["--health-cmd", " ".join(cmd)])
+            interval = hc.get("interval")
+            if interval: args.extend(["--health-interval", interval])
+            timeout = hc.get("timeout")
+            if timeout: args.extend(["--health-timeout", timeout])
+            retries = hc.get("retries")
+            if retries: args.extend(["--health-retries", str(retries)])
+            start_period = hc.get("start_period")
+            if start_period: args.extend(["--health-start-period", start_period])
+            
+        sec = container.get("security", {})
+        if sec.get("host_network"):
+            logging.error(f"Container {container_name} requested host networking, which is not allowed")
+            sys.exit(1)
+        if sec.get("no_new_privileges"):
+            args.append("--security-opt=no-new-privileges")
+        if sec.get("privileged"):
+            logging.error(f"Container {container_name} requested privileged mode, which is not allowed")
+            sys.exit(1)
+        for cap in sec.get("cap_add", []):
+            args.extend(["--cap-add", cap])
+            
+        res = container.get("resources", {})
+        if "cpus" in res:
+            args.extend(["--cpus", str(res["cpus"])])
+        if "memory" in res:
+            args.extend(["--memory", str(res["memory"])])
+            
+        labels = container.get("labels", {})
+        for k, v in labels.items():
+            args.extend(["--label", f"{k}={v}"])
+            
+        args.append(image)
+        
+        res = run_command(["podman", "container", "exists", container_name], check=False)
+        if res.returncode == 0:
+            logging.info(f"Container {container_name} already exists. Ensuring it is running.")
+            run_command(["podman", "start", container_name], check=False)
+        else:
+            logging.info(f"Creating and starting container {container_name}")
+            run_command(args)
+            
+    logging.info(f"Lab {lab_id} for student {student_id} started successfully.")
+
+def command_stop(lab_id, student_id):
+    runtime_project = f"{lab_id}_{student_id}"
+    rendered_path = os.path.join(RENDERED_DIR, f"{runtime_project}.yml")
+    if not os.path.exists(rendered_path):
+        logging.warning(f"Lab instance {runtime_project} not found.")
+        return
+        
+    with open(rendered_path, "r") as f:
+        parsed_yaml = yaml.safe_load(f)
+        
+    for container in reversed(parsed_yaml.get("containers", [])):
+        container_name = container.get("name")
+        res = run_command(["podman", "container", "exists", container_name], check=False)
+        if res.returncode == 0:
+            logging.info(f"Stopping container {container_name}")
+            run_command(["podman", "stop", container_name], check=False)
+            
+    logging.info(f"Lab {lab_id} for student {student_id} stopped.")
+
+def command_destroy(lab_id, student_id):
+    runtime_project = f"{lab_id}_{student_id}"
+    rendered_path = os.path.join(RENDERED_DIR, f"{runtime_project}.yml")
+    if not os.path.exists(rendered_path):
+        logging.warning(f"Lab instance {runtime_project} not found.")
+        return
+        
+    with open(rendered_path, "r") as f:
+        parsed_yaml = yaml.safe_load(f)
+        
+    for container in parsed_yaml.get("containers", []):
+        container_name = container.get("name")
+        run_command(["podman", "rm", "-f", container_name], check=False)
+        
+    for vol in parsed_yaml.get("volumes", []):
+        vol_name = vol.get("name")
+        run_command(["podman", "volume", "rm", "-f", vol_name], check=False)
+        
+    network_name = parsed_yaml.get("network", {}).get("name")
+    if network_name:
+        run_command(["podman", "network", "rm", "-f", network_name], check=False)
+        
+    os.remove(rendered_path)
+    
+    res_path = os.path.join(RESULTS_DIR, f"{runtime_project}.json")
+    if os.path.exists(res_path):
+        os.remove(res_path)
+        
+    logging.info(f"Lab {lab_id} for student {student_id} destroyed.")
+
+def command_reset(lab_id, student_id):
+    command_destroy(lab_id, student_id)
+    command_start(lab_id, student_id)
+
+def command_check(lab_id, student_id):
+    runtime_project = f"{lab_id}_{student_id}"
+    lab_dir = os.path.join(LABS_DIR, lab_id)
+    check_script = os.path.join(lab_dir, "checks", "check.py")
+    
+    if not os.path.exists(check_script):
+        logging.error(f"Check script not found: {check_script}")
+        sys.exit(1)
+        
+    image_name = f"thesis-labs/{lab_id}-demo-app:latest"
+    network_name = f"{runtime_project}_labnet"
+    
+    cmd = [
+        "podman", "run", "--rm", 
+        "--network", network_name,
+        "-v", f"{os.path.dirname(check_script)}:/checks:ro",
+        image_name,
+        "python3", "/checks/check.py", 
+        "--lab", lab_id, 
+        "--student", student_id
+    ]
+    
+    logging.info("Running checks securely via isolated labnet container...")
+    result = run_command(cmd, check=False)
+    
+    if result.returncode != 0:
+        logging.error(f"Checker execution failed. Return Code: {result.returncode}")
+        logging.error(f"STDOUT: {result.stdout}")
+        logging.error(f"STDERR: {result.stderr}")
+        sys.exit(1)
+        
+    res_path = os.path.join(RESULTS_DIR, f"{runtime_project}.json")
+    with open(res_path, "w") as f:
+        f.write(result.stdout)
+        
+    logging.info(f"Check complete. Result saved to {res_path}")
+    print(result.stdout.strip())
+
+def command_status(lab_id, student_id):
+    runtime_project = f"{lab_id}_{student_id}"
+    rendered_path = os.path.join(RENDERED_DIR, f"{runtime_project}.yml")
+    
+    if not os.path.exists(rendered_path):
+        print("not_created")
+        return
+        
+    with open(rendered_path, "r") as f:
+        parsed_yaml = yaml.safe_load(f)
+        
+    all_running = True
+    any_exists = False
+    
+    for container in parsed_yaml.get("containers", []):
+        c_name = container.get("name")
+        res = run_command(["podman", "inspect", "-f", "{{.State.Status}}", c_name], check=False)
+        if res.returncode == 0:
+            any_exists = True
+            status = res.stdout.strip()
+            if status != "running":
+                all_running = False
+        else:
+            all_running = False
+            
+    if all_running and any_exists:
+        print("running")
+    elif any_exists:
+        print("stopped")
+    else:
+        print("error")
+
+def main():
+    setup_logging()
+    
+    if len(sys.argv) != 4:
+        print("Usage: labctl <verb> <lab_id> <student_id>", file=sys.stderr)
+        sys.exit(1)
+        
+    verb = sys.argv[1]
+    lab_id = sys.argv[2]
+    student_id = sys.argv[3]
+    
+    if not re.match(r"^[a-z0-9][a-z0-9-]{0,63}$", lab_id):
+        logging.error(f"Invalid lab_id format: {lab_id}")
+        sys.exit(1)
+        
+    if not re.match(r"^student[0-9]{2,4}$", student_id):
+        logging.error(f"Invalid student_id format: {student_id}")
+        sys.exit(1)
+        
+    verbs = {
+        "start": command_start,
+        "stop": command_stop,
+        "reset": command_reset,
+        "destroy": command_destroy,
+        "check": command_check,
+        "status": command_status
+    }
+    
+    if verb not in verbs:
+        logging.error(f"Unknown verb: {verb}")
+        sys.exit(1)
+        
+    verbs[verb](lab_id, student_id)
+
+if __name__ == "__main__":
+    main()
