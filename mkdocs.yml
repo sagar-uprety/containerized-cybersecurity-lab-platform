@@ -8,7 +8,6 @@ theme:
 nav:
   - Home: index.md
   - Runtime Paths: runtime-paths.md
-  - Maintainer Notes: maintainer-notes.md
   - Labs:
       - The Exposed Cache: labs/redis-exposed.md
 plugins:
