@@ -57,6 +57,7 @@ Located in the `infra/` directory, Ansible playbooks are responsible for configu
 - It installs **Podman** on the Lab Worker (`x01`).
 - It installs **Nginx**, **FastAPI**, and **MkDocs** on the Control Plane (`x02`).
 - It secures the communication channel by configuring the `labadmin` user with restricted SSH keys that forcefully trigger the security wrapper.
+- **Pre-caches Images:** It builds and caches lab container images locally during provisioning, ensuring student lab starts are instant and do not rely on runtime builds or external registries.
 
 ### 2. Control Plane (x02)
 The control node orchestrates the student experience. It serves the user interfaces but runs **zero** vulnerable workloads itself.
@@ -79,6 +80,15 @@ Labs are defined in the `labs/` directory. Each lab consists of:
 - `podman.yml.tpl`: A template defining the containers and private networks.
 - `checks/check.py`: A script classifying the environment as `vulnerable`, `fixed`, or `broken`.
 - `files/` & `seed/`: Configuration files, Dockerfiles, and dummy data.
+
+## Security, Privacy, & Networking Models
+
+To meet the strict requirements of the thesis evaluation, the architecture enforces several constraints:
+
+1. **UCC VPN Boundary:** The platform assumes both VMs (`x01`, `x02`) sit behind the university's existing UCC VPN. Because the VPN provides the perimeter boundary, the platform does not automate complex host firewalls or its own VPN services.
+2. **Deterministic Routing:** Rather than relying on dynamic DNS or complex ingress controllers, student traffic is routed using strictly isolated, mathematically derived host ports (e.g., Terminal = `19000 + student_number`, SSH = `22000 + student_number`).
+3. **Strict Privacy Model:** The platform strictly prohibits capturing screenshots, terminal session recordings, or keystroke logs. Idle detection and evaluation metrics rely entirely on privacy-preserving operational signals (HTTP heartbeats, TCP connection checks, and lifecycle JSON events).
+4. **Lightweight Auth:** The portal utilizes HTTP Basic Auth tied to a YAML-based student registry to keep the prototype lightweight and avoid dependencies on external SSO/OIDC providers.
 
 ## Lifecycle Flow
 
