@@ -19,35 +19,39 @@ Here is a readable ASCII diagram of how traffic and commands flow through the pl
             |                                  |
             | (Configures x02)                 | (Configures x01)
             v                                  v
-    [ Students & Instructors ]                 |
-               |                               |
-               | (HTTP / HTTPS)                |
-               v                               |
-+=================================================================+
-|                      x02: Control Plane VM                      |
-|                                                                 |
-|   +----------------+      +----------------+ +----------------+ |
-|   |  Nginx Proxy   |--/-->| FastAPI Portal | | MkDocs Guides  | |
-|   +----------------+  \-->|   (Port 8000)  | |  (Static HTML) | |
-|           |               +----------------+ +----------------+ |
-|           |                       |                             |
-+===========|=======================|=============================+
-            |                       |
-            | (WebSockets for       | (SSH / strict labctl commands)
-            |  browser terminal)    |
-            v                       v
-+===========|=======================|=============================+
-|           |          x01: Lab Worker VM   |                     |
-|           |                               v                     |
-|   +----------------+      +---------------------------------+   |
-|   |  Workstation   |      | Private Lab Network (Per User)  |   |
-|   |   Container    |------|                                 |   |
-|   | (ttyd / tools) |      |  [ Vulnerable Redis Container ] |   |
-|   +----------------+      |  [ Demo App Container         ] |   |
-|                           +---------------------------------+   |
-|                                                                 |
-|            [ Podman Container Engine ] <--- Executed by Wrapper |
-+=================================================================+
++=================================+ +=================================+
+|      x02: Control Plane VM      | |       x01: Lab Worker VM        |
+|                                 | |                                 |
+| +-----------+      +----------+ | | +-----------------------------+ |
+| | Nginx     |--/-->| FastAPI  |-+-+>| Restricted SSH Wrapper      | |
+| | Proxy     |  \-->| Portal   | | | |           |                 | |
+| +-----------+      +----------+ | | |           v                 | |
+|      |               |          | | |  labctl (Lifecycle CLI)     | |
+|      |             +----------+ | | +-----------------------------+ |
+|      \------------>| MkDocs   | | |             |                   |
+|                    +----------+ | |             v                   |
++======|==========================+ | [ Podman Container Engine ]     |
+       |                            |             |                   |
+       |                            |             v                   |
+       | (WebSockets for Terminal)  | +-----------------------------+ |
+       \----------------------------+>| Workstation Container       | |
+                                    | | (ttyd daemon)               | |
+                                    | +-----------------------------+ |
+                                    | | Private Labnet (Per User)   | |
+                                    | |                             | |
+                                    | | [ Vuln Redis Container ]    | |
+                                    | |                             | |
+                                    | | [ Demo App Container ]      | |
+                                    | +-----------------------------+ |
+                                    +===================|======|======+
+                                                        |      |
+[ Students & Instructors ]                              |      |
+       |            |                                   |      |
+       |            \-----------------------------------/      |
+       |               (Direct SSH Fallback: Port 220XX)       |
+       |                                                       |
+       \-------------------------------------------------------/
+                       (Direct Demo App: Port 180XX)
 ```
 
 ## Core Components
