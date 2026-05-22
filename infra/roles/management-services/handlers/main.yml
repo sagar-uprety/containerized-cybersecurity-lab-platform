@@ -1,0 +1,26 @@
+---
+- name: Reload systemd
+  ansible.builtin.systemd:
+    daemon_reload: true
+
+- name: Restart thesis portal
+  ansible.builtin.service:
+    name: thesis-portal
+    state: restarted
+
+- name: Restart nginx
+  ansible.builtin.service:
+    name: nginx
+    state: restarted
+
+- name: Build MkDocs site
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -m
+      - mkdocs
+      - build
+      - --clean
+    chdir: "{{ management_docs_root }}/source"
+  changed_when: true
+  when: not ansible_check_mode

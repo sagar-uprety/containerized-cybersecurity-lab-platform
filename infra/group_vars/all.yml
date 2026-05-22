@@ -17,14 +17,34 @@ thesis_base_packages:
   - curl
   - git
   - jq
+  - chrony
   - logrotate
+  - openssh-clients
   - openssh-server
   - python3
+  - python3-pip
+  - python3-jinja2
+  - python3-jsonschema
+  - python3-pyyaml
   - rsync
   - sudo
   - tar
   - tmux
   - unzip
+
+thesis_container_runtime: podman
+thesis_supported_worker_runtimes:
+  - podman
+  - docker
+
+podman_supported_architectures:
+  - ppc64le
+  - x86_64
+
+podman_packages:
+  - podman
+  - buildah
+  - skopeo
 
 thesis_common_directories:
   - "{{ thesis_runtime_root }}"
@@ -34,17 +54,24 @@ thesis_common_directories:
 
 thesis_ssh_port: 22
 thesis_sshd_service: sshd
-thesis_manage_ssh_hardening: false
-thesis_ssh_password_authentication: "no"
-thesis_ssh_permit_root_login: "prohibit-password"
 
 thesis_student_terminal_port_range: "19001-19999"
 thesis_student_ssh_port_range: "22001-22999"
 thesis_student_app_port_range: "18001-18999"
 
-thesis_controller_public_key: ""
-thesis_labadmin_allowed_students:
-  - student01
+thesis_controller_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIINqsLd2eoa+T6/rMXJ+hmszgkndH2L/HmDI5tNPoePa sagar@Sagars-MacBook-Air.local"
+
+thesis_students:
+  - id: student01
+    number: 1
+    password: smoke-password
+
+thesis_instructors:
+  - username: instructor
+    password: admin-password
+    role: admin
 
 thesis_max_concurrent_students: 1
 thesis_evaluation_mode: false
+thesis_portal_nginx_enabled: true
+thesis_portal_event_log: "{{ thesis_log_root }}/portal-events.jsonl"

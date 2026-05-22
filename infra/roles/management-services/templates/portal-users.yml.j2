@@ -1,0 +1,13 @@
+users:
+{% for student in thesis_students %}
+  - username: {{ student.id | to_json }}
+    password: {{ student.password | to_json }}
+    role: student
+    student_id: {{ student.id | to_json }}
+    number: {{ student.number }}
+{% endfor %}
+{% for instructor in thesis_instructors %}
+  - username: {{ instructor.username | to_json }}
+    password: {{ instructor.password | to_json }}
+    role: {{ instructor.role | default('admin') | to_json }}
+{% endfor %}

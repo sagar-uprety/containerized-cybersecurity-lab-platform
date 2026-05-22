@@ -1,0 +1,23 @@
+[Unit]
+Description=Thesis Lab Portal (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory={{ management_controller_root }}/lab-controller-api
+Environment="WORKER_HOST={{ hostvars[groups['lab_workers'][0]]['ansible_default_ipv4']['address'] | default(hostvars[groups['lab_workers'][0]].ansible_host) }}"
+Environment="WORKER_USER={{ thesis_labadmin_user }}"
+Environment="SSH_KEY_PATH={{ management_controller_root }}/controller_key"
+Environment="SSH_KNOWN_HOSTS={{ thesis_state_root }}/known_hosts"
+Environment="SSH_STRICT_HOST_KEY_CHECKING=accept-new"
+Environment="LABS_DIR={{ management_controller_root }}/lab-controller-api/labs"
+Environment="PORTAL_USERS_FILE={{ thesis_config_root }}/portal-users.yml"
+Environment="MAX_CONCURRENT_STUDENTS={{ thesis_max_concurrent_students }}"
+Environment="EVALUATION_MODE={{ thesis_evaluation_mode | ternary('true', 'false') }}"
+Environment="EVENT_LOG_PATH={{ thesis_portal_event_log }}"
+ExecStart=/usr/local/bin/uvicorn app.main:app --host 0.0.0.0 --port 8000
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

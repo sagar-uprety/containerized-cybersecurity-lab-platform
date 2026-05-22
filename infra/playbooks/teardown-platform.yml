@@ -31,6 +31,21 @@
         - /etc/sudoers.d/thesis-labadmin
         - /etc/logrotate.d/thesis-labs
 
+    - name: Remove thesis helper executables
+      ansible.builtin.file:
+        path: "{{ item }}"
+        state: absent
+      loop:
+        - "{{ thesis_labctl_wrapper_path }}"
+        - /usr/local/sbin/thesis-build-lab-images
+
+    - name: Remove labadmin user and home directory
+      ansible.builtin.user:
+        name: "{{ thesis_labadmin_user }}"
+        state: absent
+        remove: true
+      when: inventory_hostname in groups.get("lab_workers", [])
+
     - name: Remove thesis runtime, state, log, and config directories
       ansible.builtin.file:
         path: "{{ item }}"
@@ -45,3 +60,8 @@
       ansible.builtin.systemd:
         daemon_reload: true
       failed_when: false
+
+    - name: Remove thesis admin group
+      ansible.builtin.group:
+        name: "{{ thesis_admin_group }}"
+        state: absent

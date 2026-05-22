@@ -7,3 +7,220 @@
     group: "{{ thesis_admin_group }}"
     mode: "0750"
   loop: "{{ management_directories }}"
+  tags:
+    - portal
+    - docs
+    - nginx
+
+- name: Install platform portal requirements
+  ansible.builtin.pip:
+    name:
+      - fastapi==0.110.0
+      - uvicorn==0.27.1
+      - jinja2==3.1.3
+      - python-multipart==0.0.9
+      - pyyaml==6.0.1
+    executable: pip3
+  tags:
+    - portal
+
+- name: Install MkDocs requirements
+  ansible.builtin.pip:
+    name:
+      - mkdocs==1.6.1
+    executable: pip3
+  tags:
+    - docs
+
+- name: Install Nginx reverse proxy package
+  ansible.builtin.dnf:
+    name: nginx
+    state: present
+  when: thesis_portal_nginx_enabled | bool
+  tags:
+    - nginx
+
+- name: Add nginx to thesis admin group
+  ansible.builtin.user:
+    name: nginx
+    groups: "{{ thesis_admin_group }}"
+    append: true
+  when: thesis_portal_nginx_enabled | bool
+  notify: Restart nginx
+  tags:
+    - nginx
+
+- name: Install portal user registry
+  ansible.builtin.template:
+    src: portal-users.yml.j2
+    dest: "{{ thesis_config_root }}/portal-users.yml"
+    owner: root
+    group: "{{ thesis_admin_group }}"
+    mode: "0640"
+  notify: Restart thesis portal
+  tags:
+    - portal
+
+- name: Copy portal API code
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../controller/lab-controller-api/"
+    dest: "{{ management_controller_root }}/lab-controller-api/"
+    owner: root
+    group: "{{ thesis_admin_group }}"
+    mode: preserve
+    directory_mode: "0750"
+  notify: Restart thesis portal
+  tags:
+    - portal
+
+- name: Remove stale portal workflow template
+  ansible.builtin.file:
+    path: "{{ management_controller_root }}/lab-controller-api/app/templates/lab_workflow.html"
+    state: absent
+  notify: Restart thesis portal
+  tags:
+    - portal
+
+- name: Install lab scenario source trees on management node
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../labs/{{ item }}/"
+    dest: "{{ management_controller_root }}/lab-controller-api/labs/{{ item }}/"
+    owner: root
+    group: "{{ thesis_admin_group }}"
+    mode: preserve
+    directory_mode: "0750"
+  loop: "{{ thesis_lab_scenarios | default(['redis-exposed']) }}"
+  tags:
+    - portal
+
+- name: Install MkDocs configuration
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../mkdocs.yml"
+    dest: "{{ management_docs_root }}/source/mkdocs.yml"
+    owner: root
+    group: "{{ thesis_admin_group }}"
+    mode: "0640"
+  notify: Build MkDocs site
+  tags:
+    - docs
+
+- name: Install MkDocs source tree
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../docs/"
+    dest: "{{ management_docs_root }}/source/docs/"
+    owner: root
+    group: "{{ thesis_admin_group }}"
+    mode: preserve
+    directory_mode: "0750"
+  notify: Build MkDocs site
+  tags:
+    - docs
+
+- name: Remove stale MkDocs README source
+  ansible.builtin.file:
+    path: "{{ management_docs_root }}/source/docs/README.md"
+    state: absent
+  notify: Build MkDocs site
+  tags:
+    - docs
+
+- name: Install portal systemd service
+  ansible.builtin.template:
+    src: thesis-portal.service.j2
+    dest: /etc/systemd/system/thesis-portal.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart thesis portal
+  tags:
+    - portal
+
+- name: Install controller SSH private key
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../files/controller_key"
+    dest: "{{ management_controller_root }}/controller_key"
+    owner: root
+    group: "{{ thesis_admin_group }}"
+    mode: "0600"
+  notify: Restart thesis portal
+  tags:
+    - portal
+
+- name: Check SELinux Nginx network proxy boolean
+  ansible.builtin.command:
+    argv:
+      - getsebool
+      - httpd_can_network_connect
+  register: _sebool_result
+  changed_when: false
+  failed_when: false
+  when: thesis_portal_nginx_enabled | bool
+  tags:
+    - nginx
+
+- name: Persist SELinux Nginx network proxy boolean
+  ansible.builtin.command:
+    argv:
+      - setsebool
+      - -P
+      - httpd_can_network_connect
+      - "on"
+  changed_when: true
+  when:
+    - thesis_portal_nginx_enabled | bool
+    - not ansible_check_mode
+    - _sebool_result.rc == 0
+    - "'--> on' not in _sebool_result.stdout"
+  tags:
+    - nginx
+
+- name: Install Nginx portal reverse proxy
+  ansible.builtin.template:
+    src: thesis-portal-nginx.conf.j2
+    dest: /etc/nginx/conf.d/thesis-portal.conf
+    owner: root
+    group: root
+    mode: "0644"
+  notify: Restart nginx
+  when: thesis_portal_nginx_enabled | bool
+  tags:
+    - nginx
+
+- name: Remove legacy scratch Nginx portal config
+  ansible.builtin.file:
+    path: /etc/nginx/conf.d/thesis.conf
+    state: absent
+  notify: Restart nginx
+  when: thesis_portal_nginx_enabled | bool
+  tags:
+    - nginx
+
+- name: Apply service definition handlers before enabling services
+  ansible.builtin.meta: flush_handlers
+  when: not ansible_check_mode
+  tags:
+    - portal
+    - docs
+    - nginx
+
+- name: Enable thesis portal service
+  ansible.builtin.service:
+    name: thesis-portal
+    state: started
+    enabled: true
+  when: not ansible_check_mode
+  tags:
+    - portal
+
+- name: Enable Nginx reverse proxy service
+  ansible.builtin.service:
+    name: nginx
+    state: started
+    enabled: true
+  when:
+    - thesis_portal_nginx_enabled | bool
+    - not ansible_check_mode
+  tags:
+    - nginx

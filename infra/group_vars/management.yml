@@ -6,4 +6,5 @@ management_backup_root: "{{ thesis_state_root }}/backups"
 management_directories:
   - "{{ management_controller_root }}"
   - "{{ management_docs_root }}"
+  - "{{ management_docs_root }}/source"
   - "{{ management_backup_root }}"

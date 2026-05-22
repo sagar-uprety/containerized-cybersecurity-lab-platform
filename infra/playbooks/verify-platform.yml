@@ -22,23 +22,20 @@
   hosts: lab_workers
   become: true
   tasks:
-    - name: Check Docker CLI
+    - name: Check Podman CLI
       ansible.builtin.command:
         argv:
-          - docker
-          - version
-          - --format
-          - "{{ '{{' }}.Server.Version{{ '}}' }}"
-      register: docker_version_check
+          - podman
+          - --version
+      register: podman_version_check
       changed_when: false
 
-    - name: Check Docker Compose plugin
+    - name: Check Buildah CLI
       ansible.builtin.command:
         argv:
-          - docker
-          - compose
-          - version
-      register: docker_compose_check
+          - buildah
+          - --version
+      register: buildah_version_check
       changed_when: false
 
     - name: Check labadmin wrapper
@@ -47,12 +44,108 @@
       register: labctl_wrapper_check
       changed_when: false
 
+    - name: Check labadmin authorized keys state
+      ansible.builtin.stat:
+        path: "{{ thesis_labadmin_home }}/.ssh/authorized_keys"
+      register: labadmin_authorized_keys_check
+      changed_when: false
+
+    - name: Run labadmin wrapper rejection cases
+      ansible.builtin.command:
+        argv:
+          - "{{ thesis_labctl_wrapper_path }}"
+      environment:
+        SSH_ORIGINAL_COMMAND: "{{ item.command }}"
+      loop:
+        - name: empty command
+          command: ""
+          expect: "expected: labctl <verb> <lab_id> <student_id>"
+        - name: raw shell
+          command: "bash"
+          expect: "expected: labctl <verb> <lab_id> <student_id>"
+        - name: disallowed verb
+          command: "labctl shell redis-exposed student01"
+          expect: "verb is not allowed"
+        - name: invalid lab id
+          command: "labctl status ../redis-exposed student01"
+          expect: "invalid lab_id"
+        - name: unknown lab id
+          command: "labctl status unknown-lab student01"
+          expect: "unknown lab_id"
+        - name: unknown student id
+          command: "labctl status redis-exposed student99"
+          expect: "unknown student_id"
+        - name: extra argument
+          command: "labctl status redis-exposed student01 extra"
+          expect: "expected: labctl <verb> <lab_id> <student_id>"
+        - name: forbidden bulk cleanup
+          command: "labctl destroy-all redis-exposed student01"
+          expect: "verb is not allowed"
+      register: labadmin_wrapper_rejection_checks
+      changed_when: false
+      failed_when: false
+
+    - name: Check lab cleanup timer is enabled
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - is-enabled
+          - thesis-lab-cleanup.timer
+      register: lab_cleanup_timer_enabled
+      changed_when: false
+
+    - name: Check lab cleanup timer is active
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - is-active
+          - thesis-lab-cleanup.timer
+      register: lab_cleanup_timer_active
+      changed_when: false
+
     - name: Assert lab worker services are present
       ansible.builtin.assert:
         that:
-          - docker_version_check.rc == 0
-          - docker_compose_check.rc == 0
+          - podman_version_check.rc == 0
+          - buildah_version_check.rc == 0
           - labctl_wrapper_check.stat.executable
+          - (not labadmin_authorized_keys_check.stat.exists) or (thesis_controller_public_key | length > 0)
+          - lab_cleanup_timer_enabled.stdout == "enabled"
+          - lab_cleanup_timer_active.stdout == "active"
+
+    - name: Assert labadmin wrapper rejects unsafe commands
+      ansible.builtin.assert:
+        that:
+          - item.rc != 0
+          - item.item.expect in item.stderr
+        fail_msg: "Wrapper rejection case failed: {{ item.item.name }}"
+      loop: "{{ labadmin_wrapper_rejection_checks.results }}"
+
+- name: Verify management container tooling without changing hosts
+  hosts: management
+  become: true
+  tasks:
+    - name: Check Podman CLI on management host
+      ansible.builtin.command:
+        argv:
+          - podman
+          - --version
+      register: management_podman_version_check
+      changed_when: false
+
+    - name: Check Buildah CLI on management host
+      ansible.builtin.command:
+        argv:
+          - buildah
+          - --version
+      register: management_buildah_version_check
+      changed_when: false
+
+    - name: Assert management container tooling is present
+      ansible.builtin.assert:
+        that:
+          - management_podman_version_check.rc == 0
+          - management_buildah_version_check.rc == 0
 
 - name: Verify management platform baseline without changing hosts
   hosts: management
