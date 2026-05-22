@@ -7,7 +7,7 @@ The thesis cybersecurity lab platform is designed to be a reproducible, containe
 Here is a readable ASCII diagram of how traffic and commands flow through the platform:
 
 ```text
-         [ Admins & CI / CD ]
+             [ Platform Admins ]
                   |
                   | (Ansible Playbooks via SSH)
                   v
