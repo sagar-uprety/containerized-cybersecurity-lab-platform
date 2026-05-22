@@ -10,7 +10,7 @@ Current contents:
 - portal templates
 - Playwright tests under the repository `tests/` directory
 
-Students must not run `labctl`, Podman, Docker, Compose, or Ansible directly. Portal actions on `x02` call restricted lifecycle commands on `x01` through the locked-down `labadmin` SSH path.
+Students must not run `labctl`, Podman, Docker, Compose, or Ansible directly. Portal actions on the Control Plane (`x02`) call restricted lifecycle commands on the Lab Worker (`x01`) through the locked-down `labadmin` SSH path.
 
 The FastAPI portal reads scenario metadata from `LABS_DIR` and users from
 `PORTAL_USERS_FILE`. It should not hardcode Redis, `student01`, VM IPs, or

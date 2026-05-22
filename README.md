@@ -11,7 +11,7 @@ Please see [**`architecture.md`**](architecture.md) for a high-level overview of
 
 | Path | Purpose |
 |---|---|
-| `infra/` | Ansible inventory, playbooks, roles, and teardown logic for provisioning the Management and Worker VMs. |
+| `infra/` | Ansible inventory, playbooks, roles, and teardown logic for provisioning the Control Plane and Worker VMs. |
 | `labs/` | Versioned lab scenarios (`scenario.yaml`), Podman runtime templates, lab files, checks (`check.py`), and demo applications. |
 | `controller/` | The internal `labctl` Python CLI, SSH security wrapper, and the FastAPI student/instructor portal. |
 | `docs/` | Static MkDocs content containing the canonical student guides, instructor notes, and platform documentation. |

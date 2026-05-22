@@ -4,6 +4,10 @@ directory so `ansible.cfg` can resolve the inventory and role path.
 
 The active host baseline is RHEL 9.6 for both x01 and x02.
 
+### Nodes
+* **`x02` (Control Plane)**: The node that runs the FastAPI portal and MkDocs.
+* **`x01` (Lab Worker)**: The node that runs Podman and executes the student workloads.
+
 Main commands:
 
 ```bash

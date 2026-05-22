@@ -4,59 +4,60 @@ The thesis cybersecurity lab platform is designed to be a reproducible, containe
 
 ## System Overview
 
-```mermaid
-flowchart LR
-    Student((Student))
-    Instructor((Instructor))
+Here is a readable ASCII diagram of how traffic and commands flow through the platform:
 
-    subgraph "x02: Management Plane"
-        Portal[FastAPI Portal]
-        Docs[MkDocs Guides]
-        NginxProxy[Nginx Reverse Proxy]
-    end
-
-    subgraph "x01: Lab Worker Node"
-        Podman[(Podman Runtime)]
-        Wrapper[Restricted SSH Wrapper]
-        
-        subgraph "Private Lab Network (Per Student)"
-            Workstation[Workstation Container]
-            VulnService[Vulnerable Service\n(e.g., Redis)]
-            DemoApp[Demo App]
-        end
-    end
-
-    Student -->|HTTP 80| NginxProxy
-    Instructor -->|HTTP 80| NginxProxy
-    
-    NginxProxy -->|/portal| Portal
-    NginxProxy -->|/docs| Docs
-    NginxProxy -->|/terminal| Workstation
-
-    Portal -->|labctl start/stop/check| Wrapper
-    Wrapper -->|Executes labctl| Podman
+```text
+    [ Students & Instructors ]
+               | 
+               | (HTTP / HTTPS)
+               v
++=================================================================+
+|                      x02: Control Plane VM                      |
+|                                                                 |
+|   +----------------+      +----------------+ +----------------+ |
+|   |  Nginx Proxy   |--/-->| FastAPI Portal | | MkDocs Guides  | |
+|   +----------------+  \-->|   (Port 8000)  | |  (Static HTML) | |
+|           |               +----------------+ +----------------+ |
+|           |                       |                             |
++===========|=======================|=============================+
+            |                       |
+            | (WebSockets for       | (SSH / strict labctl commands)
+            |  browser terminal)    |
+            v                       v
++===========|=======================|=============================+
+|           |          x01: Lab Worker VM   |                     |
+|           |                               v                     |
+|   +----------------+      +---------------------------------+   |
+|   |  Workstation   |      | Private Lab Network (Per User)  |   |
+|   |   Container    |------|                                 |   |
+|   | (ttyd / tools) |      |  [ Vulnerable Redis Container ] |   |
+|   +----------------+      |  [ Demo App Container         ] |   |
+|                           +---------------------------------+   |
+|                                                                 |
+|            [ Podman Container Engine ] <--- Executed by Wrapper |
++=================================================================+
 ```
 
 ## Core Components
 
-### 1. Management Plane (x02)
-The management node orchestrates the student experience. It exposes the user interfaces but runs no vulnerable workloads itself.
-- **FastAPI Portal**: A lightweight, server-rendered portal where students can Start, Stop, Reset, End, and Check their assigned labs. It tracks basic state and lifecycle events.
-- **MkDocs Guides**: The canonical source for learning. Static Markdown pages provide the structured workflow (Orient, Discover, Impact, Remediate, Verify) alongside instructor notes and solution guides.
-- **Nginx Reverse Proxy**: Routes `/portal` to FastAPI, `/docs` to MkDocs, and `/terminal` to the specific student's workstation container on the lab worker via WebSockets.
+### 1. Control Plane (x02)
+The control node orchestrates the student experience. It serves the user interfaces but runs **zero** vulnerable workloads itself.
+- **FastAPI Portal**: A lightweight, server-rendered portal where students can Start, Stop, Reset, End, and Check their assigned labs. 
+- **MkDocs Guides**: The canonical source for learning. Static Markdown pages provide the structured workflow (Orient, Discover, Impact, Remediate, Verify).
+- **Nginx Reverse Proxy**: Routes `/portal` to FastAPI, `/docs` to MkDocs, and `/terminal` directly to the specific student's workstation container on the lab worker via WebSockets.
 
-### 2. Lab Worker Node (x01)
-The worker node hosts the actual vulnerable workloads inside isolated containers.
+### 2. Lab Worker (x01)
+The execution node hosts the actual vulnerable workloads inside highly isolated containers.
 - **Podman**: The daemonless container engine used to spin up private networks, isolated volumes, and container instances for every student.
-- **Restricted SSH Wrapper**: The security boundary between the Management Plane and the Lab Worker. The Portal SSHes into the worker using a strictly validated wrapper script (`labctl-ssh-wrapper`) that only permits exact lifecycle commands (`start`, `stop`, `reset`, `check`, `status`, `destroy`) and prevents raw shell execution.
+- **Restricted SSH Wrapper**: The security boundary between the Control Plane and the Lab Worker. The Portal SSHes into the worker using a strictly validated wrapper script (`labctl-ssh-wrapper`) that only permits exact lifecycle commands (`start`, `stop`, `reset`, `check`, `status`, `destroy`). It prevents raw shell execution.
 - **Workstation Container**: A safe jump-box equipped with tools (`nmap`, `redis-cli`, `curl`, etc.) and a browser-based terminal (`ttyd`). Students connect here to interact with the vulnerable services.
 
 ### 3. Lifecycle Controller (`labctl`)
-A Python CLI installed on the Lab Worker. It validates `scenario.yaml`, renders Podman Compose-like templates into exact container commands, runs python `check.py` scripts inside ephemeral containers, and guarantees clean teardowns.
+A Python CLI installed on the Lab Worker. It validates `scenario.yaml`, renders Podman Compose-like templates into exact container commands, runs python `check.py` scripts inside ephemeral containers safely, and guarantees clean teardowns.
 
 ### 4. Configuration-as-Code Labs
 Labs are defined in the `labs/` directory. Each lab consists of:
-- `scenario.yaml`: The metadata contract (ports, limits, metadata, docs links).
+- `scenario.yaml`: The metadata contract (ports, limits, docs links).
 - `podman.yml.tpl`: A template defining the containers and private networks.
 - `checks/check.py`: A script classifying the environment as `vulnerable`, `fixed`, or `broken`.
 - `files/` & `seed/`: Configuration files, Dockerfiles, and dummy data.
