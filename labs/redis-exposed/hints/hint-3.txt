@@ -1,1 +1,19 @@
-Harden Redis by requiring authentication, then update /lab/demo-app/app-config.env so the application can still authenticate to Redis. Restart Redis with sudo /usr/local/sbin/restart-redis on redis-host if needed.
+Harden Redis and keep the app working.
+
+One POC fix path:
+
+printf '\nrequirepass demo-redis-password\n' >> /lab/redis/redis.conf
+printf 'REDIS_PASSWORD=demo-redis-password\n' > /lab/demo-app/app-config.env
+ssh -o StrictHostKeyChecking=accept-new redisadmin@redis-host
+sudo /usr/local/sbin/restart-redis
+exit
+
+When SSH asks for a password, use your lab password.
+
+Then verify both sides:
+
+redis-cli -h redis-host ping
+redis-cli -h redis-host -a demo-redis-password ping
+curl -s http://demo-app:8080/health
+
+The first Redis command should fail with an authentication error. The authenticated command and the app health check should succeed.

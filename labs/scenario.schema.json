@@ -11,11 +11,13 @@
     "duration_minutes",
     "story",
     "teaching",
+    "documentation",
     "access",
     "lifecycle",
     "checker",
     "resources",
-    "hints"
+    "hints",
+    "artifacts"
   ],
   "properties": {
     "id": {
@@ -78,6 +80,17 @@
           "minLength": 1
         },
         "real_world_reference": {
+          "type": "string",
+          "minLength": 1
+        }
+      }
+    },
+    "documentation": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["student_guide_url"],
+      "properties": {
+        "student_guide_url": {
           "type": "string",
           "minLength": 1
         }
@@ -152,7 +165,7 @@
         "student_actions": {
           "type": "array",
           "items": {
-            "enum": ["start", "stop", "reset", "check"]
+            "enum": ["start", "stop", "reset", "end", "check"]
           },
           "contains": {
             "const": "start"
@@ -198,6 +211,43 @@
       "items": {
         "type": "string",
         "minLength": 1
+      }
+    },
+    "artifacts": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": [
+        "student_guide",
+        "instructor_guide",
+        "solution_notes",
+        "sitrep",
+        "reflection_template"
+      ],
+      "properties": {
+        "student_guide": {
+          "type": "string",
+          "minLength": 1
+        },
+        "instructor_guide": {
+          "type": "string",
+          "minLength": 1
+        },
+        "solution_notes": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sitrep": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reflection_template": {
+          "type": "string",
+          "minLength": 1
+        },
+        "fixed_config_example": {
+          "type": "string",
+          "minLength": 1
+        }
       }
     }
   }

@@ -25,6 +25,9 @@ teaching:
     unprotected services.
   real_world_reference: Redis security documentation and exposed Redis incident reporting.
 
+documentation:
+  student_guide_url: /docs/labs/redis-exposed/
+
 access:
   primary: browser_terminal
   fallback: ssh
@@ -47,6 +50,7 @@ lifecycle:
     - start
     - stop
     - reset
+    - end
     - check
 
 checker:
@@ -124,7 +128,7 @@ resources:
     memory: "256m"
 
 safety:
-  docker_socket_mount: false
+  container_runtime_socket_mount: false
   privileged: false
   host_network: false
   publish_vulnerable_service: false
@@ -142,6 +146,9 @@ hints:
   - hints/hint-3.txt
 
 artifacts:
+  student_guide: student-guide.md
+  instructor_guide: instructor-guide.md
+  solution_notes: solution-notes.md
   sitrep: files/SITREP.txt
   reflection_template: files/REFLECTION.md
   fixed_config_example: files/redis.conf.fixed.example

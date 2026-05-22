@@ -8,4 +8,8 @@ if [ ! -f "${CONFIG_FILE}" ]; then
   cp /app/defaults/app-config.env "${CONFIG_FILE}"
 fi
 
-exec python /app/app.py
+if [ "$#" -gt 0 ]; then
+    exec "$@"
+else
+    exec python /app/app.py
+fi

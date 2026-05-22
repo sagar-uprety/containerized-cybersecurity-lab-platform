@@ -25,3 +25,4 @@ chown redis:redis "${LOG_FILE}"
 
 sudo -u redis redis-server "${CONFIG_PATH}" >>"${LOG_FILE}" 2>&1 &
 echo "$!" > "${PID_FILE}"
+echo "Redis restarted"
