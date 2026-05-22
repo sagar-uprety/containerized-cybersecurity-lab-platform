@@ -60,20 +60,20 @@ Located in the `infra/` directory, Ansible playbooks are responsible for configu
 
 ### 2. Control Plane (x02)
 The control node orchestrates the student experience. It serves the user interfaces but runs **zero** vulnerable workloads itself.
-- **FastAPI Portal**: A lightweight, server-rendered portal where students can Start, Stop, Reset, End, and Check their assigned labs. 
+- **FastAPI Portal**: A lightweight, server-rendered portal where students can Start, Stop, Reset, End, and Check their assigned labs. It enforces admission control (`max_concurrent_students`) to prevent server overload.
 - **MkDocs Guides**: The canonical source for learning. Static Markdown pages provide the structured workflow (Orient, Discover, Impact, Remediate, Verify).
 - **Nginx Reverse Proxy**: Routes `/portal` to FastAPI, `/docs` to MkDocs, and `/terminal` directly to the specific student's workstation container on the lab worker via WebSockets.
 
-### 2. Lab Worker (x01)
+### 3. Lab Worker (x01)
 The execution node hosts the actual vulnerable workloads inside highly isolated containers.
 - **Podman**: The daemonless container engine used to spin up private networks, isolated volumes, and container instances for every student.
 - **Restricted SSH Wrapper**: The security boundary between the Control Plane and the Lab Worker. The Portal SSHes into the worker using a strictly validated wrapper script (`labctl-ssh-wrapper`) that only permits exact lifecycle commands (`start`, `stop`, `reset`, `check`, `status`, `destroy`). It prevents raw shell execution.
-- **Workstation Container**: A safe jump-box equipped with tools (`nmap`, `redis-cli`, `curl`, etc.) and a browser-based terminal (`ttyd`). Students connect here to interact with the vulnerable services.
+- **Workstation Container**: A safe jump-box equipped with tools (`nmap`, `redis-cli`, `curl`, etc.) and a browser-based terminal (`ttyd`). Students connect here to interact with the vulnerable services. It also exposes a dedicated port for raw SSH fallback access.
 
-### 3. Lifecycle Controller (`labctl`)
-A Python CLI installed on the Lab Worker. It validates `scenario.yaml`, renders Podman Compose-like templates into exact container commands, runs python `check.py` scripts inside ephemeral containers safely, and guarantees clean teardowns.
+### 4. Lifecycle Controller (`labctl`)
+A Python CLI installed on the Lab Worker. It validates `scenario.yaml`, renders Podman Compose-like templates into exact container commands, runs python `check.py` scripts inside ephemeral containers safely (attached directly to the private `labnet` so vulnerable services aren't exposed), and guarantees clean teardowns.
 
-### 4. Configuration-as-Code Labs
+### 5. Configuration-as-Code Labs
 Labs are defined in the `labs/` directory. Each lab consists of:
 - `scenario.yaml`: The metadata contract (ports, limits, docs links).
 - `podman.yml.tpl`: A template defining the containers and private networks.
