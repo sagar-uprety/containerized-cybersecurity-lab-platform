@@ -1,0 +1,15 @@
+site_name: Thesis Lab Guides
+site_description: Static guides for the thesis cybersecurity lab platform
+docs_dir: docs
+site_dir: site
+use_directory_urls: true
+theme:
+  name: mkdocs
+nav:
+  - Home: index.md
+  - Runtime Paths: runtime-paths.md
+  - Maintainer Notes: maintainer-notes.md
+  - Labs:
+      - The Exposed Cache: labs/redis-exposed.md
+plugins:
+  - search
