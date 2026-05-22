@@ -7,10 +7,22 @@ The thesis cybersecurity lab platform is designed to be a reproducible, containe
 Here is a readable ASCII diagram of how traffic and commands flow through the platform:
 
 ```text
-    [ Students & Instructors ]
-               | 
-               | (HTTP / HTTPS)
-               v
+         [ Admins & CI / CD ]
+                  |
+                  | (Ansible Playbooks via SSH)
+                  v
++=================================================================+
+|            Infrastructure-as-Code (infra/ directory)            |
+| Provisions RHEL baseline, installs packages, sets up SSH keys,  |
+|      configures Nginx, FastAPI, Podman, and copies code.        |
++=================================================================+
+            |                                  |
+            | (Configures x02)                 | (Configures x01)
+            v                                  v
+    [ Students & Instructors ]                 |
+               |                               |
+               | (HTTP / HTTPS)                |
+               v                               |
 +=================================================================+
 |                      x02: Control Plane VM                      |
 |                                                                 |
@@ -40,7 +52,13 @@ Here is a readable ASCII diagram of how traffic and commands flow through the pl
 
 ## Core Components
 
-### 1. Control Plane (x02)
+### 1. Infrastructure-as-Code (Ansible)
+Located in the `infra/` directory, Ansible playbooks are responsible for configuring the two virtual machines identically and securely. 
+- It installs **Podman** on the Lab Worker (`x01`).
+- It installs **Nginx**, **FastAPI**, and **MkDocs** on the Control Plane (`x02`).
+- It secures the communication channel by configuring the `labadmin` user with restricted SSH keys that forcefully trigger the security wrapper.
+
+### 2. Control Plane (x02)
 The control node orchestrates the student experience. It serves the user interfaces but runs **zero** vulnerable workloads itself.
 - **FastAPI Portal**: A lightweight, server-rendered portal where students can Start, Stop, Reset, End, and Check their assigned labs. 
 - **MkDocs Guides**: The canonical source for learning. Static Markdown pages provide the structured workflow (Orient, Discover, Impact, Remediate, Verify).
