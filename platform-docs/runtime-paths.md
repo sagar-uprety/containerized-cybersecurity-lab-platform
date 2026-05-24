@@ -18,7 +18,8 @@ This project separates versioned repository code from generated platform state.
 | `infra/` | Ansible source code for VM setup and teardown. |
 | `labs/` | Versioned scenario source files and templates. |
 | `controller/` | Internal lifecycle and portal/controller source code. |
-| `docs/` | Static documentation source. |
+| `docs/` | Student-facing MkDocs source only. |
+| `platform-docs/` | Internal platform notes that should not be published in the student MkDocs site. |
 
 ## Rules
 

@@ -55,11 +55,27 @@ lifecycle:
 
 checker:
   command: checks/check.py
+  image_service: demo-app
   output: json
   states:
     - vulnerable
     - fixed
     - broken
+
+build:
+  images:
+    - service: workstation
+      name: thesis-labs/redis-exposed-workstation:latest
+      context: .
+      dockerfile: files/workstation.Dockerfile
+    - service: redis-host
+      name: thesis-labs/redis-exposed-redis:latest
+      context: .
+      dockerfile: files/redis-host.Dockerfile
+    - service: demo-app
+      name: thesis-labs/redis-exposed-demo-app:latest
+      context: .
+      dockerfile: demo-app/Dockerfile
 
 services:
   workstation:

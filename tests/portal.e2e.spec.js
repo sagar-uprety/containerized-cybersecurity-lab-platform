@@ -13,9 +13,9 @@ test('student can open the portal and lab page', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Available Labs' })).toBeVisible();
   await page.getByRole('link', { name: 'Open Lab' }).first().click();
   await expect(page).toHaveURL(new RegExp(`/labs/${labId}$`));
-  await expect(page.getByRole('heading', { name: 'The Exposed Cache' })).toBeVisible();
+  await expect(page.locator('.lab-content h1')).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Lab Guide' })).toBeVisible();
-  await expect(page.getByRole('link', { name: 'Open Lab Guide' })).toHaveAttribute('href', '/docs/labs/redis-exposed/');
+  await expect(page.getByRole('link', { name: 'Open Lab Guide' })).toHaveAttribute('href', `/docs/labs/${labId}/`);
   await expect(page.getByRole('button', { name: /Start Lab|Run Check/ })).toBeVisible();
   await expect(page.getByRole('button', { name: 'Logout' })).toBeVisible();
 });
@@ -83,6 +83,6 @@ test('instructor can view lightweight evidence', async ({ page }) => {
   await page.goto('/instructor');
   await expect(page.getByRole('heading', { name: 'Instructor View' })).toBeVisible();
   await expect(page.getByRole('heading', { name: 'Lab State' })).toBeVisible();
-  await expect(page.getByRole('cell', { name: 'redis-exposed', exact: true })).toBeVisible();
-  await expect(page.getByRole('cell', { name: 'student01', exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('cell', { name: labId, exact: true }).first()).toBeVisible();
+  await expect(page.getByRole('cell', { name: portalUser, exact: true }).first()).toBeVisible();
 });

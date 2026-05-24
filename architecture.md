@@ -76,11 +76,11 @@ The execution node hosts the actual vulnerable workloads inside highly isolated 
 - **Workstation Container**: A safe jump-box equipped with tools (`nmap`, `redis-cli`, `curl`, etc.) and a browser-based terminal (`ttyd`). Students connect here to interact with the vulnerable services. It also exposes a dedicated port for raw SSH fallback access.
 
 ### 4. Lifecycle Controller (`labctl`)
-A Python CLI installed on the Lab Worker. It validates `scenario.yaml`, renders Podman Compose-like templates into exact container commands, runs python `check.py` scripts inside ephemeral containers safely (attached directly to the private `labnet` so vulnerable services aren't exposed), and guarantees clean teardowns.
+A Python CLI installed on the Lab Worker. The small executable delegates to reusable modules under `labctl_core/`. It validates `scenario.yaml`, derives ports/images/checker runtime from scenario metadata, renders Podman templates into exact container commands, runs checker scripts inside ephemeral containers safely attached directly to the private `labnet`, and guarantees clean teardowns.
 
 ### 5. Configuration-as-Code Labs
 Labs are defined in the `labs/` directory. Each lab consists of:
-- `scenario.yaml`: The metadata contract (ports, limits, docs links).
+- `scenario.yaml`: The metadata contract (ports, limits, docs links, image builds, checker runtime).
 - `podman.yml.tpl`: A template defining the containers and private networks.
 - `checks/check.py`: A script classifying the environment as `vulnerable`, `fixed`, or `broken`.
 - `files/` & `seed/`: Configuration files, Dockerfiles, and dummy data.

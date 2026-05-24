@@ -89,7 +89,7 @@
     group: "{{ thesis_admin_group }}"
     mode: preserve
     directory_mode: "0750"
-  loop: "{{ thesis_lab_scenarios | default(['redis-exposed']) }}"
+  loop: "{{ thesis_lab_scenarios }}"
   tags:
     - portal
 

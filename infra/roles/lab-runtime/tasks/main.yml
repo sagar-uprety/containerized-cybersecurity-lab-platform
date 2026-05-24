@@ -11,6 +11,17 @@
     - lab-source
     - lab-runtime
 
+- name: Create labctl library directory
+  ansible.builtin.file:
+    path: "{{ thesis_labctl_lib_root }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  tags:
+    - labctl
+    - lab-runtime
+
 - name: Install lab scenario source trees
   ansible.builtin.copy:
     src: "{{ lab_runtime_local_scenario_root }}/{{ item }}/"
@@ -76,6 +87,19 @@
     owner: root
     group: root
     mode: "0755"
+  tags:
+    - labctl
+
+- name: Install labctl reusable Python package
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../controller/labctl_core/"
+    dest: "{{ thesis_labctl_lib_root }}/labctl_core/"
+    owner: root
+    group: root
+    mode: preserve
+    directory_mode: "0755"
+  tags:
+    - labctl
 
 - name: Install restricted labctl SSH wrapper
   ansible.builtin.template:
@@ -119,7 +143,7 @@
 
 - name: Install lab image build hook
   ansible.builtin.template:
-    src: thesis-build-lab-images.sh.j2
+    src: thesis-build-lab-images.py.j2
     dest: /usr/local/sbin/thesis-build-lab-images
     owner: root
     group: root
@@ -130,11 +154,8 @@
 - name: Check lab image cache
   ansible.builtin.command:
     argv:
-      - "{{ lab_runtime_image_builder }}"
-      - image
-      - exists
-      - "{{ item.name }}"
-  loop: "{{ lab_runtime_image_builds }}"
+      - /usr/local/sbin/thesis-build-lab-images
+      - --check
   register: lab_runtime_image_presence
   changed_when: false
   failed_when: false
@@ -145,7 +166,7 @@
 - name: Determine whether lab images need rebuild
   ansible.builtin.set_fact:
     lab_runtime_sources_changed: "{{ lab_source_copy_results.results | selectattr('changed') | list | length > 0 if lab_source_copy_results is defined else true }}"
-    lab_runtime_images_missing: "{{ lab_runtime_image_presence.results | selectattr('rc', 'ne', 0) | list | length > 0 }}"
+    lab_runtime_images_missing: "{{ lab_runtime_image_presence.rc != 0 }}"
   tags:
     - lab-images
 

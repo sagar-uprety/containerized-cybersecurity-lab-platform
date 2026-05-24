@@ -10,6 +10,7 @@ thesis_admin_group: thesis-admins
 thesis_labadmin_user: labadmin
 thesis_labadmin_home: /var/lib/labadmin
 thesis_labctl_path: /usr/local/bin/labctl
+thesis_labctl_lib_root: /usr/local/lib/thesis-labs
 thesis_labctl_wrapper_path: /usr/local/sbin/labctl-ssh-wrapper
 
 thesis_base_packages:
@@ -65,6 +66,9 @@ thesis_students:
   - id: student01
     number: 1
     password: smoke-password
+
+thesis_lab_scenarios:
+  - redis-exposed
 
 thesis_instructors:
   - username: instructor

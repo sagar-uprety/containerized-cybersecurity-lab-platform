@@ -12,22 +12,8 @@ lab_runtime_student_credentials: "{{ thesis_config_root }}/students.yml"
 lab_runtime_scenario_registry: "{{ thesis_config_root }}/scenarios.txt"
 lab_runtime_scenario_root: "{{ lab_runtime_code_root }}"
 
-thesis_lab_scenarios:
-  - redis-exposed
-
 lab_runtime_directories:
   - "{{ lab_runtime_code_root }}"
   - "{{ lab_runtime_rendered_root }}"
   - "{{ lab_runtime_results_root }}"
   - "{{ thesis_state_root }}/tmp"
-
-lab_runtime_image_builds:
-  - name: thesis-labs/redis-exposed-workstation:latest
-    context: "{{ lab_runtime_code_root }}/redis-exposed"
-    dockerfile: files/workstation.Dockerfile
-  - name: thesis-labs/redis-exposed-redis:latest
-    context: "{{ lab_runtime_code_root }}/redis-exposed"
-    dockerfile: files/redis-host.Dockerfile
-  - name: thesis-labs/redis-exposed-demo-app:latest
-    context: "{{ lab_runtime_code_root }}/redis-exposed"
-    dockerfile: demo-app/Dockerfile

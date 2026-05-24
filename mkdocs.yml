@@ -7,7 +7,6 @@ theme:
   name: mkdocs
 nav:
   - Home: index.md
-  - Runtime Paths: runtime-paths.md
   - Labs:
       - The Exposed Cache: labs/redis-exposed.md
 plugins:

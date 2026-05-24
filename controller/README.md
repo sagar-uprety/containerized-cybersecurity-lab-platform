@@ -32,6 +32,21 @@ Reasoning:
 
 The implementation should keep dependencies minimal and pinned. Any subprocess execution must use argument lists and must not use `shell=True`.
 
+## `labctl` Layout
+
+`controller/labctl` is intentionally a small executable wrapper. Reusable
+lifecycle code lives in `controller/labctl_core/`:
+
+| Module | Purpose |
+|---|---|
+| `cli.py` | Argument validation and verb dispatch. |
+| `config.py` | Runtime path discovery for installed and local development runs. |
+| `scenario.py` | Scenario schema loading, student registry lookup, port derivation, images, and checker metadata. |
+| `podman.py` | Safe argv-based Podman operations. |
+| `lifecycle.py` | Start, stop, reset, destroy, status, and check behavior. |
+
+New labs should extend `scenario.yaml` and `podman.yml.tpl`, not `labctl`.
+
 ## Portal Verification
 
 Local non-live checks:

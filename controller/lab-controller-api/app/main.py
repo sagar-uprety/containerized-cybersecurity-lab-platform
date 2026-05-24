@@ -1,125 +1,42 @@
 import base64
 import json
-import os
 import re
 import threading
 import time
-import uuid
 from pathlib import Path
 from typing import Optional
 
-import yaml
 from fastapi import Depends, FastAPI, Form, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
 from fastapi.templating import Jinja2Templates
 
 from app.auth import get_current_user, get_student_users
 from app.config import settings
+from app.events import read_recent_events, record_event
+from app.form_tokens import generate_token, validate_token
+from app.runtime_state import (
+    forget_runtime_state,
+    load_check_result,
+    remove_runtime_key,
+    runtime_state_for,
+    state_key,
+    touch_runtime_state,
+    tracked_runtime_items,
+    update_runtime_state,
+)
+from app.scenarios import (
+    endpoint_ports,
+    list_scenarios,
+    load_scenario_metadata,
+    student_guide_url,
+    terminal_owner_for_port,
+    user_student_id,
+    validate_lab_id,
+)
 from app.ssh_client import run_labctl
 
 app = FastAPI(title="Thesis Lab Portal")
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
-
-LAB_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
-FORM_TOKENS = {}
-FORM_TOKEN_LOCK = threading.Lock()
-LAB_STATE = {}
-LAB_STATE_LOCK = threading.Lock()
-EVENT_LOCK = threading.Lock()
-
-
-def validate_lab_id(lab_id: str) -> None:
-    if not LAB_ID_PATTERN.fullmatch(lab_id):
-        raise HTTPException(status_code=404, detail="Lab not found")
-
-
-def user_student_id(user: dict) -> str:
-    return user.get("student_id") or user["username"]
-
-
-def student_number(student_id: str, user: Optional[dict] = None) -> int:
-    if user and user.get("number") is not None:
-        return int(user["number"])
-    match = re.fullmatch(r"student([0-9]{2,4})", student_id)
-    if not match:
-        raise HTTPException(status_code=400, detail="Invalid student identity")
-    return int(match.group(1))
-
-
-def state_key(lab_id: str, student_id: str) -> str:
-    return f"{lab_id}:{student_id}"
-
-
-def generate_token(user: dict) -> str:
-    token = str(uuid.uuid4())
-    with FORM_TOKEN_LOCK:
-        FORM_TOKENS[token] = {
-            "username": user["username"],
-            "created_at": time.time(),
-        }
-    return token
-
-
-def validate_token(token: str, user: dict) -> None:
-    now = time.time()
-    with FORM_TOKEN_LOCK:
-        token_state = FORM_TOKENS.get(token)
-        expired = [
-            existing
-            for existing, value in FORM_TOKENS.items()
-            if now - value["created_at"] > settings.FORM_TOKEN_TTL_SECONDS
-        ]
-        for existing in expired:
-            FORM_TOKENS.pop(existing, None)
-
-    if not token_state:
-        raise HTTPException(status_code=400, detail="Invalid form token")
-    if token_state["username"] != user["username"]:
-        raise HTTPException(status_code=400, detail="Invalid form token")
-    if now - token_state["created_at"] > settings.FORM_TOKEN_TTL_SECONDS:
-        raise HTTPException(status_code=400, detail="Expired form token")
-
-
-def load_scenario_metadata(lab_id: str):
-    validate_lab_id(lab_id)
-    path = Path(settings.LABS_DIR) / lab_id / "scenario.yaml"
-    if not path.exists():
-        return None
-    with path.open("r", encoding="utf-8") as handle:
-        scenario = yaml.safe_load(handle) or {}
-    if scenario.get("id") != lab_id:
-        raise HTTPException(status_code=500, detail="Scenario metadata id mismatch")
-    return scenario
-
-
-def list_scenarios():
-    labs = []
-    root = Path(settings.LABS_DIR)
-    if not root.exists():
-        return labs
-    for scenario_path in sorted(root.glob("*/scenario.yaml")):
-        lab_id = scenario_path.parent.name
-        if not LAB_ID_PATTERN.fullmatch(lab_id):
-            continue
-        scenario = load_scenario_metadata(lab_id)
-        if scenario:
-            labs.append(scenario)
-    return labs
-
-
-def endpoint_ports(scenario: dict, student_id: str, user: Optional[dict] = None) -> dict:
-    number = student_number(student_id, user)
-    access = scenario.get("access", {})
-    return {
-        "terminal": int(access.get("browser_terminal_port_base", 19000)) + number,
-        "ssh": int(access.get("ssh_port_base", 22000)) + number,
-        "app": int(access.get("app_port_base", 18000)) + number,
-    }
-
-
-def student_guide_url(scenario: dict) -> str:
-    documentation = scenario.get("documentation", {})
-    return documentation.get("student_guide_url") or f"/docs/labs/{scenario['id']}/"
 
 
 def get_lab_status(lab_id: str, student_id: str) -> str:
@@ -128,49 +45,6 @@ def get_lab_status(lab_id: str, student_id: str) -> str:
         return "error"
     status_text = stdout.strip()
     return status_text or "not_created"
-
-
-def record_event(
-    action: str,
-    lab_id: str,
-    student_id: str,
-    actor: str,
-    result: str,
-    duration_seconds: Optional[float] = None,
-    detail: Optional[str] = None,
-) -> None:
-    event = {
-        "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
-        "lab": lab_id,
-        "student": student_id,
-        "actor": actor,
-        "action": action,
-        "result": result,
-    }
-    if duration_seconds is not None:
-        event["duration_seconds"] = round(duration_seconds, 3)
-    if detail:
-        event["detail"] = detail[:240]
-
-    event_path = Path(settings.EVENT_LOG_PATH)
-    event_path.parent.mkdir(parents=True, exist_ok=True)
-    with EVENT_LOCK:
-        with event_path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(event, sort_keys=True) + "\n")
-
-
-def read_recent_events(limit: int = 50):
-    event_path = Path(settings.EVENT_LOG_PATH)
-    if not event_path.exists():
-        return []
-    lines = event_path.read_text(encoding="utf-8").splitlines()[-limit:]
-    events = []
-    for line in lines:
-        try:
-            events.append(json.loads(line))
-        except json.JSONDecodeError:
-            continue
-    return list(reversed(events))
 
 
 def run_action(verb: str, lab_id: str, user: dict) -> tuple[bool, str, str, float]:
@@ -189,16 +63,6 @@ def run_action(verb: str, lab_id: str, user: dict) -> tuple[bool, str, str, floa
         detail=stderr if stderr else None,
     )
     return success, stdout, stderr, duration
-
-
-def update_runtime_state(lab_id: str, student_id: str, status_text: str, **extra) -> None:
-    with LAB_STATE_LOCK:
-        value = LAB_STATE.setdefault(
-            state_key(lab_id, student_id),
-            {"started_at": time.time(), "last_seen": time.time()},
-        )
-        value["status"] = status_text
-        value.update(extra)
 
 
 def running_student_count(exclude_key: Optional[str] = None) -> int:
@@ -264,9 +128,8 @@ def lab_detail(request: Request, lab_id: str, user: dict = Depends(get_current_u
 
     ports = endpoint_ports(scenario, student_id, user if user["role"] == "student" else None)
 
-    with LAB_STATE_LOCK:
-        runtime_state = LAB_STATE.get(state_key(lab_id, student_id), {})
-        check_result = runtime_state.get("last_check")
+    runtime_state = runtime_state_for(lab_id, student_id)
+    check_result = runtime_state.get("last_check") or load_check_result(lab_id, student_id)
 
     return templates.TemplateResponse(
         "detail.html",
@@ -302,7 +165,7 @@ def lab_status(lab_id: str, user: dict = Depends(get_current_user)):
         "endpoints": {
             "browser_terminal": f"/terminal/{ports['terminal']}/",
             "ssh": f"ssh {student_id}@{settings.WORKER_HOST} -p {ports['ssh']}",
-            "demo_app": f"http://{settings.WORKER_HOST}:{ports['app']}/",
+            "app": f"http://{settings.WORKER_HOST}:{ports['app']}/",
         },
     }
 
@@ -388,8 +251,7 @@ def end_lab(
     validate_token(csrf_token, user)
     success, _stdout, stderr, _duration = run_action("destroy", lab_id, user)
     student_id = user_student_id(user)
-    with LAB_STATE_LOCK:
-        LAB_STATE.pop(state_key(lab_id, student_id), None)
+    forget_runtime_state(lab_id, student_id)
     if not success:
         raise HTTPException(status_code=502, detail=stderr or "Failed to end lab")
     return RedirectResponse(url=f"/labs/{lab_id}", status_code=303)
@@ -439,9 +301,7 @@ def check_lab(
 def heartbeat(lab_id: str, user: dict = Depends(get_current_user)):
     validate_lab_id(lab_id)
     student_id = user_student_id(user)
-    with LAB_STATE_LOCK:
-        if state_key(lab_id, student_id) in LAB_STATE:
-            LAB_STATE[state_key(lab_id, student_id)]["last_seen"] = time.time()
+    touch_runtime_state(lab_id, student_id)
     return {"status": "ok", "lab_id": lab_id, "student": student_id}
 
 
@@ -459,15 +319,7 @@ def terminal_auth(
             raise HTTPException(status_code=400, detail="Missing terminal endpoint")
         terminal_port = int(match.group(1))
 
-    terminal_owner = None
-    for student in get_student_users().values():
-        for scenario in list_scenarios():
-            expected = endpoint_ports(scenario, student["student_id"], student)["terminal"]
-            if expected == terminal_port:
-                terminal_owner = student
-                break
-        if terminal_owner:
-            break
+    terminal_owner = terminal_owner_for_port(terminal_port)
 
     if not terminal_owner:
         raise HTTPException(status_code=404, detail="Unknown terminal endpoint")
@@ -525,8 +377,7 @@ def lab_lifecycle_manager():
     while True:
         try:
             current_time = time.time()
-            with LAB_STATE_LOCK:
-                tracked_items = list(LAB_STATE.items())
+            tracked_items = tracked_runtime_items()
 
             for key, runtime_state in tracked_items:
                 try:
@@ -586,8 +437,7 @@ def lab_lifecycle_manager():
                         detail=stderr if stderr else None,
                     )
                     if success:
-                        with LAB_STATE_LOCK:
-                            LAB_STATE.pop(key, None)
+                        remove_runtime_key(key)
         except Exception as exc:
             record_event("scheduler", "system", "system", "scheduler", "error", detail=str(exc))
 

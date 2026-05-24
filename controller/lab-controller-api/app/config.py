@@ -31,6 +31,7 @@ class Settings:
     STUDENT_REGISTRY = os.environ.get("STUDENT_REGISTRY", "/etc/thesis-labs/students.txt")
     PORTAL_USERS_FILE = os.environ.get("PORTAL_USERS_FILE", "/etc/thesis-labs/portal-users.yml")
     LABS_DIR = os.environ.get("LABS_DIR", "/opt/thesis-labs/labs")
+    RESULTS_DIR = os.environ.get("RESULTS_DIR", "/var/lib/thesis-labs/results")
 
     MAX_CONCURRENT_STUDENTS = _int_from_env("MAX_CONCURRENT_STUDENTS", 1)
     EVALUATION_MODE = _bool_from_env("EVALUATION_MODE", False)

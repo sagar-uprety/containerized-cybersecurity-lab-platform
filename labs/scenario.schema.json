@@ -15,6 +15,7 @@
     "access",
     "lifecycle",
     "checker",
+    "build",
     "resources",
     "hints",
     "artifacts"
@@ -176,14 +177,56 @@
     "checker": {
       "type": "object",
       "additionalProperties": true,
-      "required": ["states"],
+      "required": ["command", "image_service", "states"],
       "properties": {
+        "command": {
+          "type": "string",
+          "minLength": 1
+        },
+        "image_service": {
+          "type": "string",
+          "minLength": 1
+        },
         "states": {
           "type": "array",
           "items": {
             "enum": ["vulnerable", "fixed", "broken"]
           },
           "minItems": 3
+        }
+      }
+    },
+    "build": {
+      "type": "object",
+      "additionalProperties": true,
+      "required": ["images"],
+      "properties": {
+        "images": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["name", "context", "dockerfile"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "minLength": 1
+              },
+              "context": {
+                "type": "string",
+                "minLength": 1
+              },
+              "dockerfile": {
+                "type": "string",
+                "minLength": 1
+              },
+              "service": {
+                "type": "string",
+                "minLength": 1
+              }
+            }
+          }
         }
       }
     },

@@ -28,7 +28,6 @@ playwright-report/
 venv/
 env/
 
-
 # Local Ansible runtime cache
 .ansible/
 infra/host_vars/

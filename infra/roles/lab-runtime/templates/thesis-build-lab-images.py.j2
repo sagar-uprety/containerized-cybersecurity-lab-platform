@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+import argparse
+import subprocess
+import sys
+from pathlib import Path
+
+import yaml
+
+
+SCENARIO_ROOT = Path("{{ lab_runtime_code_root }}")
+SCENARIOS = {{ thesis_lab_scenarios | to_json }}
+IMAGE_BUILDER = "{{ lab_runtime_image_builder }}"
+PLATFORM_LABEL = "{{ thesis_platform_name }}"
+
+
+def fail(message):
+    print(message, file=sys.stderr)
+    sys.exit(1)
+
+
+def run(args, check=True):
+    result = subprocess.run(args, text=True, capture_output=True)
+    if check and result.returncode != 0:
+        fail(
+            "Command failed: {}\nSTDOUT: {}\nSTDERR: {}".format(
+                " ".join(args), result.stdout, result.stderr
+            )
+        )
+    return result
+
+
+def safe_relative_path(value, label):
+    path = Path(str(value))
+    if path.is_absolute() or ".." in path.parts:
+        fail(f"{label} must be a relative path inside the lab package: {value}")
+    return path
+
+
+def image_definitions():
+    images = []
+    for lab_id in SCENARIOS:
+        scenario_path = SCENARIO_ROOT / lab_id / "scenario.yaml"
+        if not scenario_path.exists():
+            fail(f"Scenario metadata not found: {scenario_path}")
+        scenario = yaml.safe_load(scenario_path.read_text(encoding="utf-8")) or {}
+        for image in scenario.get("build", {}).get("images", []):
+            name = image.get("name")
+            if not name:
+                fail(f"Build image entry in {scenario_path} is missing name")
+            context = SCENARIO_ROOT / lab_id / safe_relative_path(image.get("context", "."), "build.images.context")
+            dockerfile = context / safe_relative_path(image.get("dockerfile"), "build.images.dockerfile")
+            images.append({"lab_id": lab_id, "name": name, "context": context, "dockerfile": dockerfile})
+    return images
+
+
+def image_exists(name):
+    return run([IMAGE_BUILDER, "image", "exists", name], check=False).returncode == 0
+
+
+def check_images(images):
+    missing = [image["name"] for image in images if not image_exists(image["name"])]
+    if missing:
+        print("Missing lab images:")
+        for name in missing:
+            print(f"- {name}")
+        return 1
+    return 0
+
+
+def build_images(images):
+    for image in images:
+        if not image["context"].exists():
+            fail(f"Build context not found: {image['context']}")
+        if not image["dockerfile"].exists():
+            fail(f"Dockerfile not found: {image['dockerfile']}")
+        run([
+            IMAGE_BUILDER,
+            "build",
+            "--label", f"thesis.platform={PLATFORM_LABEL}",
+            "--label", f"thesis.lab={image['lab_id']}",
+            "--tag", image["name"],
+            "--file", str(image["dockerfile"]),
+            str(image["context"]),
+        ])
+    return 0
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Build or verify cached thesis lab images")
+    parser.add_argument("--check", action="store_true", help="return non-zero if any scenario image is missing")
+    args = parser.parse_args()
+    images = image_definitions()
+    if not images:
+        fail("No scenario image build definitions found")
+    if args.check:
+        sys.exit(check_images(images))
+    sys.exit(build_images(images))
+
+
+if __name__ == "__main__":
+    main()
