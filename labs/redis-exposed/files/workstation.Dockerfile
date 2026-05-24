@@ -57,6 +57,7 @@ COPY hints/ /opt/lab/student/hints/
 RUN useradd --create-home --shell /bin/bash --uid 1000 student \
     && mkdir -p /run/sshd /etc/ssh/sshd_config.d /opt/lab/student \
     && ssh-keygen -A \
+    && sed -i 's/^session\s\+required\s\+pam_loginuid.so/session optional pam_loginuid.so/' /etc/pam.d/sshd \
     && printf '%s\n' \
       'PasswordAuthentication yes' \
       'PermitRootLogin no' \

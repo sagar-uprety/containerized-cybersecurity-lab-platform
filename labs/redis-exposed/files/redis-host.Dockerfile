@@ -20,6 +20,7 @@ COPY seed/redis-seed.txt /opt/lab/seed/redis-seed.txt
 
 RUN useradd --create-home --shell /bin/bash redisadmin \
     && ssh-keygen -A \
+    && sed -i 's/^session\s\+required\s\+pam_loginuid.so/session optional pam_loginuid.so/' /etc/pam.d/sshd \
     && printf '%s\n' \
       'PasswordAuthentication yes' \
       'PermitRootLogin no' \

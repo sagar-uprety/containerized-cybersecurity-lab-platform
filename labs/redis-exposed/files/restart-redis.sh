@@ -20,6 +20,7 @@ fi
 
 mkdir -p /data
 chown -R redis:redis /data /usr/local/etc/redis
+chmod -R a+rwX /usr/local/etc/redis
 touch "${LOG_FILE}"
 chown redis:redis "${LOG_FILE}"
 

@@ -126,6 +126,8 @@ containers:
       no_new_privileges: false
       privileged: false
       host_network: false
+      cap_add:
+        - AUDIT_WRITE
     resources:
       cpus: "{{ resources['redis-host'].cpus }}"
       memory: "{{ resources['redis-host'].memory }}"

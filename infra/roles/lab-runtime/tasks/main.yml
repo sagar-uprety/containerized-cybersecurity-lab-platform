@@ -124,6 +124,8 @@
     owner: root
     group: root
     mode: "0755"
+  tags:
+    - lab-images
 
 - name: Check lab image cache
   ansible.builtin.command:
@@ -137,11 +139,15 @@
   changed_when: false
   failed_when: false
   check_mode: false
+  tags:
+    - lab-images
 
 - name: Determine whether lab images need rebuild
   ansible.builtin.set_fact:
-    lab_runtime_sources_changed: "{{ lab_source_copy_results.results | selectattr('changed') | list | length > 0 }}"
+    lab_runtime_sources_changed: "{{ lab_source_copy_results.results | selectattr('changed') | list | length > 0 if lab_source_copy_results is defined else true }}"
     lab_runtime_images_missing: "{{ lab_runtime_image_presence.results | selectattr('rc', 'ne', 0) | list | length > 0 }}"
+  tags:
+    - lab-images
 
 - name: Explain lab image build skipped in check mode
   ansible.builtin.debug:
@@ -151,6 +157,8 @@
     - ansible_check_mode
     - lab_runtime_build_images | bool
     - lab_runtime_sources_changed or lab_runtime_images_missing
+  tags:
+    - lab-images
 
 - name: Build or refresh lab images
   ansible.builtin.command:
@@ -161,6 +169,8 @@
     - not ansible_check_mode
     - lab_runtime_build_images | bool
     - lab_runtime_sources_changed or lab_runtime_images_missing
+  tags:
+    - lab-images
 
 - name: Check whether lab cleanup timer already exists
   ansible.builtin.stat:

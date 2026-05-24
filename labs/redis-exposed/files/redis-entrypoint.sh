@@ -16,6 +16,7 @@ if [ ! -f "${CONFIG_PATH}" ]; then
 fi
 
 chown -R redis:redis /data /usr/local/etc/redis
+chmod -R a+rwX /usr/local/etc/redis
 
 /usr/sbin/sshd
 /usr/local/sbin/restart-redis
