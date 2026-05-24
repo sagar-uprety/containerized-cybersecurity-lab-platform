@@ -1,9 +1,0 @@
-Redis commonly listens on port 6379. Check whether it accepts commands without credentials.
-
-Useful commands:
-
-redis-cli -h redis-host ping
-redis-cli -h redis-host keys '*'
-redis-cli -h redis-host get support_token:demo-only-token
-
-Only use the fake demo data. The important finding is whether Redis asks for authentication before allowing reads or writes.

@@ -58,5 +58,5 @@ portal.
 
 ## 6. Reflect
 
-Complete `~/REFLECTION.md` with root cause, impact, remediation, verification,
+Provide root cause, impact, remediation, and verification.
 and prevention.

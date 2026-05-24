@@ -156,15 +156,13 @@ safety:
     url_arguments_allowed: false
     once_requires_supervised_restart: true
 
-hints:
-  - hints/hint-1.txt
-  - hints/hint-2.txt
-  - hints/hint-3.txt
+student_experience:
+  seed_files:
+    - seed/redis-seed.txt
 
 artifacts:
   student_guide: student-guide.md
   instructor_guide: instructor-guide.md
   solution_notes: solution-notes.md
   sitrep: files/SITREP.txt
-  reflection_template: files/REFLECTION.md
   fixed_config_example: files/redis.conf.fixed.example

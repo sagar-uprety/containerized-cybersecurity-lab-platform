@@ -16,12 +16,6 @@ cp /etc/skel/.profile /home/student/.profile || true
 if [ ! -f /home/student/SITREP.txt ]; then
   cp /opt/lab/student/SITREP.txt /home/student/SITREP.txt
 fi
-if [ ! -f /home/student/REFLECTION.md ]; then
-  cp /opt/lab/student/REFLECTION.md /home/student/REFLECTION.md
-fi
-if [ ! -d /home/student/hints ]; then
-  cp -R /opt/lab/student/hints /home/student/hints
-fi
 chown -R student:student /home/student
 
 mkdir -p /run/sshd

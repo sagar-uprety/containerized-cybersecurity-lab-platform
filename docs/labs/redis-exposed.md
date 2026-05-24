@@ -23,7 +23,6 @@ Important paths:
 
 - Redis config: `/lab/redis/redis.conf`
 - Demo app config: `/lab/demo-app/app-config.env`
-- Reflection template: `~/REFLECTION.md`
 
 ## 2. Discover
 
@@ -74,6 +73,6 @@ curl -s http://demo-app:8080/health
 
 The unauthenticated Redis command should fail. The authenticated Redis command and app health check should succeed. Then run **Run Check** in the portal.
 
-## 6. Reflect
+## 6. Finish
 
-Complete `~/REFLECTION.md` with the root cause, impact, remediation, verification result, and prevention idea.
+Congratulations, you have completed the lab!

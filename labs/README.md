@@ -11,8 +11,6 @@ The first scenario is `redis-exposed`, a browser-terminal-first Redis misconfigu
 - checks
 - optional app source directories such as `demo-app/`
 - `files/` for mounted/student-facing lab files and image support files
-- hints with concrete command examples
-- reflection artifacts
 - `student-guide.md` as a pointer to the canonical MkDocs page, plus `instructor-guide.md` and `solution-notes.md`
 
 Every `scenario.yaml` must satisfy the shared scenario schema before `labctl` renders templates or starts a lab.

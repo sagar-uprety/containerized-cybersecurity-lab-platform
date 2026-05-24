@@ -51,8 +51,7 @@ RUN apt-get update \
 
 COPY --from=ttyd-builder /usr/local/bin/ttyd /usr/local/bin/ttyd
 COPY files/workstation-entrypoint.sh /usr/local/sbin/workstation-entrypoint
-COPY files/SITREP.txt files/REFLECTION.md /opt/lab/student/
-COPY hints/ /opt/lab/student/hints/
+COPY files/SITREP.txt /opt/lab/student/
 
 RUN useradd --create-home --shell /bin/bash --uid 1000 student \
     && mkdir -p /run/sshd /etc/ssh/sshd_config.d /opt/lab/student \

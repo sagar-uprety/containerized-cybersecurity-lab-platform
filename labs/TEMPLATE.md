@@ -20,14 +20,9 @@ agents can work consistently.
     entrypoint.sh
   files/
     SITREP.txt
-    REFLECTION.md
     *.Dockerfile
     *.sh
     service config examples
-  hints/
-    hint-1.txt
-    hint-2.txt
-    hint-3.txt
   seed/
     seed data and generated config templates
 ```
