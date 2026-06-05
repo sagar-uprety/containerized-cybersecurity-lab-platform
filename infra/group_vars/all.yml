@@ -60,8 +60,6 @@ thesis_student_terminal_port_range: "19001-19999"
 thesis_student_ssh_port_range: "22001-22999"
 thesis_student_app_port_range: "18001-18999"
 
-thesis_controller_public_key: "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIINqsLd2eoa+T6/rMXJ+hmszgkndH2L/HmDI5tNPoePa sagar@Sagars-MacBook-Air.local"
-
 thesis_students:
   - id: student01
     number: 1

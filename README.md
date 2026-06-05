@@ -4,7 +4,7 @@ This repository contains the implementation artifacts for a VM-hosted, container
 
 ## Architecture
 
-Please see [**`architecture.md`**](architecture.md) for a high-level overview of the components, network flow, and the platform lifecycle. 
+Please see [**`platform-docs/architecture.md`**](platform-docs/architecture.md) for a high-level overview of the components, network flow, and the platform lifecycle. 
 
 
 ## Repository Areas

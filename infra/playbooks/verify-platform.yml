@@ -50,6 +50,13 @@
       register: labadmin_authorized_keys_check
       changed_when: false
 
+    - name: Read labadmin authorized keys
+      ansible.builtin.slurp:
+        path: "{{ thesis_labadmin_home }}/.ssh/authorized_keys"
+      register: labadmin_authorized_keys_contents
+      changed_when: false
+      when: labadmin_authorized_keys_check.stat.exists
+
     - name: Run labadmin wrapper rejection cases
       ansible.builtin.command:
         argv:
@@ -109,7 +116,9 @@
           - podman_version_check.rc == 0
           - buildah_version_check.rc == 0
           - labctl_wrapper_check.stat.executable
-          - (not labadmin_authorized_keys_check.stat.exists) or (thesis_controller_public_key | length > 0)
+          - labadmin_authorized_keys_check.stat.exists
+          - "'command=\"' ~ thesis_labctl_wrapper_path ~ '\"' in (labadmin_authorized_keys_contents.content | b64decode)"
+          - "'no-pty,no-agent-forwarding,no-X11-forwarding,no-port-forwarding' in (labadmin_authorized_keys_contents.content | b64decode)"
           - lab_cleanup_timer_enabled.stdout == "enabled"
           - lab_cleanup_timer_active.stdout == "active"
 
@@ -158,9 +167,107 @@
       register: management_dir_stats
       changed_when: false
 
+    - name: Check generated controller SSH key files
+      ansible.builtin.stat:
+        path: "{{ item.path }}"
+      loop:
+        - path: "{{ management_controller_ssh_key_path }}"
+          mode: "0600"
+        - path: "{{ management_controller_ssh_key_path }}.pub"
+          mode: "0640"
+      register: management_controller_key_stats
+      changed_when: false
+
+    - name: Check portal service is enabled
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - is-enabled
+          - thesis-portal
+      register: management_portal_enabled
+      changed_when: false
+
+    - name: Check portal service is active
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - is-active
+          - thesis-portal
+      register: management_portal_active
+      changed_when: false
+
+    - name: Read portal service definition
+      ansible.builtin.slurp:
+        src: /etc/systemd/system/thesis-portal.service
+      register: management_portal_service_definition
+      changed_when: false
+
+    - name: Check Nginx service is enabled
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - is-enabled
+          - nginx
+      register: management_nginx_enabled
+      changed_when: false
+      when: thesis_portal_nginx_enabled | bool
+
+    - name: Check Nginx service is active
+      ansible.builtin.command:
+        argv:
+          - systemctl
+          - is-active
+          - nginx
+      register: management_nginx_active
+      changed_when: false
+      when: thesis_portal_nginx_enabled | bool
+
+    - name: Check managed Nginx portal config exists
+      ansible.builtin.stat:
+        path: /etc/nginx/conf.d/thesis-portal.conf
+      register: management_nginx_portal_config
+      changed_when: false
+      when: thesis_portal_nginx_enabled | bool
+
+    - name: Check SELinux Nginx network proxy boolean
+      ansible.builtin.command:
+        argv:
+          - getsebool
+          - httpd_can_network_connect
+      register: management_nginx_network_connect
+      changed_when: false
+      when: thesis_portal_nginx_enabled | bool
+
     - name: Assert management directories exist
       ansible.builtin.assert:
         that:
           - item.stat.isdir
         fail_msg: "Missing management directory: {{ item.item }}"
       loop: "{{ management_dir_stats.results }}"
+
+    - name: Assert generated controller SSH key files exist
+      ansible.builtin.assert:
+        that:
+          - item.stat.exists
+          - item.stat.mode == item.item.mode
+        fail_msg: "Generated controller SSH key file is missing or has wrong mode: {{ item.item.path }}"
+      loop: "{{ management_controller_key_stats.results }}"
+
+    - name: Assert portal service and admission-control config are present
+      ansible.builtin.assert:
+        that:
+          - management_portal_enabled.stdout == "enabled"
+          - management_portal_active.stdout == "active"
+          - "'Environment=\"SSH_KEY_PATH=' ~ management_controller_ssh_key_path ~ '\"' in (management_portal_service_definition.content | b64decode)"
+          - "'Environment=\"MAX_CONCURRENT_STUDENTS=' ~ thesis_max_concurrent_students ~ '\"' in (management_portal_service_definition.content | b64decode)"
+          - "'--host 127.0.0.1 --port 8000' in (management_portal_service_definition.content | b64decode)"
+
+    - name: Assert Nginx proxy service and SELinux network access are ready
+      ansible.builtin.assert:
+        that:
+          - management_nginx_enabled.stdout == "enabled"
+          - management_nginx_active.stdout == "active"
+          - management_nginx_portal_config.stat.exists
+          - management_nginx_network_connect.rc == 0
+          - "'--> on' in management_nginx_network_connect.stdout"
+      when: thesis_portal_nginx_enabled | bool

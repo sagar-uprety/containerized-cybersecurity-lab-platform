@@ -4,7 +4,7 @@ This directory contains the Playwright End-to-End tests for the platform.
 
 ## Test Suites
 
-1. **`portal.e2e.spec.js`**: Core UI tests for the FastAPI portal. Validates that the login works, endpoints display, the split-pane terminal UI renders, CSRF tokens work, and the instructor view functions.
+1. **`portal.e2e.spec.js`**: Portal and access-layer tests for the FastAPI UI. Validates page rendering, CSRF rejection, lab links, embedded terminal iframe/WebSocket/writability, checker action behavior, and instructor view.
 
 ## Running Locally
 

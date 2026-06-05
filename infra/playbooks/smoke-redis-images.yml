@@ -52,12 +52,19 @@
               - --label
               - "thesis.platform={{ thesis_platform_name }}"
               - -e
+              - LAB_ID=redis-exposed
+              - -e
+              - STUDENT_ID=student01
+              - -e
               - TTYD_CREDENTIAL=student:smoke-password
               - -e
               - STUDENT_PASSWORD=smoke-password
+              - -e
+              - "BROWSER_TERMINAL_PORT={{ workstation_smoke_port }}"
               - -p
               - "127.0.0.1:{{ workstation_smoke_port }}:19000"
               - "{{ workstation_image }}"
+          changed_when: true
 
         - name: Wait for authenticated ttyd token endpoint
           ansible.builtin.command:
@@ -66,7 +73,7 @@
               - -fsS
               - -u
               - student:smoke-password
-              - "http://127.0.0.1:{{ workstation_smoke_port }}/token"
+              - "http://127.0.0.1:{{ workstation_smoke_port }}/terminal/{{ workstation_smoke_port }}/token"
           register: ttyd_token_smoke
           until: ttyd_token_smoke.rc == 0
           retries: 10
@@ -82,7 +89,7 @@
               - /dev/null
               - -w
               - "%{http_code}"
-              - "http://127.0.0.1:{{ workstation_smoke_port }}/token"
+              - "http://127.0.0.1:{{ workstation_smoke_port }}/terminal/{{ workstation_smoke_port }}/token"
           register: ttyd_unauthenticated_smoke
           changed_when: false
           failed_when: false
@@ -105,8 +112,46 @@
               - ttyd_unauthenticated_smoke.stdout == "401"
               - "'--credential' in ttyd_process_smoke.stdout"
               - "'--writable' in ttyd_process_smoke.stdout"
-              - "'--max-clients 1' in ttyd_process_smoke.stdout"
+              - "'--max-clients' not in ttyd_process_smoke.stdout"
               - "'--url-arg' not in ttyd_process_smoke.stdout"
+
+        - name: Run an interactive shell command for logging smoke
+          ansible.builtin.command:
+            argv:
+              - podman
+              - exec
+              - --user
+              - student
+              - --workdir
+              - /home/student
+              - --env
+              - HOME=/home/student
+              - "{{ workstation_smoke_container }}"
+              - /bin/bash
+              - -i
+              - -c
+              - history -s 'printf logger-smoke-ok >/dev/null'; __thesis_log_command
+          changed_when: false
+
+        - name: Read command logger smoke output
+          ansible.builtin.command:
+            argv:
+              - podman
+              - exec
+              - "{{ workstation_smoke_container }}"
+              - /bin/sh
+              - -c
+              - jq -c . /var/log/thesis-labs/commands/commands.jsonl
+          register: command_logger_smoke
+          changed_when: false
+
+        - name: Assert command and session logs were recorded
+          ansible.builtin.assert:
+            that:
+              - "'\"event\":\"command\"' in command_logger_smoke.stdout"
+              - "'\"command\":\"printf logger-smoke-ok >/dev/null\"' in command_logger_smoke.stdout"
+              - "'\"event\":\"session_end\"' in command_logger_smoke.stdout"
+              - "'\"duration_seconds\"' in command_logger_smoke.stdout"
       always:
         - name: Remove workstation smoke container
           ansible.builtin.command:
@@ -152,6 +197,7 @@
               - --label
               - "thesis.platform={{ thesis_platform_name }}"
               - "{{ redis_smoke_network }}"
+          changed_when: true
 
         - name: Start Redis smoke container
           ansible.builtin.command:
@@ -168,6 +214,7 @@
               - --network-alias
               - redis-host
               - "{{ redis_image }}"
+          changed_when: true
 
         - name: Wait for Redis to answer PING
           ansible.builtin.command:
@@ -248,6 +295,7 @@
               - --network-alias
               - demo-app
               - "{{ demo_app_image }}"
+          changed_when: true
 
         - name: Wait for demo app health
           ansible.builtin.command:

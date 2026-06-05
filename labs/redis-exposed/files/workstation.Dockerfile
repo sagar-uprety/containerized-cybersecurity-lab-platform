@@ -51,6 +51,7 @@ RUN apt-get update \
 
 COPY --from=ttyd-builder /usr/local/bin/ttyd /usr/local/bin/ttyd
 COPY files/workstation-entrypoint.sh /usr/local/sbin/workstation-entrypoint
+COPY files/thesis-command-logger.bash /usr/local/lib/thesis-command-logger.bash
 COPY files/SITREP.txt /opt/lab/student/
 
 RUN useradd --create-home --shell /bin/bash --uid 1000 student \
@@ -63,6 +64,7 @@ RUN useradd --create-home --shell /bin/bash --uid 1000 student \
       'AllowUsers student' \
       > /etc/ssh/sshd_config.d/lab.conf \
     && chmod 0755 /usr/local/sbin/workstation-entrypoint \
+    && chmod 0644 /usr/local/lib/thesis-command-logger.bash \
     && chmod 0755 /usr/local/bin/ttyd \
     && chmod -R a+rX /opt/lab/student \
     && chmod u+s /usr/bin/ping

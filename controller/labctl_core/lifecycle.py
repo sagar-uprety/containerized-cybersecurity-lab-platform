@@ -1,4 +1,5 @@
 import logging
+import json
 from typing import Optional
 
 import yaml
@@ -178,3 +179,30 @@ class LabRuntime:
             print("stopped")
         else:
             print("error")
+
+        command_logs = self._recent_command_logs(runtime_project)
+        if command_logs:
+            print("command_logs: " + json.dumps(command_logs, sort_keys=True))
+
+    def _recent_command_logs(self, runtime_project: str, limit: int = 25) -> list[dict]:
+        volume_name = f"{runtime_project}_command_logs"
+        result = run_command(
+            ["podman", "volume", "inspect", "-f", "{{.Mountpoint}}", volume_name],
+            check=False,
+        )
+        if result.returncode != 0:
+            return []
+
+        log_path = self.paths.command_log_path(result.stdout.strip())
+        if not log_path.exists():
+            return []
+
+        entries = []
+        for line in log_path.read_text(encoding="utf-8", errors="replace").splitlines()[-limit:]:
+            try:
+                entry = json.loads(line)
+            except json.JSONDecodeError:
+                continue
+            if isinstance(entry, dict):
+                entries.append(entry)
+        return entries

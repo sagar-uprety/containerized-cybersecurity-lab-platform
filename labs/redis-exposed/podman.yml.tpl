@@ -35,6 +35,11 @@ volumes:
       thesis.platform: "{{ thesis_platform_name }}"
       thesis.lab: "{{ lab_id }}"
       thesis.student: "{{ student_id }}"
+  - name: "{{ runtime_project }}_command_logs"
+    labels:
+      thesis.platform: "{{ thesis_platform_name }}"
+      thesis.lab: "{{ lab_id }}"
+      thesis.student: "{{ student_id }}"
 
 containers:
   - name: "{{ runtime_project }}_workstation"
@@ -67,6 +72,8 @@ containers:
         target: /lab/redis
       - source: "{{ runtime_project }}_app_config"
         target: /lab/demo-app
+      - source: "{{ runtime_project }}_command_logs"
+        target: /var/log/thesis-labs/commands
     network:
       name: "{{ runtime_project }}_labnet"
       aliases:

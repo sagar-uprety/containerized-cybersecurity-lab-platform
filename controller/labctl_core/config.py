@@ -20,6 +20,9 @@ class RuntimePaths:
             os.environ.get("THESIS_LABS_STUDENT_CREDENTIALS", "/etc/thesis-labs/students.yml")
         )
 
+    def command_log_path(self, volume_mountpoint: str) -> Path:
+        return Path(volume_mountpoint) / "commands.jsonl"
+
     def ensure_state_dirs(self) -> None:
         self.rendered_dir.mkdir(parents=True, exist_ok=True)
         self.results_dir.mkdir(parents=True, exist_ok=True)

@@ -26,7 +26,39 @@
     </tbody>
 </table>
 
-<h2 style="margin-top: 1.5rem;">Recent Events</h2>
+<h2 class="section-heading">Recent Terminal Commands</h2>
+<table class="table">
+    <thead>
+        <tr>
+            <th>Time</th>
+            <th>Lab</th>
+            <th>Student</th>
+            <th>Session</th>
+            <th>Event</th>
+            <th>Command / Detail</th>
+            <th>Duration</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for entry in command_logs %}
+            <tr>
+                <td>{{ entry.timestamp }}</td>
+                <td>{{ entry.lab }}</td>
+                <td>{{ entry.student }}</td>
+                <td><code>{{ entry.session_id }}</code></td>
+                <td>{{ entry.event }}</td>
+                <td>{% if entry.command is defined %}<code>{{ entry.command }}</code>{% else %}<span class="muted">{{ entry.detail | default('n/a') }}</span>{% endif %}</td>
+                <td>{% if entry.duration_seconds is defined %}{{ entry.duration_seconds }}s{% else %}<span class="muted">n/a</span>{% endif %}</td>
+            </tr>
+        {% else %}
+            <tr>
+                <td colspan="7" class="muted">No terminal command logs recorded yet.</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<h2 class="section-heading">Recent Events</h2>
 <table class="table">
     <thead>
         <tr>

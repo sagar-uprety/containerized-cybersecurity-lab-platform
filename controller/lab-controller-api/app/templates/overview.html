@@ -1,29 +1,5 @@
 {% extends "base.html" %}
 {% block content %}
-<style>
-    .labs-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-        gap: 1rem;
-    }
-    .lab-card {
-        background: var(--surface);
-        border: 1px solid var(--line);
-        border-radius: 8px;
-        padding: 1rem;
-        min-height: 220px;
-        display: flex;
-        flex-direction: column;
-        justify-content: space-between;
-    }
-    .lab-meta {
-        display: flex;
-        gap: 0.5rem;
-        flex-wrap: wrap;
-        margin: 0.75rem 0;
-    }
-</style>
-
 <h1>Available Labs</h1>
 
 <div class="labs-grid">

@@ -8,6 +8,7 @@ from typing import Optional
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request, Response, status
 from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.auth import get_current_user, get_student_users
@@ -36,15 +37,43 @@ from app.scenarios import (
 from app.ssh_client import run_labctl
 
 app = FastAPI(title="Thesis Lab Portal")
+app.mount(
+    "/static",
+    StaticFiles(directory=str(Path(__file__).resolve().parent / "static")),
+    name="static",
+)
 templates = Jinja2Templates(directory=str(Path(__file__).resolve().parent / "templates"))
+
+
+def parse_status_output(stdout: str) -> tuple[str, list[dict]]:
+    lines = stdout.splitlines()
+    state = lines[0].strip() if lines else "not_created"
+    command_logs = []
+    for line in lines[1:]:
+        if not line.startswith("command_logs:"):
+            continue
+        try:
+            parsed = json.loads(line.split(":", 1)[1].strip())
+        except json.JSONDecodeError:
+            continue
+        if isinstance(parsed, list):
+            command_logs = [entry for entry in parsed if isinstance(entry, dict)]
+    return state, command_logs
 
 
 def get_lab_status(lab_id: str, student_id: str) -> str:
     success, stdout, _stderr = run_labctl("status", lab_id, student_id)
     if not success:
         return "error"
-    status_text = stdout.strip()
+    status_text, _command_logs = parse_status_output(stdout)
     return status_text or "not_created"
+
+
+def get_lab_status_details(lab_id: str, student_id: str) -> tuple[str, list[dict]]:
+    success, stdout, _stderr = run_labctl("status", lab_id, student_id)
+    if not success:
+        return "error", []
+    return parse_status_output(stdout)
 
 
 def run_action(verb: str, lab_id: str, user: dict) -> tuple[bool, str, str, float]:
@@ -341,16 +370,21 @@ def instructor_view(request: Request, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Instructor access required")
 
     rows = []
+    command_logs = []
     for scenario in list_scenarios():
         for student in get_student_users().values():
+            status_text, recent_commands = get_lab_status_details(scenario["id"], student["student_id"])
             rows.append(
                 {
                     "lab_id": scenario["id"],
                     "title": scenario["title"],
                     "student": student["student_id"],
-                    "status": get_lab_status(scenario["id"], student["student_id"]),
+                    "status": status_text,
                 }
             )
+            command_logs.extend(recent_commands)
+
+    command_logs = sorted(command_logs, key=lambda entry: entry.get("timestamp", ""), reverse=True)[:50]
 
     return templates.TemplateResponse(
         "instructor.html",
@@ -359,6 +393,7 @@ def instructor_view(request: Request, user: dict = Depends(get_current_user)):
             "user": user,
             "rows": rows,
             "events": read_recent_events(),
+            "command_logs": command_logs,
             "csrf_token": generate_token(user),
         },
     )

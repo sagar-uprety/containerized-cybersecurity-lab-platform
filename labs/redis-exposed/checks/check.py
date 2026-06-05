@@ -2,7 +2,6 @@
 import argparse
 import json
 import socket
-import sys
 import urllib.request
 import urllib.error
 
@@ -42,7 +41,7 @@ def check_redis_unauth(host, port):
             return ping_blocked, read_blocked, False
     except socket.timeout:
         return False, False, True
-    except Exception as e:
+    except Exception:
         return False, False, True
 
 def check_demo_app(url):

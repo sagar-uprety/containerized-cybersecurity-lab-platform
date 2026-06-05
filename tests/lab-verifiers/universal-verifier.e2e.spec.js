@@ -39,6 +39,16 @@ async function terminalText(page) {
   });
 }
 
+async function sendTerminalLine(page, frame, line) {
+  await frame.locator('.xterm').click();
+  await page.keyboard.type(line, { delay: 1 });
+  await page.keyboard.press('Enter');
+}
+
+function hasTrailingPasswordPrompt(output) {
+  return /(^|\n)[^\n]*password:\s*$/i.test(output);
+}
+
 async function runPortalCheck(page, expectedStatus) {
   await expect(page.getByRole('button', { name: 'Run Check' })).toBeVisible({ timeout: 120_000 });
   await page.evaluate(() => { window.__labVerifierNoReload = 'present'; });
@@ -50,50 +60,20 @@ async function runPortalCheck(page, expectedStatus) {
 for (const labId of labs) {
   test.describe(`Universal Verifier: ${labId}`, () => {
     
-    test('lifecycle controls and terminal work', async ({ page, context }) => {
+    test('baseline checker reports vulnerable after clean start', async ({ page }) => {
       test.setTimeout(180_000);
       test.skip(!destructiveAllowed, 'set LAB_VERIFIER_ALLOW_DESTRUCTIVE=true');
 
       await goToLab(page, labId);
-      
+
       // End lab if it's already running to start clean
       if (await page.getByRole('button', { name: 'End Lab' }).isVisible()) {
         await page.getByRole('button', { name: 'End Lab' }).click();
       }
-      
+
       await expect(page.getByRole('button', { name: 'Start Lab' })).toBeVisible({ timeout: 120_000 });
       await page.getByRole('button', { name: 'Start Lab' }).click();
       await expect(page.getByRole('button', { name: 'Run Check' })).toBeVisible({ timeout: 120_000 });
-      await expect(page.locator('#terminal-iframe')).toBeVisible({ timeout: 120_000 });
-
-      // Verify open in tab link
-      const terminalPopupPromise = context.waitForEvent('page');
-      await page.getByRole('link', { name: 'Open in tab' }).click();
-      const terminalPopup = await terminalPopupPromise;
-      await expect(terminalPopup.locator('body')).toBeVisible({ timeout: 30_000 });
-      expect(terminalPopup.url()).toContain('/terminal/');
-      await terminalPopup.close();
-
-      // Verify Open Lab Guide link
-      const guidePopupPromise = context.waitForEvent('page');
-      await page.getByRole('link', { name: 'Open Lab Guide' }).click();
-      const guidePopup = await guidePopupPromise;
-      await expect(guidePopup.locator('body')).toBeVisible({ timeout: 30_000 });
-      expect(guidePopup.url()).toContain(`/docs/labs/${labId}`);
-      await guidePopup.close();
-
-      // Verify Demo app link if present
-      const demoAppLinks = await page.locator('a:has-text("http://")').all();
-      for (const link of demoAppLinks) {
-        const href = await link.getAttribute('href');
-        if (href && href.includes(':180')) {
-          const appPopupPromise = context.waitForEvent('page');
-          await link.click();
-          const appPopup = await appPopupPromise;
-          await expect(appPopup.locator('body')).toBeVisible({ timeout: 30_000 });
-          await appPopup.close();
-        }
-      }
 
       // Check baseline
       await runPortalCheck(page, 'vulnerable');
@@ -134,13 +114,11 @@ for (const labId of labs) {
       // 4. Execute commands in the terminal
       const handle = await page.locator('#terminal-iframe').elementHandle();
       const frame = await handle.contentFrame();
-      await frame.locator('.xterm-helper-textarea').focus();
+      await frame.locator('.xterm').click();
       
       for (const cmd of commands) {
-        // Fast paste instead of type
-        const prevOutput = await terminalText(page);
-        await frame.locator('.xterm-helper-textarea').fill(cmd);
-        await page.keyboard.press('Enter');
+        let prevOutput = await terminalText(page);
+        await sendTerminalLine(page, frame, cmd);
         
         let output = '';
         let waited = 0;
@@ -151,17 +129,34 @@ for (const labId of labs) {
           waited += 500;
           output = await terminalText(page);
           
-          if (output.toLowerCase().includes('password') && !answeredPassword) {
+          if (hasTrailingPasswordPrompt(output) && !answeredPassword) {
             await page.keyboard.type(studentPassword, { delay: 5 });
             await page.keyboard.press('Enter');
             answeredPassword = true;
           }
           
           // If prompt returned and output has changed from before, we assume command finished
-          if (output !== prevOutput && (output.endsWith('$ ') || output.endsWith('# '))) {
+          if (output !== prevOutput && (output.match(/[$#]\s*$/) || output.endsWith('$ ') || output.endsWith('# '))) {
             break;
           }
         }
+
+        // Check exit code
+        prevOutput = await terminalText(page);
+        await sendTerminalLine(page, frame, 'echo "EXIT_CODE:$?"');
+        
+        waited = 0;
+        while (waited < 5000) {
+          await page.waitForTimeout(250);
+          waited += 250;
+          output = await terminalText(page);
+          if (output !== prevOutput && (output.match(/[$#]\s*$/) || output.endsWith('$ ') || output.endsWith('# '))) {
+            break;
+          }
+        }
+        
+        // Assert command succeeded so we get an exact failure trace if a guide command is broken
+        expect(output, `Command failed: ${cmd}\nOutput: ${output}`).toContain('EXIT_CODE:0');
       }
 
       // 5. Verify it's fixed!

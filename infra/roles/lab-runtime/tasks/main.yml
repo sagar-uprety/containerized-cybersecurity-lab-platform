@@ -45,6 +45,8 @@
     groups: "{{ thesis_admin_group }}"
     append: true
     state: present
+  tags:
+    - labadmin
 
 - name: Install labadmin student registry
   ansible.builtin.template:
@@ -108,6 +110,8 @@
     owner: root
     group: root
     mode: "0755"
+  tags:
+    - labadmin
 
 - name: Create labadmin SSH directory
   ansible.builtin.file:
@@ -116,21 +120,59 @@
     owner: "{{ thesis_labadmin_user }}"
     group: "{{ thesis_labadmin_user }}"
     mode: "0700"
+  tags:
+    - labadmin
 
-- name: Configure labadmin authorized key when controller key is provided
+- name: Read generated controller public key from management host
+  ansible.builtin.slurp:
+    src: "{{ hostvars[groups['management'][0]].management_controller_ssh_key_path | default(thesis_runtime_root ~ '/controller/controller_key') }}.pub"
+  delegate_to: "{{ groups['management'][0] }}"
+  register: lab_runtime_controller_public_key_file
+  changed_when: false
+  when:
+    - groups['management'] is defined
+    - groups['management'] | length > 0
+  tags:
+    - labadmin
+
+- name: Set generated controller public key for labadmin
+  ansible.builtin.set_fact:
+    lab_runtime_controller_public_key: "{{ lab_runtime_controller_public_key_file.content | b64decode | trim }}"
+  changed_when: false
+  when: lab_runtime_controller_public_key_file is not skipped
+  tags:
+    - labadmin
+
+- name: Assert generated controller public key is available
+  ansible.builtin.assert:
+    that:
+      - lab_runtime_controller_public_key is defined
+      - lab_runtime_controller_public_key | length > 0
+    fail_msg: "Generated controller public key is unavailable. Run the management play before lab-worker so x02 creates its controller key."
+  tags:
+    - labadmin
+
+- name: Build restricted labadmin authorized key options
+  ansible.builtin.set_fact:
+    labadmin_authorized_key_options:
+      - command="{{ thesis_labctl_wrapper_path }}"
+      - no-pty
+      - no-agent-forwarding
+      - no-X11-forwarding
+      - no-port-forwarding
+  changed_when: false
+  tags:
+    - labadmin
+
+- name: Configure labadmin authorized key for generated controller key
   ansible.builtin.copy:
-    content: "command=\"{{ thesis_labctl_wrapper_path }}\",no-pty,no-agent-forwarding,no-X11-forwarding,no-port-forwarding {{ thesis_controller_public_key }}\n"
+    content: "{{ labadmin_authorized_key_options | join(',') }} {{ lab_runtime_controller_public_key }}\n"
     dest: "{{ thesis_labadmin_home }}/.ssh/authorized_keys"
     owner: "{{ thesis_labadmin_user }}"
     group: "{{ thesis_labadmin_user }}"
     mode: "0600"
-  when: thesis_controller_public_key | length > 0
-
-- name: Remove labadmin authorized keys when no controller key is provided
-  ansible.builtin.file:
-    path: "{{ thesis_labadmin_home }}/.ssh/authorized_keys"
-    state: absent
-  when: thesis_controller_public_key | length == 0
+  tags:
+    - labadmin
 
 - name: Install least-privilege labadmin sudoers rule
   ansible.builtin.template:
@@ -140,6 +182,8 @@
     group: root
     mode: "0440"
     validate: "visudo -cf %s"
+  tags:
+    - labadmin
 
 - name: Install lab image build hook
   ansible.builtin.template:
@@ -165,7 +209,15 @@
 
 - name: Determine whether lab images need rebuild
   ansible.builtin.set_fact:
-    lab_runtime_sources_changed: "{{ lab_source_copy_results.results | selectattr('changed') | list | length > 0 if lab_source_copy_results is defined else true }}"
+    lab_runtime_sources_changed: >-
+      {{
+        lab_source_copy_results.results
+        | selectattr('changed')
+        | list
+        | length > 0
+        if lab_source_copy_results is defined
+        else true
+      }}
     lab_runtime_images_missing: "{{ lab_runtime_image_presence.rc != 0 }}"
   tags:
     - lab-images
