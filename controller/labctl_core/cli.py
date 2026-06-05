@@ -4,7 +4,6 @@ import sys
 
 from labctl_core.lifecycle import LabctlError, LabRuntime
 
-
 LAB_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 STUDENT_ID_PATTERN = re.compile(r"^student[0-9]{2,4}$")
 
@@ -44,5 +43,5 @@ def main() -> None:
     try:
         verbs[verb](lab_id, student_id)
     except LabctlError as exc:
-        logging.error("%s", exc)
+        logging.error("%s", exc)  # noqa: TRY400 - expected CLI error, no stack trace needed.
         sys.exit(1)

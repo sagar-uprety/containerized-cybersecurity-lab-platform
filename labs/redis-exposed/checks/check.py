@@ -2,8 +2,9 @@
 import argparse
 import json
 import socket
-import urllib.request
 import urllib.error
+import urllib.request
+
 
 def read_resp_line(sock):
     data = b""
@@ -14,12 +15,14 @@ def read_resp_line(sock):
         data += chunk
     return data.decode("utf-8", errors="replace").strip()
 
+
 def encode_command(*parts):
     payload = f"*{len(parts)}\r\n"
     for part in parts:
         value = str(part)
         payload += f"${len(value.encode('utf-8'))}\r\n{value}\r\n"
     return payload.encode("utf-8")
+
 
 def check_redis_unauth(host, port):
     # Returns (ping_blocked, read_blocked, error)
@@ -30,19 +33,20 @@ def check_redis_unauth(host, port):
             sock.sendall(encode_command("PING"))
             ping_resp = read_resp_line(sock)
             ping_blocked = ping_resp.startswith("-NOAUTH") or ping_resp.startswith("-WRONGPASS")
-            
+
             sock.sendall(encode_command("GET", "session:alice"))
             read_resp = read_resp_line(sock)
             read_blocked = read_resp.startswith("-NOAUTH") or read_resp.startswith("-WRONGPASS")
-            
+
             if not ping_resp and not read_resp:
                 return False, False, True
-                
+
             return ping_blocked, read_blocked, False
-    except socket.timeout:
+    except TimeoutError:
         return False, False, True
     except Exception:
         return False, False, True
+
 
 def check_demo_app(url):
     # Returns (healthy, error)
@@ -55,6 +59,7 @@ def check_demo_app(url):
     except Exception:
         return False, True
 
+
 def main():
     parser = argparse.ArgumentParser(description="Redis exposed lab checker")
     parser.add_argument("--lab", required=True, help="Lab ID")
@@ -62,23 +67,23 @@ def main():
     parser.add_argument("--redis-host", default="redis-host", help="Redis host")
     parser.add_argument("--redis-port", default="6379", type=int, help="Redis port")
     parser.add_argument("--app-url", default="http://demo-app:8080", help="Demo app URL")
-    
+
     args = parser.parse_args()
 
     ping_blocked, read_blocked, redis_err = check_redis_unauth(args.redis_host, args.redis_port)
     app_healthy, app_err = check_demo_app(args.app_url)
-    
+
     checks = [
         {"name": "unauthenticated_ping_blocked", "passed": ping_blocked},
         {"name": "unauthenticated_read_blocked", "passed": read_blocked},
-        {"name": "demo_app_healthy", "passed": app_healthy}
+        {"name": "demo_app_healthy", "passed": app_healthy},
     ]
-    
+
     # Classification logic
     # vulnerable: Redis accepts unauthenticated access and demo app is healthy
     # fixed: Redis rejects unauthenticated access and demo app is healthy
     # broken: Redis or demo app unavailable, miswired, or partial
-    
+
     if redis_err or app_err or not app_healthy:
         status = "broken"
     elif ping_blocked and read_blocked:
@@ -87,17 +92,13 @@ def main():
         status = "vulnerable"
     else:
         status = "broken"
-        
-    result = {
-        "lab": args.lab,
-        "student": args.student,
-        "status": status,
-        "checks": checks
-    }
-    
+
+    result = {"lab": args.lab, "student": args.student, "status": status, "checks": checks}
+
     print(json.dumps(result, indent=2))
-    
+
     # If we want a return code based on anything? Let's just return 0, the JSON is the result.
+
 
 if __name__ == "__main__":
     main()

@@ -33,6 +33,7 @@ env/
 infra/host_vars/
 infra/files/controller_key
 infra/files/controller_key.pub
+infra/*-packages.txt
 
 # Logs and process files
 logs/

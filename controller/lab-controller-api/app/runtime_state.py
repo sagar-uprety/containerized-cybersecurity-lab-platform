@@ -5,7 +5,6 @@ from pathlib import Path
 
 from app.config import settings
 
-
 LAB_STATE = {}
 LAB_STATE_LOCK = threading.Lock()
 

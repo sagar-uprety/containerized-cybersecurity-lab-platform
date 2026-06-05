@@ -22,7 +22,7 @@ chmod -R a+rwX /usr/local/etc/redis
 /usr/local/sbin/restart-redis
 
 if [ -f "${SEED_FILE}" ]; then
-  for attempt in 1 2 3 4 5; do
+  for _ in 1 2 3 4 5; do
     if redis-cli -h 127.0.0.1 ping >/dev/null 2>&1; then
       redis-cli -h 127.0.0.1 < "${SEED_FILE}" >/dev/null
       break

@@ -1,0 +1,13 @@
+title = "thesis-project gitleaks config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Documented fake lab-only secrets; see each lab intentional-risk-allowlist.yaml"
+regexes = [
+  '''support_token:demo-only-token''',
+  '''REDIS_PASSWORD=''',
+  '''change-me-demo-only''',
+  '''demo-redis-password''',
+]

@@ -1,9 +1,9 @@
-from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 import os
 import socket
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 
-
-CONFIG_FILE = os.environ.get("APP_CONFIG_FILE", "/app/config/app-config.env")
+CONFIG_FILE = Path(os.environ.get("APP_CONFIG_FILE", "/app/config/app-config.env"))
 REDIS_HOST = os.environ.get("REDIS_HOST", "redis-host")
 REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
 
@@ -11,7 +11,7 @@ REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
 def read_config():
     config = {}
     try:
-        with open(CONFIG_FILE, "r", encoding="utf-8") as handle:
+        with CONFIG_FILE.open(encoding="utf-8") as handle:
             for line in handle:
                 line = line.strip()
                 if not line or line.startswith("#") or "=" not in line:
@@ -55,7 +55,7 @@ def redis_request(*command):
 
 
 class Handler(BaseHTTPRequestHandler):
-    def log_message(self, fmt, *args):
+    def log_message(self, _fmt, *_args):
         return
 
     def send_text(self, status, body):

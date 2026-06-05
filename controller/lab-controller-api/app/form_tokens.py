@@ -6,7 +6,6 @@ from fastapi import HTTPException
 
 from app.config import settings
 
-
 FORM_TOKENS = {}
 FORM_TOKEN_LOCK = threading.Lock()
 

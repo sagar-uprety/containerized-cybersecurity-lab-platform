@@ -5,10 +5,12 @@ if [[ $- != *i* || -n "${THESIS_COMMAND_LOGGER_ACTIVE:-}" ]]; then
 fi
 
 export THESIS_COMMAND_LOGGER_ACTIVE=1
-export THESIS_SESSION_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+THESIS_SESSION_ID="$(date -u +%Y%m%dT%H%M%SZ)-$$"
+export THESIS_SESSION_ID
 export THESIS_COMMAND_LOG_DIR="${THESIS_COMMAND_LOG_DIR:-/var/log/thesis-labs/commands}"
 export THESIS_COMMAND_LOG_PATH="${THESIS_COMMAND_LOG_PATH:-${THESIS_COMMAND_LOG_DIR}/commands.jsonl}"
-export THESIS_SESSION_STARTED_AT="$(date +%s)"
+THESIS_SESSION_STARTED_AT="$(date +%s)"
+export THESIS_SESSION_STARTED_AT
 
 mkdir -p "${THESIS_COMMAND_LOG_DIR}" 2>/dev/null || true
 touch "${THESIS_COMMAND_LOG_PATH}" 2>/dev/null || true
@@ -56,7 +58,7 @@ __thesis_last_history_id="$(history 1 | sed -E 's/^ *([0-9]+).*/\1/' 2>/dev/null
 
 __thesis_log_command() {
     local history_line history_id command_text
-    history_line="$(HISTTIMEFORMAT= history 1 2>/dev/null || true)"
+    history_line="$(HISTTIMEFORMAT='' history 1 2>/dev/null || true)"
     history_id="$(printf '%s\n' "${history_line}" | sed -E 's/^ *([0-9]+).*/\1/' 2>/dev/null || true)"
     command_text="$(printf '%s\n' "${history_line}" | sed -E 's/^ *[0-9]+ +//' 2>/dev/null || true)"
     if [[ -n "${history_id}" && "${history_id}" != "${__thesis_last_history_id}" && -n "${command_text}" ]]; then

@@ -88,7 +88,9 @@ def checker_image(scenario: dict, images: dict) -> str:
         image = images.get(image_service) or images.get(normalize_key(image_service))
         if image:
             return image
-        raise ScenarioError(f"Checker image_service {image_service!r} has no matching service image")
+        raise ScenarioError(
+            f"Checker image_service {image_service!r} has no matching service image"
+        )
 
     raise ScenarioError("checker.image_service or checker.image is required")
 

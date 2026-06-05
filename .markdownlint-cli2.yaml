@@ -1,0 +1,26 @@
+# Markdownlint checks structure; Prettier still handles formatting.
+config:
+  default: true
+  MD001: false             # docs may embed sections under generated/template headings
+  MD013: false             # line length is handled by Prettier / prose context
+  MD024:
+    siblings_only: true    # allow repeated heading names in different sections
+  MD025: false             # allow docs with generated/frontmatter-style titles
+  MD033: false             # allow MkDocs/template inline HTML and placeholders
+  MD038: false             # code spans with placeholder spacing appear in internal docs
+  MD041: false             # allow MkDocs pages without H1 as first physical line
+  MD030: false             # Prettier handles list-marker spacing
+
+globs:
+  - 'README.md'
+  - 'controller/**/*.md'
+  - 'docs/**/*.md'
+  - 'infra/**/*.md'
+  - 'labs/**/*.md'
+  - 'platform-docs/**/*.md'
+  - 'tests/**/*.md'
+  - '!resources/**'
+  - '!node_modules/**'
+  - '!site/**'
+  - '!test-results/**'
+  - '!.venv/**'

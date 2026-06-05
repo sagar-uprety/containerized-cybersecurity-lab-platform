@@ -1,0 +1,22 @@
+extends: default
+
+# Directories to skip entirely
+ignore: |
+  node_modules/
+  site/
+  test-results/
+  playwright-report/
+  resources/
+
+rules:
+  comments:
+    min-spaces-from-content: 1   # require one space after '#'
+  colons:
+    max-spaces-before: 0         # require 'key: value', never 'key : value'
+    max-spaces-after: 1          # keep one space after ':' for readability
+  document-start: disable        # allow YAML files without leading '---'
+  line-length:
+    max: 140                     # 140 chars (wider than Python's 100 for Ansible verbosity)
+    level: warning               # warn but don't fail on long lines
+  truthy:
+    allowed-values: ["true", "false", "yes", "no"]  # block bare 'on', 'off', etc. as YAML booleans

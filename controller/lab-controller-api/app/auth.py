@@ -1,14 +1,18 @@
 import secrets
+from pathlib import Path
+
+import yaml
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
-import yaml
+
 from app.config import settings
 
 security = HTTPBasic()
 
+
 def _load_user_entries():
     try:
-        with open(settings.PORTAL_USERS_FILE, "r", encoding="utf-8") as handle:
+        with Path(settings.PORTAL_USERS_FILE).open(encoding="utf-8") as handle:
             data = yaml.safe_load(handle) or {}
     except FileNotFoundError:
         data = {"users": []}
@@ -50,6 +54,7 @@ def get_student_users():
         if user["role"] == "student"
     }
 
+
 def get_current_user(credentials: HTTPBasicCredentials = Depends(security)):
     user_dict = get_user_registry().get(credentials.username)
     if not user_dict:
@@ -58,19 +63,18 @@ def get_current_user(credentials: HTTPBasicCredentials = Depends(security)):
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Basic"},
         )
-    
+
     is_correct_password = secrets.compare_digest(
-        credentials.password.encode("utf8"),
-        user_dict["password"].encode("utf8")
+        credentials.password.encode("utf8"), user_dict["password"].encode("utf8")
     )
-    
+
     if not is_correct_password:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Basic"},
         )
-        
+
     return {
         "username": credentials.username,
         "password": user_dict["password"],

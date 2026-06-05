@@ -1,0 +1,94 @@
+# --------------------------------------------------------------------
+#  Ruff — Python linter + formatter (replaces Flake8 / isort / Black)
+# --------------------------------------------------------------------
+[tool.ruff]
+line-length = 100                                  # match Prettier's printWidth
+target-version = "py39"
+extend-exclude = [
+  "node_modules",
+  "site",
+]
+
+[tool.ruff.lint]
+# Rule sets enabled (each letter is a rule prefix):
+#   F   flake8-pyflakes  — unused imports, undefined names, f-string errors
+#   I   isort            — import ordering + grouping
+#   E   pycodestyle      — style errors (indentation, spacing, blank lines)
+#   W   pycodestyle      — style warnings (ambiguous whitespace, etc.)
+#   UP  pyupgrade        — modern Python idioms (new-style typing, f-strings)
+#   B   flake8-bugbear   — logic bugs (mutable defaults, useless expressions)
+#   SIM flake8-simplify  — simplify verbose code (context managers, comparisons)
+#   ARG flake8-unused-arguments — unused function / method arguments
+#   RUF ruff-specific    — unused noqa directives, ambiguous unicode
+#   C4  flake8-comprehensions — prefer comprehensions over list() / dict()
+#   PERF perflint        — performance anti-patterns (inefficient loops)
+#   ERA eradicate        — commented-out code blocks
+#   TRY tryceratops      — exception handling anti-patterns
+#   T20 flake8-print     — stray print() debugging calls
+#   N   pep8-naming      — PEP 8 class/function/variable naming
+#   A   flake8-builtins  — shadowing builtins such as id/list/type
+#   INP no-pep420        — missing __init__.py in package-like dirs
+#   RET flake8-return    — clearer return statement patterns
+#   PTH use-pathlib      — prefer pathlib over os.path/open helpers
+#   EXE executable       — executable/shebang consistency
+#   PLC pylint convention — convention checks not covered elsewhere
+#   PLE pylint errors    — likely-bug checks from Pylint
+select = [
+  "F",
+  "I",
+  "E",
+  "W",
+  "UP",
+  "B",
+  "SIM",
+  "ARG",
+  "RUF",
+  "C4",
+  "PERF",
+  "ERA",
+  "TRY",
+  "T20",
+  "N",
+  "A",
+  "INP",
+  "RET",
+  "PTH",
+  "EXE",
+  "PLC",
+  "PLE",
+]
+ignore = [
+  "TRY003", # custom exception message classes would add noise for little value here
+  "TRY301", # small validation raises inside try blocks are clearer than helper extraction
+  "UP045",  # keep Python 3.9-compatible Optional annotations for the RHEL host baseline
+  "PERF203", # small validation loops favor readable per-item error handling over precomputed exceptions
+]
+
+[tool.ruff.lint.per-file-ignores]
+"controller/labctl" = ["E402"]                       # E402: module-level imports after script logic
+"controller/lab-controller-api/app/*.py" = ["B008"]  # B008: FastAPI Depends() in defaults is idiomatic
+"controller/labctl_core/cli.py" = ["T201"]            # T201: CLI usage text intentionally prints to stderr
+"controller/labctl_core/lifecycle.py" = ["T201"]      # T201: labctl status/check output is stdout contract
+"labs/*/checks/*.py" = ["ERA001", "T201"]             # ERA001: checker comments document tuple result contracts
+"labs/*/demo-app/*.py" = ["INP001", "TRY400"]         # INP001: demo apps are standalone container files
+"tools/pre_commit/*.py" = ["INP001", "T201"]          # T201: validators print actionable errors to stderr
+
+[tool.ruff.format]
+line-ending = "lf"
+
+# --------------------------------------------------------------------
+#  Bandit — Python security scanner
+# --------------------------------------------------------------------
+[tool.bandit]
+exclude_dirs = [
+  ".venv",
+  "node_modules",
+  "site",
+  "test-results",
+  "resources",
+  "tests",            # test files may use assert / random intentionally
+]
+skips = [
+  "B101",             # assert — allowed in test / lab code
+  "B311",             # random — not used for crypto, safe to skip
+]

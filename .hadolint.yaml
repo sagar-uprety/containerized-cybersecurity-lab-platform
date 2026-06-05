@@ -1,0 +1,5 @@
+---
+# Hadolint rules we intentionally ignore
+ignored:
+  - DL3008 # pin apt package versions — impractical for lab Dockerfiles
+  - DL3013 # pin pip package versions — impractical for lab Dockerfiles

@@ -1,12 +1,18 @@
-import logging
 import json
+import logging
 from typing import Optional
 
 import yaml
 from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from labctl_core.config import RuntimePaths
-from labctl_core.podman import PodmanError, ensure_network, ensure_volumes, run_command, start_containers
+from labctl_core.podman import (
+    PodmanError,
+    ensure_network,
+    ensure_volumes,
+    run_command,
+    start_containers,
+)
 from labctl_core.scenario import (
     ScenarioError,
     checker_command,
@@ -90,7 +96,12 @@ class LabRuntime:
             return
         for container in reversed(manifest.get("containers", [])):
             container_name = container.get("name")
-            if run_command(["podman", "container", "exists", container_name], check=False).returncode == 0:
+            if (
+                run_command(
+                    ["podman", "container", "exists", container_name], check=False
+                ).returncode
+                == 0
+            ):
                 run_command(["podman", "stop", container_name], check=False)
         logging.info("Lab %s for student %s stopped.", lab_id, student_id)
 
@@ -129,13 +140,20 @@ class LabRuntime:
             result_path = self.paths.results_dir / f"{runtime_project}.json"
 
             cmd = [
-                "podman", "run", "--rm",
-                "--network", network_name,
-                "-v", f"{check_path.parent}:/checks:ro",
+                "podman",
+                "run",
+                "--rm",
+                "--network",
+                network_name,
+                "-v",
+                f"{check_path.parent}:/checks:ro",
                 image,
-                "python3", f"/checks/{check_path.name}",
-                "--lab", lab_id,
-                "--student", student_id,
+                "python3",
+                f"/checks/{check_path.name}",
+                "--lab",
+                lab_id,
+                "--student",
+                student_id,
             ]
             logging.info("Running checks via ephemeral container attached to the lab network.")
             result = run_command(cmd, check=False)

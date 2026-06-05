@@ -45,7 +45,7 @@ Required scenario documentation shape:
 
 ```yaml
 documentation:
-  student_guide_url: /docs/labs/<lab-id>/
+    student_guide_url: /docs/labs/<lab-id>/
 ```
 
 Use `labs/STUDENT_GUIDE_TEMPLATE.md` as the student-guide skeleton for new MkDocs lab
@@ -62,11 +62,11 @@ variables.
 
 ```yaml
 build:
-  images:
-    - service: workstation
-      name: thesis-labs/<lab-id>-workstation:latest
-      context: .
-      dockerfile: files/workstation.Dockerfile
+    images:
+        - service: workstation
+          name: thesis-labs/<lab-id>-workstation:latest
+          context: .
+          dockerfile: files/workstation.Dockerfile
 ```
 
 The checker must declare the script to run and the service image that provides
@@ -74,6 +74,6 @@ the checker runtime dependencies:
 
 ```yaml
 checker:
-  command: checks/check.py
-  image_service: demo-app
+    command: checks/check.py
+    image_service: demo-app
 ```

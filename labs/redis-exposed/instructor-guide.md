@@ -30,9 +30,9 @@ labctl destroy redis-exposed student01
 
 Expected checker states:
 
-- `vulnerable`: Redis unauthenticated commands work and the app is healthy.
-- `fixed`: unauthenticated Redis commands fail and the app is healthy.
-- `broken`: Redis or the app is unavailable or only partially remediated.
+-   `vulnerable`: Redis unauthenticated commands work and the app is healthy.
+-   `fixed`: unauthenticated Redis commands fail and the app is healthy.
+-   `broken`: Redis or the app is unavailable or only partially remediated.
 
 ## Privacy Boundary
 

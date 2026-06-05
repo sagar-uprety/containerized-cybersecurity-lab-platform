@@ -2,7 +2,6 @@
 import sys
 from pathlib import Path
 
-
 LOCAL_PACKAGE_ROOT = Path(__file__).resolve().parent
 INSTALLED_PACKAGE_ROOT = Path("/usr/local/lib/thesis-labs")
 
@@ -11,7 +10,6 @@ for package_root in (LOCAL_PACKAGE_ROOT, INSTALLED_PACKAGE_ROOT):
         sys.path.insert(0, str(package_root))
 
 from labctl_core.cli import main
-
 
 if __name__ == "__main__":
     main()

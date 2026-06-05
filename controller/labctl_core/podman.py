@@ -98,12 +98,14 @@ def container_run_args(container: dict) -> list[str]:
     for key, value in container.get("environment", {}).items():
         args.extend(["-e", f"{key}={value}"])
     for port in container.get("ports", []):
-        args.extend([
-            "-p",
-            "{}:{}:{}".format(
-                port.get("host_ip", "0.0.0.0"), port["host_port"], port["container_port"]
-            ),
-        ])
+        args.extend(
+            [
+                "-p",
+                "{}:{}:{}".format(
+                    port.get("host_ip", "0.0.0.0"), port["host_port"], port["container_port"]
+                ),
+            ]
+        )
     for port in container.get("expose", []):
         args.extend(["--expose", str(port)])
     for volume in container.get("volumes", []):
@@ -119,7 +121,9 @@ def container_run_args(container: dict) -> list[str]:
     if healthcheck:
         command = healthcheck.get("command")
         if isinstance(command, list):
-            args.extend(["--health-cmd", command[1] if command[:1] == ["CMD-SHELL"] else " ".join(command)])
+            args.extend(
+                ["--health-cmd", command[1] if command[:1] == ["CMD-SHELL"] else " ".join(command)]
+            )
         for source, option in {
             "interval": "--health-interval",
             "timeout": "--health-timeout",
@@ -131,9 +135,13 @@ def container_run_args(container: dict) -> list[str]:
 
     security = container.get("security", {})
     if security.get("host_network"):
-        raise PodmanError(f"Container {container_name} requested host networking, which is not allowed")
+        raise PodmanError(
+            f"Container {container_name} requested host networking, which is not allowed"
+        )
     if security.get("privileged"):
-        raise PodmanError(f"Container {container_name} requested privileged mode, which is not allowed")
+        raise PodmanError(
+            f"Container {container_name} requested privileged mode, which is not allowed"
+        )
     if security.get("no_new_privileges"):
         args.append("--security-opt=no-new-privileges")
     for capability in security.get("cap_add", []):
@@ -154,7 +162,10 @@ def container_run_args(container: dict) -> list[str]:
 def start_containers(manifest: dict) -> None:
     for container in sort_containers(manifest.get("containers", [])):
         container_name = container.get("name")
-        if run_command(["podman", "container", "exists", container_name], check=False).returncode == 0:
+        if (
+            run_command(["podman", "container", "exists", container_name], check=False).returncode
+            == 0
+        ):
             run_command(["podman", "start", container_name], check=False)
         else:
             run_command(container_run_args(container))

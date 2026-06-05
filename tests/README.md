@@ -9,8 +9,19 @@ This directory contains the Playwright End-to-End tests for the platform.
 ## Running Locally
 
 ```bash
+npm install
+npx playwright install
+
 # Run portal UI tests locally
 npm run test:portal
+```
+
+Live tests require portal credentials and may change lab runtime state. Export the target environment first:
+
+```bash
+export PORTAL_BASE_URL=http://<x02-ip>
+export PORTAL_USER=student01
+export PORTAL_PASSWORD=<student-password>
 
 # Run the universal lab solver against the live environment
 npm run test:labs

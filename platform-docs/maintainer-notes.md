@@ -7,7 +7,7 @@ MkDocs.
 
 For the first Redis lab, the learning content has these jobs:
 
-- `SITREP.txt` is copied into the workstation so the lab is usable even if the docs site is unavailable.
-- `docs/labs/redis-exposed.md` is the canonical MkDocs student guide.
-- `labs/redis-exposed/student-guide.md` is only a pointer artifact, not a duplicate walkthrough.
-- `instructor-guide.md` and `solution-notes.md` remain in the lab package for instructor review and should not be published in the student MkDocs site.
+-   `SITREP.txt` is copied into the workstation so the lab is usable even if the docs site is unavailable.
+-   `docs/labs/redis-exposed.md` is the canonical MkDocs student guide.
+-   `labs/redis-exposed/student-guide.md` is only a pointer artifact, not a duplicate walkthrough.
+-   `labs/redis-exposed/instructor-guide.md` and `labs/redis-exposed/solution-notes.md` remain in the lab package for instructor review and should not be published in the student MkDocs site.

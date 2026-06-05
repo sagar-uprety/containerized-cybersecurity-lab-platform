@@ -4,11 +4,10 @@ Lifecycle and portal/controller code lives here.
 
 Current contents:
 
-- `labctl`
-- `labctl-ssh-wrapper`
-- FastAPI portal/controller application
-- portal templates
-- Playwright tests under the repository `tests/` directory
+-   `labctl`: small executable wrapper for local lifecycle commands on the Lab Worker.
+-   `labctl_core/`: reusable lifecycle, scenario, Podman, and validation modules.
+-   `lab-controller-api/`: FastAPI portal/controller application with Jinja2 templates and static assets.
+-   Playwright tests live under the repository `tests/` directory.
 
 Students must not run `labctl`, Podman, Docker, Compose, or Ansible directly. Portal actions on the Control Plane (`x02`) call restricted lifecycle commands on the Lab Worker (`x01`) through the locked-down `labadmin` SSH path.
 
@@ -20,15 +19,15 @@ before forwarding to `ttyd`.
 
 ## `labctl` Language Decision
 
-`labctl` will be implemented in Python.
+`labctl` is implemented in Python.
 
 Reasoning:
 
-- It must validate `scenario.yaml` against `labs/scenario.schema.json`.
-- It must render Podman runtime templates from structured student/scenario data.
-- It must emit and store JSON status/check output.
-- It must validate lab IDs, student IDs, project names, ports, and runtime paths.
-- It must invoke Podman with explicit argv lists, not shell command strings.
+-   It validates `scenario.yaml` against `labs/scenario.schema.json`.
+-   It renders Podman runtime templates from structured student/scenario data.
+-   It emits and stores JSON status/check output.
+-   It validates lab IDs, student IDs, project names, ports, and runtime paths.
+-   It invokes Podman with explicit argv lists, not shell command strings.
 
 The implementation should keep dependencies minimal and pinned. Any subprocess execution must use argument lists and must not use `shell=True`.
 
@@ -37,13 +36,13 @@ The implementation should keep dependencies minimal and pinned. Any subprocess e
 `controller/labctl` is intentionally a small executable wrapper. Reusable
 lifecycle code lives in `controller/labctl_core/`:
 
-| Module | Purpose |
-|---|---|
-| `cli.py` | Argument validation and verb dispatch. |
-| `config.py` | Runtime path discovery for installed and local development runs. |
-| `scenario.py` | Scenario schema loading, student registry lookup, port derivation, images, and checker metadata. |
-| `podman.py` | Safe argv-based Podman operations. |
-| `lifecycle.py` | Start, stop, reset, destroy, status, and check behavior. |
+| Module         | Purpose                                                                                          |
+| -------------- | ------------------------------------------------------------------------------------------------ |
+| `cli.py`       | Argument validation and verb dispatch.                                                           |
+| `config.py`    | Runtime path discovery for installed and local development runs.                                 |
+| `scenario.py`  | Scenario schema loading, student registry lookup, port derivation, images, and checker metadata. |
+| `podman.py`    | Safe argv-based Podman operations.                                                               |
+| `lifecycle.py` | Start, stop, reset, destroy, status, and check behavior.                                         |
 
 New labs should extend `scenario.yaml` and `podman.yml.tpl`, not `labctl`.
 

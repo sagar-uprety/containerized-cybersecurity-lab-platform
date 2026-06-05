@@ -5,8 +5,9 @@ directory so `ansible.cfg` can resolve the inventory and role path.
 The active host baseline is RHEL 9.6 for both x01 and x02.
 
 ### Nodes
-* **`x02` (Control Plane)**: The node that runs the FastAPI portal and MkDocs.
-* **`x01` (Lab Worker)**: The node that runs Podman and executes the student workloads.
+
+-   `x02lp1.ucc.cit.tum.de` (Control Plane): runs the FastAPI portal, Nginx reverse proxy, and MkDocs.
+-   `x01lp1.ucc.cit.tum.de` (Lab Worker): runs Podman and executes student workloads.
 
 Main commands:
 
@@ -26,14 +27,14 @@ must be added explicitly and only after a user-confirmed access model exists.
 
 Current contents:
 
-- `inventory.ini`
-- `group_vars/`
-- `playbooks/`
-- `roles/common/`
-- `roles/podman/`
-- `roles/docker/` (inactive; reserved for a future dedicated Docker worker)
-- `roles/lab-runtime/`
-- `roles/management-services/`
+-   `inventory.ini`: x01/x02 inventory groups and connection defaults.
+-   `group_vars/` and `host_vars/`: shared platform variables and local host overrides.
+-   `playbooks/`: provisioning, verification, and teardown playbooks.
+-   `roles/common/`: RHEL baseline packages, directories, time sync, and log rotation.
+-   `roles/podman/`: active Podman/Buildah/Skopeo runtime setup.
+-   `roles/docker/`: inactive; reserved for a future dedicated Docker worker.
+-   `roles/lab-runtime/`: lab source, image build/cache, `labctl`, registries, and worker services.
+-   `roles/management-services/`: FastAPI portal, MkDocs, Nginx, and controller SSH key setup.
 
 All VM setup must be represented here or in generated artifacts controlled by these playbooks. Manual host fixes should be converted into Ansible tasks before a task is marked done.
 

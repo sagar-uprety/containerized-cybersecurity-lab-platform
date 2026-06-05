@@ -4,11 +4,11 @@ You are the junior Linux administrator assigned to a small order application. Mo
 
 ## Success Criteria
 
-- You can explain which service was exposed and why that matters.
-- Unauthenticated Redis commands fail after your fix.
-- Authenticated Redis commands still work with the password you configured.
-- The demo order application health check still returns healthy.
-- The portal checker reports fixed.
+-   You can explain which service was exposed and why that matters.
+-   Unauthenticated Redis commands fail after your fix.
+-   Authenticated Redis commands still work with the password you configured.
+-   The demo order application health check still returns healthy.
+-   The portal checker reports fixed.
 
 ## 1. Orient
 
@@ -21,8 +21,8 @@ ls -l /lab/redis /lab/demo-app
 
 Important paths:
 
-- Redis config: `/lab/redis/redis.conf`
-- Demo app config: `/lab/demo-app/app-config.env`
+-   Redis config: `/lab/redis/redis.conf`
+-   Demo app config: `/lab/demo-app/app-config.env`
 
 ## 2. Discover
 
@@ -75,4 +75,10 @@ The unauthenticated Redis command should fail. The authenticated Redis command a
 
 ## 6. Finish
 
-Congratulations, you have completed the lab!
+Record a short reflection before ending the lab:
+
+-   What made the Redis service reachable without credentials?
+-   What changed after adding `requirepass` and updating the app config?
+-   What operational check would you add so this misconfiguration is caught earlier next time?
+
+After the portal checker reports fixed and your reflection is complete, use **End Lab** in the portal when instructed by your evaluator or instructor.

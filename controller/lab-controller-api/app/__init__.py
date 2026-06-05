@@ -1,0 +1,1 @@
+"""FastAPI portal application package."""

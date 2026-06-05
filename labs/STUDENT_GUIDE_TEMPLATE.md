@@ -5,11 +5,11 @@ name the exact vulnerability in the opening paragraph.
 
 ## Success Criteria
 
-- State the security issue in your own words.
-- Demonstrate impact using only provided dummy data.
-- Apply the intended remediation.
-- Keep required application/service functionality working.
-- Run the portal checker and receive the expected fixed result.
+-   State the security issue in your own words.
+-   Demonstrate impact using only provided dummy data.
+-   Apply the intended remediation.
+-   Keep required application/service functionality working.
+-   Run the portal checker and receive the expected fixed result.
 
 ## 1. Orient
 

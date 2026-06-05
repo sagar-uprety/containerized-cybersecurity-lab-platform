@@ -1,0 +1,14 @@
+# Build / tool directories
+.venv/
+node_modules/
+site/
+
+# Runtime / test output
+test-results/
+resources/
+state/
+
+# Lock files (already formatted by package managers)
+package-lock.json
+yarn.lock
+pnpm-lock.yaml

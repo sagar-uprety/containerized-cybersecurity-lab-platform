@@ -1,13 +1,14 @@
+import json
 import re
 from pathlib import Path
 from typing import Optional
 
 import yaml
 from fastapi import HTTPException
+from jsonschema import ValidationError, validate
 
 from app.auth import get_student_users
 from app.config import settings
-
 
 LAB_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 
@@ -32,11 +33,22 @@ def student_number(student_id: str, user: Optional[dict] = None) -> int:
 
 def load_scenario_metadata(lab_id: str):
     validate_lab_id(lab_id)
-    path = Path(settings.LABS_DIR) / lab_id / "scenario.yaml"
+    labs_root = Path(settings.LABS_DIR)
+    path = labs_root / lab_id / "scenario.yaml"
     if not path.exists():
         return None
     with path.open("r", encoding="utf-8") as handle:
         scenario = yaml.safe_load(handle) or {}
+    schema_path = labs_root / "scenario.schema.json"
+    if not schema_path.exists():
+        raise HTTPException(status_code=500, detail="Scenario schema not found")
+    try:
+        validate(instance=scenario, schema=json.loads(schema_path.read_text(encoding="utf-8")))
+    except ValidationError as exc:
+        raise HTTPException(
+            status_code=500,
+            detail=f"Scenario metadata validation failed: {exc.message}",
+        ) from exc
     if scenario.get("id") != lab_id:
         raise HTTPException(status_code=500, detail="Scenario metadata id mismatch")
     return scenario
@@ -60,10 +72,12 @@ def list_scenarios():
 def endpoint_ports(scenario: dict, student_id: str, user: Optional[dict] = None) -> dict:
     number = student_number(student_id, user)
     access = scenario.get("access", {})
+    browser_terminal = int(access["browser_terminal_port_base"]) + number
     return {
-        "terminal": int(access.get("browser_terminal_port_base", 19000)) + number,
-        "ssh": int(access.get("ssh_port_base", 22000)) + number,
-        "app": int(access.get("app_port_base", 18000)) + number,
+        "browser_terminal": browser_terminal,
+        "terminal": browser_terminal,
+        "ssh": int(access["ssh_port_base"]) + number,
+        "app": int(access["app_port_base"]) + number,
     }
 
 

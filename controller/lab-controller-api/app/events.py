@@ -6,7 +6,6 @@ from typing import Optional
 
 from app.config import settings
 
-
 EVENT_LOCK = threading.Lock()
 
 
@@ -34,9 +33,8 @@ def record_event(
 
     event_path = Path(settings.EVENT_LOG_PATH)
     event_path.parent.mkdir(parents=True, exist_ok=True)
-    with EVENT_LOCK:
-        with event_path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps(event, sort_keys=True) + "\n")
+    with EVENT_LOCK, event_path.open("a", encoding="utf-8") as handle:
+        handle.write(json.dumps(event, sort_keys=True) + "\n")
 
 
 def read_recent_events(limit: int = 50):

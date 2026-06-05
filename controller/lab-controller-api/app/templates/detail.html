@@ -190,7 +190,7 @@
                     body: new FormData(form),
                     headers: { 'X-Requested-With': 'fetch' },
                 });
-                
+
                 // If this is the async check form, handle JSON locally
                 if (form.getAttribute('data-async-check') === 'true') {
                     const payload = await response.json();
@@ -200,7 +200,7 @@
                     button.textContent = originalText;
                     return;
                 }
-                
+
                 // For Start/Stop/Reset/End, we want to reload the page to show new state
                 if (response.ok || response.redirected) {
                     // Setting location.href bypasses iframe beforeunload issues better than reload

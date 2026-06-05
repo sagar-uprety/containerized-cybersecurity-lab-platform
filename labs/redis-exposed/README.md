@@ -8,5 +8,6 @@ The scenario contract is defined in `scenario.yaml` and must validate against `.
 
 Layout notes:
 
-- `demo-app/` contains the source and Dockerfile for the small Redis-backed web app.
-- `files/` contains mounted lab artifacts, service configuration examples, and Dockerfiles or scripts used by workstation/service images.
+-   `demo-app/` contains the source and Dockerfile for the small Redis-backed web app.
+-   `checks/` contains the JSON checker and fixtures for `vulnerable`, `fixed`, and `broken` states.
+-   `files/` contains mounted lab artifacts, service configuration examples, and Dockerfiles or scripts used by workstation/service images.

@@ -1,0 +1,18 @@
+profile: safety                           # security-focused checks: risky permissions, pipes, latest packages
+offline: true                              # don't fetch galaxy / standards during lint
+
+exclude_paths:
+  - .cache/
+  - node_modules/
+  - site/
+  - test-results/
+  - playwright-report/
+
+warn_list:
+  - experimental                           # warn on experimental rules (don't block commit)
+  - jinja[spacing]                         # Jinja2 template spacing convention
+  - yaml[line-length]                      # inherited from .yamllint, demoted to warning
+
+skip_list:
+  - role-name                              # role dirs don't need ansible-galaxy naming
+  - yaml[line-length]                      # let .yamllint handle line-length checks

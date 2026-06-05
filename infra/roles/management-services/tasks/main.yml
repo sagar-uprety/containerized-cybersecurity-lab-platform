@@ -20,6 +20,7 @@
       - jinja2==3.1.3
       - python-multipart==0.0.9
       - pyyaml==6.0.1
+      - jsonschema==4.23.0
     executable: pip3
   tags:
     - portal
@@ -82,6 +83,16 @@
     mode: preserve
     directory_mode: "0750"
   loop: "{{ thesis_lab_scenarios }}"
+  tags:
+    - portal
+
+- name: Install scenario metadata schema on management node
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../labs/scenario.schema.json"
+    dest: "{{ management_controller_root }}/lab-controller-api/labs/scenario.schema.json"
+    owner: root
+    group: "{{ thesis_admin_group }}"
+    mode: "0640"
   tags:
     - portal
 

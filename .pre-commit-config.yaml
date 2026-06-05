@@ -1,0 +1,195 @@
+# Run hooks on every commit (not push / manual stages).
+default_stages: [pre-commit]
+
+repos:
+  # --------------------------------------------------------------------
+  #  Built-in hygiene checks (file size, syntax, whitespace, secrets)
+  # --------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: check-added-large-files                # reject files > 5 MB
+        args: [--maxkb=5120]
+      - id: check-ast                              # verify Python files parse
+      - id: check-case-conflict                    # catch case-insensitive filename clashes
+      - id: check-json                             # validate .json syntax
+      - id: check-merge-conflict                   # block unresolved <<<<<<< markers
+      - id: check-toml                             # validate .toml syntax
+      - id: check-yaml                             # validate .yml / .yaml syntax
+        args: [--unsafe]                           # also parse multi-doc / custom tags
+      - id: detect-private-key                     # keep secrets out of git
+      - id: end-of-file-fixer                      # ensure files end with a newline
+      - id: mixed-line-ending                      # enforce LF (Unix) line endings
+        args: [--fix=lf]
+      - id: forbid-new-submodules                  # prevent accidental git submodules
+      - id: trailing-whitespace                    # strip trailing spaces
+        args: [--markdown-linebreak-ext=md]        # preserve explicit <br> in Markdown
+
+  # --------------------------------------------------------------------
+  #  Python linting + formatting (Ruff replaces Flake8, isort, Black)
+  # --------------------------------------------------------------------
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.15.16
+    hooks:
+      - id: ruff-check                             # lint: unused imports, vars, args, bugs
+        args: [--fix]                              # auto-fix safe violations
+      - id: ruff-format                            # format: consistent whitespace / quotes
+
+  # --------------------------------------------------------------------
+  #  YAML style linting (Ansible / scenario / MkDocs YAML)
+  # --------------------------------------------------------------------
+  - repo: https://github.com/adrienverge/yamllint.git
+    rev: v1.38.0
+    hooks:
+      - id: yamllint
+        args: [-c=.yamllint]                       # custom rules in ./.yamllint
+
+  # --------------------------------------------------------------------
+  #  Shell script linting (Bash entrypoints, Ansible scripts)
+  # --------------------------------------------------------------------
+  - repo: https://github.com/shellcheck-py/shellcheck-py
+    rev: v0.11.0.1
+    hooks:
+      - id: shellcheck
+        args: [--severity=warning]                 # flag warnings and errors, skip style notes
+
+  # --------------------------------------------------------------------
+  #  Dockerfile linting (hadolint = Dockerfile best-practice rules)
+  # --------------------------------------------------------------------
+  - repo: https://github.com/hadolint/hadolint
+    rev: v2.12.0
+    hooks:
+      - id: hadolint
+        args: [--failure-threshold=warning]        # only fail on warning-level or worse
+        # ignores (DL3008, DL3013) are in ./.hadolint.yaml
+
+  # --------------------------------------------------------------------
+  #  Python security scanning (bandit: subprocess, eval, hardcoded creds)
+  # --------------------------------------------------------------------
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.8.3
+    hooks:
+      - id: bandit
+        args: [-c, pyproject.toml]                 # read [tool.bandit] from pyproject.toml
+        additional_dependencies: [".[toml]"]       # required for TOML config support
+        files: \.py$
+
+  # --------------------------------------------------------------------
+  #  Broad secret scanning (tokens, API keys, connection strings)
+  # --------------------------------------------------------------------
+  - repo: https://github.com/gitleaks/gitleaks
+    rev: v8.30.1
+    hooks:
+      - id: gitleaks
+        args: [--config=.gitleaks.toml, --redact]
+
+  # --------------------------------------------------------------------
+  #  pyproject.toml semantic validation (PEP/package metadata schema)
+  # --------------------------------------------------------------------
+  - repo: https://github.com/abravalheri/validate-pyproject
+    rev: v0.25
+    hooks:
+      - id: validate-pyproject
+
+  # --------------------------------------------------------------------
+  #  Spell checking (typos in comments, docs, guides)
+  # --------------------------------------------------------------------
+  - repo: https://github.com/codespell-project/codespell
+    rev: v2.4.1
+    hooks:
+      - id: codespell
+
+  # --------------------------------------------------------------------
+  #  JS / JSON / Markdown formatting (Prettier)
+  # --------------------------------------------------------------------
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: v3.1.0
+    hooks:
+      - id: prettier
+        files: \.(js|mjs|cjs|json|md|markdown)$    # YAML excluded — handled by yamllint
+
+  # --------------------------------------------------------------------
+  #  Project-specific local hooks (written in this repo)
+  # --------------------------------------------------------------------
+  - repo: local
+    hooks:
+      # Validate lab scenario.yaml against scenario.schema.json
+      - id: thesis-scenario-validation
+        name: Validate lab scenario metadata
+        entry: python tools/pre_commit/validate_scenarios.py
+        language: python
+        additional_dependencies:
+          - jsonschema==4.23.0
+          - pyyaml==6.0.2
+        files: ^(labs/.*/scenario\.yaml|labs/scenario\.schema\.json)$
+        pass_filenames: false
+
+      # Validate per-lab intentional scanner findings and teaching-purpose risks
+      - id: thesis-intentional-risk-validation
+        name: Validate lab intentional-risk allowlists
+        entry: python tools/pre_commit/validate_intentional_risks.py
+        language: python
+        additional_dependencies:
+          - pyyaml==6.0.2
+        files: ^labs/.*/intentional-risk-allowlist\.yaml$
+        pass_filenames: false
+
+      # Lint Playwright tests for missing awaits and other JS test bugs
+      - id: eslint-playwright
+        name: ESLint Playwright tests
+        entry: eslint --fix
+        language: node
+        additional_dependencies:
+          - eslint@9.39.3
+          - '@eslint/js@9.39.3'
+          - eslint-config-prettier@10.1.8
+          - eslint-plugin-playwright@2.2.2
+        files: ^tests/.*\.js$
+
+      # Lint Markdown structure beyond formatting (headings, code fences, links)
+      - id: markdownlint-cli2
+        name: Markdown structural lint
+        entry: markdownlint-cli2 --fix
+        language: node
+        additional_dependencies:
+          - markdownlint-cli2@0.22.1
+        files: \.(md|markdown)$
+
+      - id: thesis-architecture-import-validation
+        name: Validate Python architecture import boundaries
+        entry: python tools/pre_commit/validate_architecture_imports.py
+        language: python
+        files: \.py$
+        pass_filenames: false
+
+      # Run ansible-playbook --syntax-check on every infra YAML file
+      - id: ansible-playbook-syntax
+        name: Ansible playbook syntax check
+        entry: python tools/pre_commit/ansible_syntax_check.py
+        language: python
+        additional_dependencies:
+          - ansible-core
+          - paramiko
+        files: ^infra/.*\.ya?ml$
+        pass_filenames: false
+
+      # Run ansible-lint (basic profile) on infra YAML
+      - id: ansible-lint-local
+        name: Ansible lint
+        entry: ansible-lint --offline --profile=basic
+        language: python
+        additional_dependencies:
+          - ansible-core
+          - ansible-lint
+          - paramiko
+        files: ^infra/.*\.ya?ml$
+        pass_filenames: false
+
+      # Detect dead Python code: unused functions, classes, module-level vars
+      - id: vulture
+        name: Dead code detection
+        language: python
+        additional_dependencies:
+          - vulture
+        files: \.py$
+        pass_filenames: false

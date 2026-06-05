@@ -1,0 +1,75 @@
+lab_id: redis-exposed
+
+# Intentional findings document teaching-purpose weaknesses. They do not disable
+# scanners by themselves; tool suppressions must point back to these IDs.
+intentional_findings:
+  - id: redis-dummy-seed-token
+    tool: gitleaks
+    files:
+      - seed/redis-seed.txt
+    patterns:
+      - support_token:demo-only-token
+    reason: Dummy Redis seed data gives students realistic keys to enumerate without committing real secrets.
+
+  - id: redis-empty-password-template
+    tool: gitleaks
+    files:
+      - seed/app-config.env.tpl
+    patterns:
+      - REDIS_PASSWORD=
+    reason: The vulnerable baseline intentionally starts with an empty Redis password to model no authentication.
+
+  - id: redis-placeholder-fixed-config
+    tool: gitleaks
+    files:
+      - files/redis.conf.fixed.example
+    patterns:
+      - change-me-demo-only
+    reason: The fixed config example uses an obvious demo placeholder that students must replace during remediation.
+
+  - id: redis-demo-solution-password
+    tool: gitleaks
+    files:
+      - solution-notes.md
+    patterns:
+      - demo-redis-password
+    reason: Instructor solution notes use an obvious demo password to document the expected remediation workflow.
+
+  - id: redis-checker-json-stdout
+    tool: ruff
+    rules:
+      - T201
+    files:
+      - checks/check.py
+    reason: The checker CLI prints machine-readable JSON to stdout as its contract with labctl.
+
+  - id: redis-demo-app-container-bind
+    tool: bandit
+    rules:
+      - B104
+    files:
+      - demo-app/app.py
+    patterns:
+      - 0.0.0.0
+    reason: The demo app intentionally binds all interfaces inside the private container network for student access.
+
+  - id: redis-checker-internal-urlopen
+    tool: bandit
+    rules:
+      - B310
+    files:
+      - checks/check.py
+    patterns:
+      - urllib.request.urlopen
+    reason: The checker performs an internal HTTP health check against the lab network, not a user-controlled URL.
+
+  - id: redis-checker-broad-exception
+    tool: bandit
+    rules:
+      - B110
+      - B112
+    files:
+      - checks/check.py
+    patterns:
+      - "except Exception:"
+    reason: The checker intentionally treats any connection, DNS, or protocol failure as a broken lab state.

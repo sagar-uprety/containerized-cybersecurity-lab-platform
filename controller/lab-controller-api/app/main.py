@@ -312,7 +312,7 @@ def check_lab(
         check_result = json.loads(stdout[json_start:])
     except (json.JSONDecodeError, ValueError) as exc:
         record_event("check", lab_id, student_id, user["username"], "error", detail=str(exc))
-        raise HTTPException(status_code=502, detail="Checker did not return valid JSON")
+        raise HTTPException(status_code=502, detail="Checker did not return valid JSON") from exc
 
     update_runtime_state(
         lab_id,
@@ -373,7 +373,9 @@ def instructor_view(request: Request, user: dict = Depends(get_current_user)):
     command_logs = []
     for scenario in list_scenarios():
         for student in get_student_users().values():
-            status_text, recent_commands = get_lab_status_details(scenario["id"], student["student_id"])
+            status_text, recent_commands = get_lab_status_details(
+                scenario["id"], student["student_id"]
+            )
             rows.append(
                 {
                     "lab_id": scenario["id"],
@@ -384,7 +386,9 @@ def instructor_view(request: Request, user: dict = Depends(get_current_user)):
             )
             command_logs.extend(recent_commands)
 
-    command_logs = sorted(command_logs, key=lambda entry: entry.get("timestamp", ""), reverse=True)[:50]
+    command_logs = sorted(command_logs, key=lambda entry: entry.get("timestamp", ""), reverse=True)[
+        :50
+    ]
 
     return templates.TemplateResponse(
         "instructor.html",
