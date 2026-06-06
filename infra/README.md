@@ -1,6 +1,6 @@
 # Infrastructure
 
-directory so `ansible.cfg` can resolve the inventory and role path.
+repository root so `config/ansible.cfg` can resolve the inventory and role path.
 
 The active host baseline is RHEL 9.6 for both x01 and x02.
 

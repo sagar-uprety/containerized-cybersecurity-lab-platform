@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -16,6 +17,11 @@ def main() -> int:
         print(f"missing inventory: {inventory.relative_to(repo_root)}", file=sys.stderr)
         return 1
 
+    ansible_cfg = repo_root / "config" / "ansible.cfg"
+    ansible_env = dict(os.environ)
+    if ansible_cfg.exists():
+        ansible_env["ANSIBLE_CONFIG"] = str(ansible_cfg)
+
     failures = 0
     for playbook in playbooks:
         display_name = playbook.relative_to(repo_root)
@@ -29,6 +35,7 @@ def main() -> int:
                 "--syntax-check",
             ],
             cwd=repo_root,
+            env=ansible_env,
             check=False,
         )
         if result.returncode != 0:

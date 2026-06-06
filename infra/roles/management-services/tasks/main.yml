@@ -98,7 +98,7 @@
 
 - name: Install MkDocs configuration
   ansible.builtin.copy:
-    src: "{{ playbook_dir }}/../../mkdocs.yml"
+    src: "{{ playbook_dir }}/../../config/mkdocs.yml"
     dest: "{{ management_docs_root }}/source/mkdocs.yml"
     owner: root
     group: "{{ thesis_admin_group }}"

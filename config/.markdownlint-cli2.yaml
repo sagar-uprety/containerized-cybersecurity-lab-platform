@@ -1,0 +1,18 @@
+# markdownlint-cli2 entry point
+
+config: config/.markdownlint.yaml
+
+globs:
+  - 'README.md'
+  - 'controller/**/*.md'
+  - 'docs/**/*.md'
+  - 'infra/**/*.md'
+  - 'labs/**/*.md'
+  - 'platform-docs/**/*.md'
+  - 'tests/**/*.md'
+  - '!resources/**'
+  - '!node_modules/**'
+  - '!site/**'
+  - '!test-results/**'
+  - '!.venv/**'
+  - '!config/**'

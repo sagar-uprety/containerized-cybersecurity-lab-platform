@@ -51,7 +51,7 @@ npm run test:labs
 This repository uses `pre-commit` for lightweight local checks before commits. The hooks cover whitespace and merge-conflict checks, JSON/YAML/TOML parsing, private-key detection, Ruff Python lint/format, YAML style, ShellCheck shell-script analysis, scenario metadata validation, Ansible playbook syntax checks, and basic offline `ansible-lint` checks.
 
 ```bash
-python -m pip install -r requirements-dev.txt
+python -m pip install -r config/requirements-dev.txt
 pre-commit install
 pre-commit run --all-files
 ```
