@@ -15,5 +15,6 @@ The first scenario is `redis-exposed`, a browser-terminal-first Redis misconfigu
 
 Every `scenario.yaml` must satisfy the shared scenario schema before `labctl` renders templates or starts a lab.
 Each scenario owns its image build metadata under `build.images` and its checker runtime under `checker.image_service`; the reusable platform core should not need new Redis-style hardcoding for each lab.
+Workstation images should extend the pinned shared workstation base image from `platform-images/workstation-base` and add only scenario-specific tools or files.
 
 Use `TEMPLATE.md` as the package layout contract for every new lab.

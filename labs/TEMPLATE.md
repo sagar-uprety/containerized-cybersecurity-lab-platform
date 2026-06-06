@@ -14,7 +14,7 @@ agents can work consistently.
   checks/
     check.py
     README.md
-  demo-app/
+  demo-app/                  # optional, only for scenarios with a demo app
     Dockerfile
     app.py
     entrypoint.sh
@@ -59,6 +59,15 @@ Every lab must declare its image build inputs in `scenario.yaml`. The Ansible
 lab-runtime role reads this metadata and builds the images before students start
 labs, so future scenarios do not require editing Redis-specific Ansible
 variables.
+
+Workstation images should extend the shared platform base image instead of
+duplicating SSH, browser-terminal, and command-logging setup:
+
+```dockerfile
+FROM thesis-labs/workstation-base:2026-06-06
+
+# Add only scenario-specific tools and student-facing files here.
+```
 
 ```yaml
 build:

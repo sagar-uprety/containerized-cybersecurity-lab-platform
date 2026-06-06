@@ -10,10 +10,9 @@ if [ -n "${STUDENT_PASSWORD:-}" ]; then
   echo "student:${STUDENT_PASSWORD}" | chpasswd
 fi
 
-# Ensure proper bash profile for student
 cp /etc/skel/.bashrc /home/student/.bashrc || true
 cp /etc/skel/.profile /home/student/.profile || true
-if [ ! -f /home/student/SITREP.txt ]; then
+if [ -f /opt/lab/student/SITREP.txt ] && [ ! -f /home/student/SITREP.txt ]; then
   cp /opt/lab/student/SITREP.txt /home/student/SITREP.txt
 fi
 if ! grep -q 'thesis-command-logger.bash' /home/student/.bashrc 2>/dev/null; then
@@ -22,14 +21,13 @@ fi
 chown -R student:student /home/student
 
 mkdir -p /run/sshd
-mkdir -p /lab/redis /lab/demo-app
+mkdir -p /lab
 mkdir -p /var/log/thesis-labs/commands
 chown -R student:student /lab
 chown -R student:student /var/log/thesis-labs/commands
 
 /usr/sbin/sshd
 
-# Explicitly set HOME so ttyd doesn't inherit root's HOME
 export HOME=/home/student
 export USER=student
 export THESIS_COMMAND_LOG_DIR=/var/log/thesis-labs/commands

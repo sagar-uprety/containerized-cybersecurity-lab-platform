@@ -61,11 +61,13 @@ def load_scenario(paths: RuntimePaths, lab_id: str) -> dict:
 
 def endpoint_ports(scenario: dict, student_number: int) -> dict:
     access = scenario.get("access", {})
-    return {
+    ports = {
         "ssh": int(access["ssh_port_base"]) + student_number,
-        "app": int(access["app_port_base"]) + student_number,
         "browser_terminal": int(access["browser_terminal_port_base"]) + student_number,
     }
+    if access.get("app_port_base") is not None:
+        ports["app"] = int(access["app_port_base"]) + student_number
+    return ports
 
 
 def service_images(scenario: dict) -> dict:

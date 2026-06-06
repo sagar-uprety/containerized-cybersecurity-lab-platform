@@ -152,7 +152,7 @@ safety:
     adapter: ttyd
     credential_required: true
     writable: true
-    max_clients: 1
+    max_clients: 2
     url_arguments_allowed: false
     once_requires_supervised_restart: true
 

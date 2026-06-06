@@ -8,7 +8,9 @@ import yaml
 
 
 SCENARIO_ROOT = Path("{{ lab_runtime_code_root }}")
+PLATFORM_IMAGE_ROOT = Path("{{ lab_runtime_platform_images_root }}")
 SCENARIOS = {{ thesis_lab_scenarios | to_json }}
+PLATFORM_IMAGES = {{ thesis_platform_images | default([]) | to_json }}
 IMAGE_BUILDER = "{{ lab_runtime_image_builder }}"
 PLATFORM_LABEL = "{{ thesis_platform_name }}"
 
@@ -32,12 +34,19 @@ def run(args, check=True):
 def safe_relative_path(value, label):
     path = Path(str(value))
     if path.is_absolute() or ".." in path.parts:
-        fail(f"{label} must be a relative path inside the lab package: {value}")
+        fail(f"{label} must be a relative path inside its build root: {value}")
     return path
 
 
 def image_definitions():
     images = []
+    for image in PLATFORM_IMAGES:
+        name = image.get("name")
+        if not name:
+            fail("Platform image entry is missing name")
+        context = PLATFORM_IMAGE_ROOT / safe_relative_path(image.get("context", "."), "thesis_platform_images.context")
+        dockerfile = context / safe_relative_path(image.get("dockerfile", "Dockerfile"), "thesis_platform_images.dockerfile")
+        images.append({"lab_id": "platform", "name": name, "context": context, "dockerfile": dockerfile})
     for lab_id in SCENARIOS:
         scenario_path = SCENARIO_ROOT / lab_id / "scenario.yaml"
         if not scenario_path.exists():

@@ -35,6 +35,19 @@
   tags:
     - lab-source
 
+- name: Install shared platform image source trees
+  ansible.builtin.copy:
+    src: "{{ lab_runtime_local_platform_images_root }}/"
+    dest: "{{ lab_runtime_platform_images_root }}/"
+    owner: root
+    group: "{{ thesis_admin_group }}"
+    mode: preserve
+    directory_mode: "0750"
+  register: platform_image_source_copy_results
+  tags:
+    - lab-source
+    - lab-images
+
 - name: Create labadmin user
   ansible.builtin.user:
     name: "{{ thesis_labadmin_user }}"
@@ -213,12 +226,19 @@
   ansible.builtin.set_fact:
     lab_runtime_sources_changed: >-
       {{
-        lab_source_copy_results.results
-        | selectattr('changed')
-        | list
-        | length > 0
-        if lab_source_copy_results is defined
-        else true
+        (
+          lab_source_copy_results.results
+          | selectattr('changed')
+          | list
+          | length > 0
+          if lab_source_copy_results is defined
+          else true
+        )
+        or (
+          platform_image_source_copy_results.changed
+          if platform_image_source_copy_results is defined
+          else true
+        )
       }}
     lab_runtime_images_missing: "{{ lab_runtime_image_presence.rc != 0 }}"
   tags:

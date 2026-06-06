@@ -172,7 +172,7 @@ def lab_detail(request: Request, lab_id: str, user: dict = Depends(get_current_u
             "check_result": check_result,
             "terminal_port": ports["terminal"],
             "ssh_port": ports["ssh"],
-            "app_port": ports["app"],
+            "app_port": ports.get("app"),
             "host": settings.WORKER_HOST,
             "student_guide_url": student_guide_url(scenario),
             "csrf_token": generate_token(user),
@@ -187,15 +187,18 @@ def lab_status(lab_id: str, user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=404, detail="Lab not found")
     student_id = user_student_id(user)
     ports = endpoint_ports(scenario, student_id, user)
+    endpoints = {
+        "browser_terminal": f"/terminal/{ports['terminal']}/",
+        "ssh": f"ssh {student_id}@{settings.WORKER_HOST} -p {ports['ssh']}",
+    }
+    if "app" in ports:
+        endpoints["app"] = f"http://{settings.WORKER_HOST}:{ports['app']}/"
+
     return {
         "lab": lab_id,
         "student": student_id,
         "state": get_lab_status(lab_id, student_id),
-        "endpoints": {
-            "browser_terminal": f"/terminal/{ports['terminal']}/",
-            "ssh": f"ssh {student_id}@{settings.WORKER_HOST} -p {ports['ssh']}",
-            "app": f"http://{settings.WORKER_HOST}:{ports['app']}/",
-        },
+        "endpoints": endpoints,
     }
 
 

@@ -73,12 +73,14 @@ def endpoint_ports(scenario: dict, student_id: str, user: Optional[dict] = None)
     number = student_number(student_id, user)
     access = scenario.get("access", {})
     browser_terminal = int(access["browser_terminal_port_base"]) + number
-    return {
+    ports = {
         "browser_terminal": browser_terminal,
         "terminal": browser_terminal,
         "ssh": int(access["ssh_port_base"]) + number,
-        "app": int(access["app_port_base"]) + number,
     }
+    if access.get("app_port_base") is not None:
+        ports["app"] = int(access["app_port_base"]) + number
+    return ports
 
 
 def student_guide_url(scenario: dict) -> str:

@@ -99,7 +99,7 @@
         "access": {
             "type": "object",
             "additionalProperties": true,
-            "required": ["primary", "ssh_port_base", "app_port_base", "browser_terminal_port_base"],
+            "required": ["primary", "ssh_port_base", "browser_terminal_port_base"],
             "properties": {
                 "primary": {
                     "const": "browser_terminal"

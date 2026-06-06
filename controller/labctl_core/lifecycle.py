@@ -54,11 +54,12 @@ class LabRuntime:
             "ttyd_credential": f"{student_id}:{password}",
             "host_bind_ip": scenario.get("access", {}).get("host_bind_ip", "0.0.0.0"),
             "ssh_port": ports["ssh"],
-            "app_port": ports["app"],
             "browser_terminal_port": ports["browser_terminal"],
             "resources": scenario.get("resources", {}),
             "images": images,
         }
+        if "app" in ports:
+            context["app_port"] = ports["app"]
         return scenario, student, runtime_project, context
 
     def _rendered_path(self, runtime_project: str):
