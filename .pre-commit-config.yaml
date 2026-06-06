@@ -188,6 +188,13 @@ repos:
         files: ^infra/.*\.ya?ml$
         pass_filenames: false
 
+      # Reject empty directories anywhere in the repo
+      - id: thesis-empty-dir-check
+        name: Empty directory check
+        entry: python tools/pre_commit/check_empty_dirs.py
+        language: python
+        pass_filenames: false
+
       # Detect dead Python code: unused functions, classes, module-level vars
       - id: vulture
         name: Dead code detection
