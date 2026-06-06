@@ -125,7 +125,9 @@
 
 - name: Read generated controller public key from management host
   ansible.builtin.slurp:
-    src: "{{ hostvars[groups['management'][0]].management_controller_ssh_key_path | default(thesis_runtime_root ~ '/controller/controller_key') }}.pub"
+    src: >-
+      {{ hostvars[groups['management'][0]].management_controller_ssh_key_path |
+      default(thesis_runtime_root ~ '/controller/controller_key') }}.pub
   delegate_to: "{{ groups['management'][0] }}"
   register: lab_runtime_controller_public_key_file
   changed_when: false

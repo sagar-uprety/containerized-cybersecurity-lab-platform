@@ -258,8 +258,12 @@
         that:
           - management_portal_enabled.stdout == "enabled"
           - management_portal_active.stdout == "active"
-          - "'Environment=\"SSH_KEY_PATH=' ~ management_controller_ssh_key_path ~ '\"' in (management_portal_service_definition.content | b64decode)"
-          - "'Environment=\"MAX_CONCURRENT_STUDENTS=' ~ thesis_max_concurrent_students ~ '\"' in (management_portal_service_definition.content | b64decode)"
+          - >-
+            'Environment="SSH_KEY_PATH=' ~ management_controller_ssh_key_path ~ '"'
+            in (management_portal_service_definition.content | b64decode)
+          - >-
+            'Environment="MAX_CONCURRENT_STUDENTS=' ~ thesis_max_concurrent_students ~ '"'
+            in (management_portal_service_definition.content | b64decode)
           - "'--host 127.0.0.1 --port 8000' in (management_portal_service_definition.content | b64decode)"
 
     - name: Assert Nginx proxy service and SELinux network access are ready

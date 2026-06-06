@@ -9,7 +9,9 @@
 
 - name: Fail when Docker CE is not available for this host architecture
   ansible.builtin.fail:
-    msg: "Docker CE repository provisioning is not configured for architecture {{ ansible_architecture }}. Supported architectures: {{ docker_supported_architectures | join(', ') }}."
+    msg: >-
+      Docker CE repository provisioning is not configured for architecture {{ ansible_architecture }}.
+      Supported architectures: {{ docker_supported_architectures | join(', ') }}.
   when: ansible_architecture not in docker_supported_architectures
 
 - name: Check whether Docker CE repository already exists
@@ -47,7 +49,9 @@
 
 - name: Explain Docker Engine install skipped in initial check mode
   ansible.builtin.debug:
-    msg: "Skipping Docker Engine package/service tasks in check mode because the Docker CE repo is not present yet; a real run would create it first."
+    msg: >-
+      Skipping Docker Engine package/service tasks in check mode because the Docker CE repo is not present yet;
+      a real run would create it first.
   changed_when: false
   when: not docker_engine_tasks_enabled | bool
 

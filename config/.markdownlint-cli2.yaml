@@ -1,18 +1,12 @@
-# markdownlint-cli2 entry point
-
-config: config/.markdownlint.yaml
-
-globs:
-  - 'README.md'
-  - 'controller/**/*.md'
-  - 'docs/**/*.md'
-  - 'infra/**/*.md'
-  - 'labs/**/*.md'
-  - 'platform-docs/**/*.md'
-  - 'tests/**/*.md'
-  - '!resources/**'
-  - '!node_modules/**'
-  - '!site/**'
-  - '!test-results/**'
-  - '!.venv/**'
-  - '!config/**'
+# markdownlint-cli2 configuration
+config:
+  default: true
+  "MD001": false
+  "MD013": false
+  "MD024":
+    siblings_only: true
+  "MD025": false
+  "MD033": false
+  "MD038": false
+  "MD041": false
+  "MD030": false
