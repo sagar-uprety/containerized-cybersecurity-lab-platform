@@ -1,51 +1,87 @@
 # Thesis Lab Platform
 
-This repository contains the implementation artifacts for a VM-hosted, container-first cybersecurity lab platform for the thesis project.
-
-## Architecture
-
+VM-hosted, container-first cybersecurity lab platform. Two RHEL 9.6 VMs: x02
+(management plane) and x01 (lab worker).
 
 
-Recommended reading path for new maintainers:
+## Nodes
 
-2. [`infra/README.md`](infra/README.md) for provisioning and verification entry points.
-3. [`controller/README.md`](controller/README.md) for `labctl`, the portal, and controller verification.
-4. [`labs/README.md`](labs/README.md) and [`labs/TEMPLATE.md`](labs/TEMPLATE.md) for scenario authoring conventions.
-5. [`tests/README.md`](tests/README.md) for local and live Playwright verification.
+| VM  | Hostname                | Role                                                              |
+| --- | ----------------------- | ----------------------------------------------------------------- |
+| x01 | `x01lp1.ucc.cit.tum.de` | Podman runtime, student lab containers, per-student networks      |
+| x02 | `x02lp1.ucc.cit.tum.de` | FastAPI portal, Nginx reverse proxy, MkDocs, Ansible control node |
 
 ## Repository Areas
 
-| Path               | Purpose                                                                                                                                      |
-| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `infra/`           | Ansible inventory, playbooks, roles, and teardown logic for provisioning the Control Plane and Worker VMs.                                   |
-| `labs/`            | Versioned lab scenarios (`scenario.yaml`), Podman runtime templates, lab files, checks (`check.py`), and demo applications.                  |
-| `platform-images/` | Shared platform container image sources such as the reusable workstation base with SSH, browser terminal, and command logging.               |
-| `controller/`      | The internal `labctl` Python CLI, reusable `labctl_core` lifecycle package, SSH security wrapper, and the FastAPI student/instructor portal. |
-| `docs/`            | Student-facing MkDocs content containing the canonical lab guides.                                                                           |
-| `tests/`           | Playwright E2E tests, including the Universal Lab Verifier.                                                                                  |
-| `tools/`           | Local validation helpers used by pre-commit hooks.                                                                                           |
-| `resources/`       | Research traceability notes that support lab/scenario selection, not runtime platform code.                                                  |
+| Path               | Purpose                                                                                                                     |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------------- |
+| `infra/`           | Ansible inventory, playbooks, roles for provisioning both VMs                                                               |
+| `labs/`            | Lab scenarios: `scenario.yaml`, `podman.yml.tpl`, `Dockerfile`, `config.vulnerable`, seed data, MkDocs guides under `docs/` |
+| `platform-images/` | Shared images: `workstation-base` (student attack box), `lab-service-base` (generic env-driven service entrypoint)          |
+| `controller/`      | `labctl` CLI, `labctl_core` lifecycle package, SSH wrapper, FastAPI portal                                                  |
+| `docs/`            | MkDocs student-facing lab guides                                                                                            |
+| `tests/`           | Playwright E2E tests (portal UI + universal lab verifier)                                                                   |
+| `tools/`           | Pre-commit validators                                                                                                       |
+| `resources/`       | Research traceability for scenario selection                                                                                |
 
-## Quick Start (Testing)
+## labctl layout
 
-The platform includes a universal end-to-end verifier that reads MkDocs guides and automatically completes labs in the browser using Playwright.
+`controller/labctl` is a thin wrapper. Reusable logic in `labctl_core/`:
+
+| Module         | Purpose                                                                 |
+| -------------- | ----------------------------------------------------------------------- |
+| `cli.py`       | Argument validation and verb dispatch                                   |
+| `config.py`    | Runtime path discovery                                                  |
+| `scenario.py`  | Scenario loading, student registry, port derivation, checker conditions |
+| `podman.py`    | Safe argv-based Podman operations                                       |
+| `lifecycle.py` | Start, stop, reset, destroy, status, check                              |
+
+Checker logic is declarative in `scenario.yaml`. Students never run `labctl`,
+Podman, or Ansible directly — portal actions on x02 call restricted lifecycle
+commands on x01 through the `labadmin` SSH wrapper.
+
+## Ansible
+
+Run from repo root so `config/ansible.cfg` resolves inventory and roles:
+
+```bash
+ansible-playbook playbooks/site.yml --check --diff
+ansible-playbook playbooks/lab-worker.yml --check --diff
+ansible-playbook playbooks/management.yml --check --diff
+ansible-playbook playbooks/verify-platform.yml
+ansible-playbook playbooks/lab-worker.yml --tags lab-source,lab-images
+ansible-playbook playbooks/management.yml --tags portal,nginx
+```
+
+Roles: `common` (RHEL baseline), `podman` (active runtime), `lab-runtime` (lab
+source, image build, `labctl`), `management-services` (portal, MkDocs, Nginx,
+controller SSH key). Portal and reverse proxy changes belong in
+`management-services` — use handlers, never `systemctl restart`.
+
+## Testing
+
+Playwright E2E tests:
+
+| Suite        | File                                                 | Purpose                                                                              |
+| ------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Portal UI    | `tests/portal.e2e.spec.js`                           | Page rendering, CSRF, lab links, terminal iframe/WebSocket, checker, instructor view |
 
 ```bash
 npm install
 npx playwright install
 
-# Run portal UI tests
-npm run test:portal
+npm run test:portal              # local
+npm run test:labs                # local (dry-run)
 
-# Run the full universal lab solver
-npm run test:labs
+# Live (destructive):
+PORTAL_BASE_URL=http://<x02-ip> \
+  PORTAL_USER=student01 \
+  PORTAL_PASSWORD=<password> \
+  PORTAL_EXPECT_LIVE=true \
+  npm run test:portal
 ```
 
-`npm run test:labs` is a live/destructive verifier. To run against a live environment, export the required credentials first: `PORTAL_BASE_URL`, `PORTAL_USER`, and `PORTAL_PASSWORD`.
-
-## Local Quality Checks
-
-This repository uses `pre-commit` for lightweight local checks before commits. The hooks cover whitespace and merge-conflict checks, JSON/YAML/TOML parsing, private-key detection, Ruff Python lint/format, YAML style, ShellCheck shell-script analysis, scenario metadata validation, Ansible playbook syntax checks, and basic offline `ansible-lint` checks.
+## Local Checks
 
 ```bash
 python -m pip install -r config/requirements-dev.txt
@@ -53,4 +89,4 @@ pre-commit install
 pre-commit run --all-files
 ```
 
-The Ansible hooks are local/offline and do not contact the thesis VMs.
+Hooks are local/offline — they do not contact the thesis VMs.

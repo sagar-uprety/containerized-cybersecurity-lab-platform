@@ -87,8 +87,8 @@
 
 - name: Install lab scenario schema
   ansible.builtin.copy:
-    src: "{{ lab_runtime_local_scenario_root }}/scenario.schema.json"
-    dest: "{{ lab_runtime_code_root }}/scenario.schema.json"
+    src: "{{ lab_runtime_local_scenario_root }}/templates-contract/scenario.schema.json"
+    dest: "{{ lab_runtime_code_root }}/templates-contract/scenario.schema.json"
     owner: root
     group: "{{ thesis_admin_group }}"
     mode: "0644"

@@ -5,6 +5,8 @@ site_dir: site
 use_directory_urls: true
 theme:
   name: mkdocs
+markdown_extensions:
+  - pymdownx.snippets
 nav:
   - Home: index.md
   - Labs:

@@ -39,7 +39,7 @@ def load_scenario_metadata(lab_id: str):
         return None
     with path.open("r", encoding="utf-8") as handle:
         scenario = yaml.safe_load(handle) or {}
-    schema_path = labs_root / "scenario.schema.json"
+    schema_path = labs_root / "templates-contract" / "scenario.schema.json"
     if not schema_path.exists():
         raise HTTPException(status_code=500, detail="Scenario schema not found")
     try:

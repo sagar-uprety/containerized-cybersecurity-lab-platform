@@ -1,7 +1,6 @@
 # <Lab Title>
 
-Briefly state the student's role, the observed symptom, and the mission. Do not
-name the exact vulnerability in the opening paragraph.
+Briefly state the student's role, the observed symptom, and the mission. Do not name the exact vulnerability in the opening paragraph.
 
 ## Success Criteria
 
@@ -23,8 +22,7 @@ List the important paths or endpoints for this lab.
 
 ## 2. Discover
 
-Use normal Linux or service-administration commands to inspect the environment.
-Keep this section focused on investigation, not remediation.
+Use normal Linux or service-administration commands to inspect the environment. Keep this section focused on investigation, not remediation.
 
 ```bash
 # example discovery commands
@@ -40,8 +38,7 @@ Prove why the issue matters using safe, seeded, fake data only.
 
 ## 4. Remediate
 
-Apply the fix inside the lab environment. Include only commands that students are
-intended to run.
+Apply the fix inside the lab environment. Include only commands that students are intended to run.
 
 ```bash
 # example remediation commands
@@ -49,8 +46,7 @@ intended to run.
 
 ## 5. Verify
 
-Verify both security and service continuity, then run **Run Check** in the
-portal.
+Verify both security and service continuity, then run **Run Check** in the portal.
 
 ```bash
 # example verification commands
@@ -58,5 +54,8 @@ portal.
 
 ## 6. Reflect
 
-Provide root cause, impact, remediation, and verification.
-and prevention.
+Provide root cause, impact, remediation, verification, and prevention.
+
+---
+
+**Note:** This file lives at `labs/<lab-id>/docs/student-guide.md`. The MkDocs include at `docs/labs/<lab-id>.md` pulls it automatically via `--8<--` snippet. You do not need to edit the MkDocs file separately.

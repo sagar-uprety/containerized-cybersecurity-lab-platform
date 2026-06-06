@@ -1,47 +1,36 @@
-# Instructor Guide: The Exposed Cache
+# The Exposed Cache — Instructor Guide
 
-## Purpose
+## Lab Overview
 
-This lab validates the reusable platform path: portal action, browser terminal,
-private Podman network, vulnerable service, demo app, checker, reset, and end.
-The Redis scenario is intentionally small so infrastructure issues are easy to
-separate from lab-content issues.
+Students discover an unauthenticated Redis instance, demonstrate data access, apply `requirepass` authentication, and verify service continuity.
 
-## Expected Flow
+## Expected Solution
 
-1. Student opens the portal and starts `redis-exposed`.
-2. Student uses the embedded browser terminal.
-3. Student discovers Redis on `redis-host:6379`.
-4. Student proves unauthenticated access with fake keys.
-5. Student enables Redis authentication and updates the demo app config.
-6. Student runs the portal check and receives `fixed`.
-7. Student completes the reflection.
+1. Orient by reading `~/SITREP.txt`
+2. Discover Redis on port 6379 via nmap
+3. Demonstrate: `redis-cli -h redis-host keys '*'` returns seeded data
+4. Remediate: add `requirepass` to Redis config, update demo app env, restart via SSH
+5. Verify: unauthenticated ping fails, authenticated ping succeeds, app health check OK
+6. Run portal checker — should report `fixed`
 
-## Verification
+## Checker States
 
-Expected platform checks:
+| State        | Condition                                                                  |
+| ------------ | -------------------------------------------------------------------------- |
+| `vulnerable` | Redis accepts commands without auth                                        |
+| `fixed`      | Redis rejects unauthenticated commands, accepts with password, app healthy |
+| `broken`     | Redis unreachable, app unhealthy, or config corrupted                      |
 
-```bash
-labctl start redis-exposed student01
-labctl check redis-exposed student01
-labctl reset redis-exposed student01
-labctl destroy redis-exposed student01
-```
+## Common Mistakes
 
-Expected checker states:
+-   Students forget to restart Redis after changing config
+-   Students update Redis config but not the demo app env file
+-   Students lock themselves out by setting a password they don't record
+-   Students accidentally break the config file syntax
 
--   `vulnerable`: Redis unauthenticated commands work and the app is healthy.
--   `fixed`: unauthenticated Redis commands fail and the app is healthy.
--   `broken`: Redis or the app is unavailable or only partially remediated.
+## Teaching Notes
 
-## Privacy Boundary
-
-Use checker JSON, lifecycle events, status, reset counts, and timing evidence.
-Do not collect screenshots, terminal recordings, keystrokes, command history, or
-browser activity.
-
-## Recovery
-
-If a lab reaches `error`, use **End Lab** followed by **Start Lab**. The expected
-admin path is `labctl destroy redis-exposed <student>` followed by
-`labctl start redis-exposed <student>`.
+-   Emphasize that "default != secure" — Redis defaults to no auth, bind 0.0.0.0
+-   Contrast `protected-mode` (insufficient alone) vs `requirepass`
+-   Real-world reference: Ferrari et al. (2020) found 1,532 exposed Redis instances
+-   Duration: ~45-60 minutes

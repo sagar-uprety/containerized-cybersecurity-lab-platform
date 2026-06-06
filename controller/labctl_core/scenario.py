@@ -45,7 +45,7 @@ def load_scenario(paths: RuntimePaths, lab_id: str) -> dict:
         raise ScenarioError(f"Lab {lab_id} not found at {scenario_path}")
 
     scenario = load_yaml(scenario_path)
-    schema_path = paths.labs_dir / "scenario.schema.json"
+    schema_path = paths.labs_dir / "templates-contract" / "scenario.schema.json"
     if not schema_path.exists():
         raise ScenarioError(f"Scenario schema not found at {schema_path}")
 

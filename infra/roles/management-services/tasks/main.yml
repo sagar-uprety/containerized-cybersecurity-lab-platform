@@ -88,8 +88,8 @@
 
 - name: Install scenario metadata schema on management node
   ansible.builtin.copy:
-    src: "{{ playbook_dir }}/../../labs/scenario.schema.json"
-    dest: "{{ management_controller_root }}/lab-controller-api/labs/scenario.schema.json"
+    src: "{{ playbook_dir }}/../../labs/templates-contract/scenario.schema.json"
+    dest: "{{ management_controller_root }}/lab-controller-api/labs/templates-contract/scenario.schema.json"
     owner: root
     group: "{{ thesis_admin_group }}"
     mode: "0640"
