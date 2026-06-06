@@ -20,12 +20,12 @@ volumes:
       thesis.platform: "{{ thesis_platform_name }}"
       thesis.lab: "{{ lab_id }}"
       thesis.student: "{{ student_id }}"
-  - name: "{{ runtime_project }}_redis_data"
+  - name: "{{ runtime_project }}_redis_config"
     labels:
       thesis.platform: "{{ thesis_platform_name }}"
       thesis.lab: "{{ lab_id }}"
       thesis.student: "{{ student_id }}"
-  - name: "{{ runtime_project }}_redis_config"
+  - name: "{{ runtime_project }}_redis_data"
     labels:
       thesis.platform: "{{ thesis_platform_name }}"
       thesis.lab: "{{ lab_id }}"
@@ -74,6 +74,8 @@ containers:
         target: /lab/demo-app
       - source: "{{ runtime_project }}_command_logs"
         target: /var/log/thesis-labs/commands
+      - source: {{ lab_source_root }}/{{ lab_id }}/docs/SITREP.txt
+        target: /opt/lab/student/SITREP.txt
     network:
       name: "{{ runtime_project }}_labnet"
       aliases:
@@ -109,7 +111,15 @@ containers:
     init: true
     restart: unless-stopped
     environment:
-      REDIS_ADMIN_PASSWORD: "{{ student_password }}"
+      LAB_CONFIG_SRC: /opt/lab/baseline/redis.conf
+      LAB_CONFIG_DST: /usr/local/etc/redis/redis.conf
+      LAB_SERVICE_CMD: "redis-server /usr/local/etc/redis/redis.conf --logfile /var/log/redis-server.log"
+      LAB_DATA_DIR: /data
+      LAB_DATA_USER: redis
+      LAB_SEED_FILE: /opt/lab/seed/seed.txt
+      LAB_SEED_CMD: "redis-cli -h 127.0.0.1"
+      LAB_LOG_FILE: /var/log/redis-server.log
+      SERVICE_ADMIN_PASSWORD: "{{ student_password }}"
     expose:
       - 6379
     volumes:

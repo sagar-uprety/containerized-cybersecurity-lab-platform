@@ -80,27 +80,31 @@ def service_images(scenario: dict) -> dict:
     return images
 
 
-def checker_image(scenario: dict, images: dict) -> str:
-    checker = scenario.get("checker", {})
-    if checker.get("image"):
-        return checker["image"]
+def evaluate_condition(condition: str, exit_code: int, stdout: str, stderr: str) -> bool:
+    parts = condition.split(":", 1)
+    if len(parts) != 2:
+        raise ScenarioError(f"Invalid condition format: {condition!r}")
+    op, value = parts[0].strip(), parts[1].strip()
 
-    image_service = checker.get("image_service")
-    if image_service:
-        image = images.get(image_service) or images.get(normalize_key(image_service))
-        if image:
-            return image
-        raise ScenarioError(
-            f"Checker image_service {image_service!r} has no matching service image"
-        )
+    combined = stdout + stderr
 
-    raise ScenarioError("checker.image_service or checker.image is required")
+    if op == "output_contains":
+        return value in combined
+    if op == "output_eq":
+        return stdout.strip() == value
+    if op == "output_ne":
+        return stdout.strip() != value
+    if op == "exit_code":
+        return exit_code == int(value)
+    if op == "exit_code_ne":
+        return exit_code != int(value)
+    raise ScenarioError(f"Unknown condition operator: {op!r}")
 
 
-def checker_command(scenario: dict) -> str:
-    command = scenario.get("checker", {}).get("command")
-    if not command:
-        raise ScenarioError("checker.command is required")
-    if Path(command).is_absolute() or ".." in Path(command).parts:
-        raise ScenarioError("checker.command must be a relative path inside the lab package")
-    return command
+def build_container_map(manifest: dict) -> dict:
+    container_map = {}
+    for container in manifest.get("containers", []):
+        hostname = container.get("hostname")
+        if hostname:
+            container_map[hostname] = container.get("name")
+    return container_map

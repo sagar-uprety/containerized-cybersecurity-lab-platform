@@ -15,9 +15,9 @@ from labctl_core.podman import (
 )
 from labctl_core.scenario import (
     ScenarioError,
-    checker_command,
-    checker_image,
+    build_container_map,
     endpoint_ports,
+    evaluate_condition,
     load_scenario,
     load_student_record,
     service_images,
@@ -55,6 +55,7 @@ class LabRuntime:
             "host_bind_ip": scenario.get("access", {}).get("host_bind_ip", "0.0.0.0"),
             "ssh_port": ports["ssh"],
             "browser_terminal_port": ports["browser_terminal"],
+            "lab_source_root": str(self.paths.labs_dir),
             "resources": scenario.get("resources", {}),
             "images": images,
         }
@@ -131,53 +132,72 @@ class LabRuntime:
         self.start(lab_id, student_id)
 
     def check(self, lab_id: str, student_id: str) -> None:
+        runtime_project = f"{lab_id}_{student_id}"
+        result_path = self.paths.results_dir / f"{runtime_project}.json"
+
         try:
             scenario = load_scenario(self.paths, lab_id)
-            runtime_project = f"{lab_id}_{student_id}"
-            command = checker_command(scenario)
-            check_path = self.paths.labs_dir / lab_id / command
-            image = checker_image(scenario, service_images(scenario))
-            network_name = f"{runtime_project}_labnet"
-            result_path = self.paths.results_dir / f"{runtime_project}.json"
+            manifest = self._load_manifest(runtime_project)
+            if not manifest:
+                raise LabctlError(f"Lab instance {runtime_project} not found. Start it first.")
 
-            cmd = [
-                "podman",
-                "run",
-                "--rm",
-                "--network",
-                network_name,
-                "-v",
-                f"{check_path.parent}:/checks:ro",
-                image,
-                "python3",
-                f"/checks/{check_path.name}",
-                "--lab",
-                lab_id,
-                "--student",
-                student_id,
-            ]
-            logging.info("Running checks via ephemeral container attached to the lab network.")
-            result = run_command(cmd, check=False)
+            running = self._is_running(manifest)
+            if not running:
+                raise LabctlError(f"Lab instance {runtime_project} is not running.")
+
+            container_map = build_container_map(manifest)
+            checker = scenario.get("checker", {})
+            check_defs = checker.get("checks", [])
+
+            results = []
+            for check_def in check_defs:
+                name = check_def["name"]
+                exec_in = check_def["exec_in"]
+                container_name = container_map.get(exec_in)
+                if not container_name:
+                    raise LabctlError(
+                        f"Check {name!r}: no container matching exec_in={exec_in!r} "
+                        f"in manifest. Available: {sorted(container_map.keys())}"
+                    )
+
+                cmd = ["podman", "exec", container_name, "sh", "-c", check_def["run"]]
+                proc = run_command(cmd, check=False)
+                stdout = proc.stdout.strip()
+                stderr = proc.stderr.strip()
+                exit_code = proc.returncode
+
+                matched_states = []
+                for state in ("vulnerable", "fixed", "broken"):
+                    condition = check_def.get("states", {}).get(state)
+                    if condition and evaluate_condition(condition, exit_code, stdout, stderr):
+                        matched_states.append(state)
+
+                results.append(
+                    {
+                        "name": name,
+                        "exit_code": exit_code,
+                        "output": stdout[:500],
+                        "matched_states": matched_states,
+                    }
+                )
+
+            overall = _classify_state(results)
+            result = {
+                "lab": lab_id,
+                "student": student_id,
+                "status": overall,
+                "checks": results,
+            }
+
         except (ScenarioError, PodmanError) as exc:
             raise LabctlError(exc) from exc
 
-        if result.returncode != 0:
-            raise LabctlError(
-                f"Checker execution failed. Return Code: {result.returncode}\n"
-                f"STDOUT: {result.stdout}\nSTDERR: {result.stderr}"
-            )
-
-        result_path.write_text(result.stdout, encoding="utf-8")
+        result_json = json.dumps(result, indent=2)
+        result_path.write_text(result_json, encoding="utf-8")
         logging.info("Check complete. Result saved to %s", result_path)
-        print(result.stdout.strip())
+        print(result_json)
 
-    def status(self, lab_id: str, student_id: str) -> None:
-        runtime_project = f"{lab_id}_{student_id}"
-        manifest = self._load_manifest(runtime_project)
-        if not manifest:
-            print("not_created")
-            return
-
+    def _is_running(self, manifest: dict) -> bool:
         all_running = True
         any_exists = False
         for container in manifest.get("containers", []):
@@ -191,8 +211,26 @@ class LabRuntime:
                     all_running = False
             else:
                 all_running = False
+        return all_running and any_exists
 
-        if all_running and any_exists:
+    def status(self, lab_id: str, student_id: str) -> None:
+        runtime_project = f"{lab_id}_{student_id}"
+        manifest = self._load_manifest(runtime_project)
+        if not manifest:
+            print("not_created")
+            return
+
+        running = self._is_running(manifest)
+        any_exists = any(
+            run_command(
+                ["podman", "inspect", "-f", "{{.State.Status}}", c.get("name")],
+                check=False,
+            ).returncode
+            == 0
+            for c in manifest.get("containers", [])
+        )
+
+        if running:
             print("running")
         elif any_exists:
             print("stopped")
@@ -225,3 +263,19 @@ class LabRuntime:
             if isinstance(entry, dict):
                 entries.append(entry)
         return entries
+
+
+def _classify_state(results: list[dict]) -> str:
+    any_broken = any("broken" in r.get("matched_states", []) for r in results)
+    if any_broken:
+        return "broken"
+
+    all_have_vulnerable = all("vulnerable" in r.get("matched_states", []) for r in results)
+    all_have_fixed = all("fixed" in r.get("matched_states", []) for r in results)
+
+    if all_have_fixed:
+        return "fixed"
+    if all_have_vulnerable:
+        return "vulnerable"
+
+    return "broken"

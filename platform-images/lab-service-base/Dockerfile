@@ -1,0 +1,22 @@
+FROM debian:bookworm-slim
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+      ca-certificates \
+      openssh-server \
+      procps \
+      sudo \
+      tini \
+      vim-tiny \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN sed -i 's/^#\?\s*PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config \
+    && sed -i 's/^#\?\s*PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config \
+    && mkdir -p /run/sshd /opt/lab/baseline /opt/lab/seed \
+    && ssh-keygen -A
+
+COPY entrypoint.sh /usr/local/sbin/lab-entrypoint
+RUN chmod 0755 /usr/local/sbin/lab-entrypoint
+
+EXPOSE 22
+ENTRYPOINT ["/usr/bin/tini", "--", "/usr/local/sbin/lab-entrypoint"]

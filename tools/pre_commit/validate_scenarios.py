@@ -19,12 +19,6 @@ def _load_yaml(path: Path) -> dict[str, Any]:
     return data
 
 
-def _require_file(base_dir: Path, relative_path: str, errors: list[str]) -> None:
-    path = base_dir / relative_path
-    if not path.is_file():
-        errors.append(f"missing referenced file: {path}")
-
-
 def validate_scenario(schema: dict[str, Any], scenario_path: Path) -> list[str]:
     errors: list[str] = []
     scenario_dir = scenario_path.parent
@@ -35,17 +29,21 @@ def validate_scenario(schema: dict[str, Any], scenario_path: Path) -> list[str]:
     except (OSError, ValueError, jsonschema.ValidationError) as exc:
         return [f"{scenario_path}: {exc}"]
 
-    _require_file(scenario_dir, "podman.yml.tpl", errors)
+    if not (scenario_dir / "podman.yml.tpl").is_file():
+        errors.append(f"missing podman.yml.tpl in {scenario_dir}")
 
-    checker = scenario.get("checker", {})
-    checker_command = checker.get("command")
-    if isinstance(checker_command, str):
-        _require_file(scenario_dir, checker_command, errors)
+    services = scenario.get("services", {})
+    for check_def in scenario.get("checker", {}).get("checks", []):
+        exec_in = check_def.get("exec_in")
+        if exec_in and exec_in not in services:
+            errors.append(f"{scenario_path}: checker.exec_in={exec_in!r} not in scenario.services")
 
     for image in scenario.get("build", {}).get("images", []):
         dockerfile = image.get("dockerfile")
         if isinstance(dockerfile, str):
-            _require_file(scenario_dir, dockerfile, errors)
+            path = scenario_dir / dockerfile
+            if not path.is_file():
+                errors.append(f"missing dockerfile: {path}")
 
     return errors
 

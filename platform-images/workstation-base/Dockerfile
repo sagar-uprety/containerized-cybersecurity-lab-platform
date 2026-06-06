@@ -29,15 +29,25 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends \
       ca-certificates \
       curl \
+      dnsutils \
+      ftp \
+      hydra \
       iproute2 \
       iputils-ping \
       jq \
+      ldap-utils \
       less \
+      mariadb-client \
       nano \
       netcat-openbsd \
+      nfs-common \
       nmap \
+      openssh-client \
       openssh-server \
       procps \
+      redis-tools \
+      smbclient \
+      snmp \
       tini \
       libjson-c5 \
       libssl3 \

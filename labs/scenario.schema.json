@@ -3,21 +3,21 @@
     "$id": "https://example.invalid/thesis-labs/scenario.schema.json",
     "title": "Thesis Lab Scenario",
     "type": "object",
-    "additionalProperties": true,
+    "additionalProperties": false,
     "required": [
         "id",
         "title",
         "difficulty",
         "duration_minutes",
         "story",
-        "teaching",
         "documentation",
         "access",
         "lifecycle",
         "checker",
         "build",
+        "services",
         "resources",
-        "artifacts"
+        "safety"
     ],
     "properties": {
         "id": {
@@ -38,7 +38,7 @@
         },
         "story": {
             "type": "object",
-            "additionalProperties": true,
+            "additionalProperties": false,
             "required": ["role", "situation"],
             "properties": {
                 "role": {
@@ -51,43 +51,9 @@
                 }
             }
         },
-        "teaching": {
-            "type": "object",
-            "additionalProperties": true,
-            "required": [
-                "prerequisites",
-                "learning_objectives",
-                "misconception_addressed",
-                "real_world_reference"
-            ],
-            "properties": {
-                "prerequisites": {
-                    "type": "array",
-                    "minItems": 1,
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "learning_objectives": {
-                    "type": "array",
-                    "minItems": 1,
-                    "items": {
-                        "type": "string"
-                    }
-                },
-                "misconception_addressed": {
-                    "type": "string",
-                    "minLength": 1
-                },
-                "real_world_reference": {
-                    "type": "string",
-                    "minLength": 1
-                }
-            }
-        },
         "documentation": {
             "type": "object",
-            "additionalProperties": true,
+            "additionalProperties": false,
             "required": ["student_guide_url"],
             "properties": {
                 "student_guide_url": {
@@ -98,11 +64,14 @@
         },
         "access": {
             "type": "object",
-            "additionalProperties": true,
+            "additionalProperties": false,
             "required": ["primary", "ssh_port_base", "browser_terminal_port_base"],
             "properties": {
                 "primary": {
                     "const": "browser_terminal"
+                },
+                "fallback": {
+                    "type": "string"
                 },
                 "ssh_port_base": {
                     "type": "integer",
@@ -118,12 +87,15 @@
                     "type": "integer",
                     "minimum": 1,
                     "maximum": 65535
+                },
+                "endpoint_formulas": {
+                    "type": "object"
                 }
             }
         },
         "lifecycle": {
             "type": "object",
-            "additionalProperties": true,
+            "additionalProperties": false,
             "required": [
                 "start_mode",
                 "idle_timeout_minutes",
@@ -170,29 +142,54 @@
         },
         "checker": {
             "type": "object",
-            "additionalProperties": true,
-            "required": ["command", "image_service", "states"],
+            "additionalProperties": false,
+            "required": ["checks", "states"],
             "properties": {
-                "command": {
-                    "type": "string",
-                    "minLength": 1
-                },
-                "image_service": {
-                    "type": "string",
-                    "minLength": 1
-                },
                 "states": {
                     "type": "array",
                     "items": {
                         "enum": ["vulnerable", "fixed", "broken"]
                     },
                     "minItems": 3
+                },
+                "checks": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "object",
+                        "additionalProperties": false,
+                        "required": ["name", "exec_in", "run", "states"],
+                        "properties": {
+                            "name": {
+                                "type": "string",
+                                "minLength": 1
+                            },
+                            "exec_in": {
+                                "type": "string",
+                                "minLength": 1
+                            },
+                            "run": {
+                                "type": "string",
+                                "minLength": 1
+                            },
+                            "states": {
+                                "type": "object",
+                                "additionalProperties": false,
+                                "required": ["vulnerable", "fixed", "broken"],
+                                "properties": {
+                                    "vulnerable": { "type": "string", "minLength": 1 },
+                                    "fixed": { "type": "string", "minLength": 1 },
+                                    "broken": { "type": "string", "minLength": 1 }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         },
         "build": {
             "type": "object",
-            "additionalProperties": true,
+            "additionalProperties": false,
             "required": ["images"],
             "properties": {
                 "images": {
@@ -224,6 +221,21 @@
                 }
             }
         },
+        "services": {
+            "type": "object",
+            "additionalProperties": {
+                "type": "object",
+                "additionalProperties": true,
+                "required": ["image"],
+                "properties": {
+                    "image": { "type": "string", "minLength": 1 },
+                    "role": { "type": "string" },
+                    "internal_ports": { "type": "object" },
+                    "published_to_host": { "type": "boolean" }
+                }
+            },
+            "minProperties": 1
+        },
         "resources": {
             "type": "object",
             "additionalProperties": {
@@ -242,30 +254,40 @@
             },
             "minProperties": 1
         },
-        "artifacts": {
+        "safety": {
             "type": "object",
             "additionalProperties": true,
-            "required": ["student_guide", "instructor_guide", "solution_notes", "sitrep"],
+            "required": [
+                "container_runtime_socket_mount",
+                "privileged",
+                "host_network",
+                "publish_vulnerable_service",
+                "browser_terminal"
+            ],
             "properties": {
-                "student_guide": {
-                    "type": "string",
-                    "minLength": 1
-                },
-                "instructor_guide": {
-                    "type": "string",
-                    "minLength": 1
-                },
-                "solution_notes": {
-                    "type": "string",
-                    "minLength": 1
-                },
-                "sitrep": {
-                    "type": "string",
-                    "minLength": 1
-                },
-                "fixed_config_example": {
-                    "type": "string",
-                    "minLength": 1
+                "container_runtime_socket_mount": { "const": false },
+                "privileged": { "const": false },
+                "host_network": { "const": false },
+                "publish_vulnerable_service": { "const": false },
+                "browser_terminal": {
+                    "type": "object",
+                    "additionalProperties": true,
+                    "required": [
+                        "adapter",
+                        "credential_required",
+                        "writable",
+                        "max_clients",
+                        "url_arguments_allowed",
+                        "once_requires_supervised_restart"
+                    ],
+                    "properties": {
+                        "adapter": { "const": "ttyd" },
+                        "credential_required": { "const": true },
+                        "writable": { "const": true },
+                        "max_clients": { "type": "integer", "minimum": 1 },
+                        "url_arguments_allowed": { "const": false },
+                        "once_requires_supervised_restart": { "const": true }
+                    }
                 }
             }
         }

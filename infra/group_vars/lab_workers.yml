@@ -22,6 +22,9 @@ lab_runtime_directories:
   - "{{ thesis_state_root }}/tmp"
 
 thesis_platform_images:
-  - name: thesis-labs/workstation-base:2026-06-06
+  - name: thesis-labs/workstation-base:latest
     context: workstation-base
+    dockerfile: Dockerfile
+  - name: thesis-labs/lab-service-base:latest
+    context: lab-service-base
     dockerfile: Dockerfile

@@ -10,21 +10,6 @@ story:
     not appear to come from the application. The order application still works,
     but the cache may be exposed on the internal network.
 
-teaching:
-  prerequisites:
-    - Basic Linux CLI
-    - Basic client-server networking
-  learning_objectives:
-    - Identify an unauthenticated internal service.
-    - Demonstrate data exposure without credentials.
-    - Apply Redis authentication or ACL controls.
-    - Verify service continuity after hardening.
-  misconception_addressed: >
-    Students often assume internal services are safe because they are not
-    publicly exposed. This lab shows that any internal foothold can expose
-    unprotected services.
-  real_world_reference: Redis security documentation and exposed Redis incident reporting.
-
 documentation:
   student_guide_url: /docs/labs/redis-exposed/
 
@@ -34,10 +19,6 @@ access:
   ssh_port_base: 22000
   app_port_base: 18000
   browser_terminal_port_base: 19000
-  endpoint_formulas:
-    browser_terminal: "19000 + student_number"
-    ssh: "22000 + student_number"
-    app: "18000 + student_number"
 
 lifecycle:
   start_mode: on_demand
@@ -54,24 +35,32 @@ lifecycle:
     - check
 
 checker:
-  command: checks/check.py
-  image_service: demo-app
-  output: json
   states:
     - vulnerable
     - fixed
     - broken
+  checks:
+    - name: redis_unauth_blocked
+      exec_in: workstation
+      run: "redis-cli -h redis-host ping 2>&1"
+      states:
+        vulnerable: "output_contains: PONG"
+        fixed: "output_contains: NOAUTH"
+        broken: "exit_code_ne: 0"
+    - name: demo_app_healthy
+      exec_in: workstation
+      run: "curl -s -o /dev/null -w '%{http_code}' http://demo-app:8080/health"
+      states:
+        vulnerable: "output_eq: 200"
+        fixed: "output_eq: 200"
+        broken: "output_ne: 200"
 
 build:
   images:
-    - service: workstation
-      name: thesis-labs/redis-exposed-workstation:latest
-      context: .
-      dockerfile: files/workstation.Dockerfile
     - service: redis-host
       name: thesis-labs/redis-exposed-redis:latest
       context: .
-      dockerfile: files/redis-host.Dockerfile
+      dockerfile: Dockerfile
     - service: demo-app
       name: thesis-labs/redis-exposed-demo-app:latest
       context: .
@@ -79,18 +68,11 @@ build:
 
 services:
   workstation:
-    image: thesis-labs/redis-exposed-workstation:latest
-    role: Student browser terminal and SSH fallback environment.
+    image: thesis-labs/workstation-base:latest
+    role: Student browser terminal and SSH fallback.
     internal_ports:
       browser_terminal: 19000
       ssh: 22
-    tools:
-      - redis-cli
-      - nmap
-      - curl
-      - jq
-      - vim
-      - nano
   redis-host:
     image: thesis-labs/redis-exposed-redis:latest
     role: Vulnerable Redis service.
@@ -102,35 +84,6 @@ services:
     role: Small order app that depends on Redis.
     internal_ports:
       http: 8080
-
-initial_state:
-  redis:
-    bind: "0.0.0.0"
-    protected_mode: false
-    authentication: none
-    reachable_from:
-      - workstation
-      - demo-app
-    host_port_published: false
-  demo_app:
-    requires_redis_credentials: false
-    expected_health_path: /health
-  fake_data:
-    - session:alice
-    - session:bob
-    - cart:1001
-    - cart:1002
-    - feature_flag:admin_mode
-    - support_token:demo-only-token
-
-expected_fix:
-  redis:
-    authentication: requirepass_for_poc_or_acl_for_final
-    unauthenticated_commands_fail: true
-    host_port_published: false
-  demo_app:
-    remains_healthy: true
-    uses_configured_redis_credentials: true
 
 resources:
   workstation:
@@ -155,14 +108,3 @@ safety:
     max_clients: 2
     url_arguments_allowed: false
     once_requires_supervised_restart: true
-
-student_experience:
-  seed_files:
-    - seed/redis-seed.txt
-
-artifacts:
-  student_guide: student-guide.md
-  instructor_guide: instructor-guide.md
-  solution_notes: solution-notes.md
-  sitrep: files/SITREP.txt
-  fixed_config_example: files/redis.conf.fixed.example

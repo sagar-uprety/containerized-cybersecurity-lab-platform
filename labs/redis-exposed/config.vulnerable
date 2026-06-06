@@ -9,4 +9,5 @@ appendfilename "appendonly.aof"
 
 save 60 1
 loglevel notice
+logfile /var/log/redis-server.log
 daemonize no
