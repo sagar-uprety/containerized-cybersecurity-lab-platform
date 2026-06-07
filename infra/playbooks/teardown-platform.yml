@@ -33,13 +33,12 @@
         - thesis-lab-cleanup.service
         - thesis-portal.service
 
-    - name: Remove thesis sudoers and logrotate files
+    - name: Remove thesis sudoers files
       ansible.builtin.file:
         path: "{{ item }}"
         state: absent
       loop:
         - /etc/sudoers.d/thesis-labadmin
-        - /etc/logrotate.d/thesis-labs
 
     - name: Remove thesis helper executables
       ansible.builtin.file:

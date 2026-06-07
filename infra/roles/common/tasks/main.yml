@@ -23,11 +23,3 @@
     name: chronyd
     state: started
     enabled: true
-
-- name: Install thesis logrotate policy
-  ansible.builtin.template:
-    src: thesis-labs.logrotate.j2
-    dest: /etc/logrotate.d/thesis-labs
-    owner: root
-    group: root
-    mode: "0644"

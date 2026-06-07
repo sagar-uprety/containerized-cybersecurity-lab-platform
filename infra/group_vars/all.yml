@@ -37,7 +37,6 @@ thesis_container_runtime: podman
 
 podman_supported_architectures:
   - ppc64le
-  - x86_64
 
 podman_packages:
   - podman
