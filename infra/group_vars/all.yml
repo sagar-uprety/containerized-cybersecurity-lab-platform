@@ -34,9 +34,6 @@ thesis_base_packages:
   - unzip
 
 thesis_container_runtime: podman
-thesis_supported_worker_runtimes:
-  - podman
-  - docker
 
 podman_supported_architectures:
   - ppc64le
@@ -52,13 +49,6 @@ thesis_common_directories:
   - "{{ thesis_state_root }}"
   - "{{ thesis_log_root }}"
   - "{{ thesis_config_root }}"
-
-thesis_ssh_port: 22
-thesis_sshd_service: sshd
-
-thesis_student_terminal_port_range: "19001-19999"
-thesis_student_ssh_port_range: "22001-22999"
-thesis_student_app_port_range: "18001-18999"
 
 thesis_students:
   - id: student01

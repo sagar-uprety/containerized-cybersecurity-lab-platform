@@ -13,6 +13,17 @@
         - thesis-lab-cleanup.service
       failed_when: false
 
+    - name: Stop management services when present
+      ansible.builtin.service:
+        name: "{{ item }}"
+        state: stopped
+        enabled: false
+      loop:
+        - thesis-portal
+        - nginx
+      failed_when: false
+      when: inventory_hostname in groups.get("management", [])
+
     - name: Remove thesis platform systemd units
       ansible.builtin.file:
         path: "/etc/systemd/system/{{ item }}"
@@ -20,6 +31,7 @@
       loop:
         - thesis-lab-cleanup.timer
         - thesis-lab-cleanup.service
+        - thesis-portal.service
 
     - name: Remove thesis sudoers and logrotate files
       ansible.builtin.file:
@@ -53,6 +65,12 @@
         - "{{ thesis_state_root }}"
         - "{{ thesis_log_root }}"
         - "{{ thesis_config_root }}"
+
+    - name: Remove nginx thesis portal config
+      ansible.builtin.file:
+        path: /etc/nginx/conf.d/thesis-portal.conf
+        state: absent
+      when: inventory_hostname in groups.get("management", [])
 
     - name: Reload systemd after unit removal
       ansible.builtin.systemd:

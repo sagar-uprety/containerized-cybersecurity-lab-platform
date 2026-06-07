@@ -1,5 +1,4 @@
 ---
-lab_worker_container_runtime: "{{ thesis_container_runtime }}"
 lab_runtime_image_builder: podman
 
 lab_runtime_build_images: true
@@ -12,7 +11,6 @@ lab_runtime_results_root: "{{ thesis_state_root }}/results"
 lab_runtime_student_registry: "{{ thesis_config_root }}/students.txt"
 lab_runtime_student_credentials: "{{ thesis_config_root }}/students.yml"
 lab_runtime_scenario_registry: "{{ thesis_config_root }}/scenarios.txt"
-lab_runtime_scenario_root: "{{ lab_runtime_code_root }}"
 
 lab_runtime_directories:
   - "{{ lab_runtime_platform_images_root }}"
