@@ -12,6 +12,7 @@ RUN apt-get update \
 
 RUN sed -i 's/^#\?\s*PermitRootLogin.*/PermitRootLogin yes/' /etc/ssh/sshd_config \
     && sed -i 's/^#\?\s*PasswordAuthentication.*/PasswordAuthentication yes/' /etc/ssh/sshd_config \
+    && sed -i 's@session\s*required\s*pam_loginuid.so@session optional pam_loginuid.so@g' /etc/pam.d/sshd \
     && mkdir -p /run/sshd /opt/lab/baseline /opt/lab/seed \
     && ssh-keygen -A
 

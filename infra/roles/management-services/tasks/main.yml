@@ -29,6 +29,7 @@
   ansible.builtin.pip:
     name:
       - mkdocs==1.6.1
+      - pymdown-extensions==10.12
     executable: pip3
   tags:
     - docs
@@ -78,7 +79,10 @@
   ansible.builtin.set_fact:
     management_lab_scenarios: >-
       {{
-        lookup('ansible.builtin.fileglob', playbook_dir ~ '/../../labs/*/scenario.yaml', wantlist=True)
+        lookup('pipe', 'ls -d ' ~ playbook_dir ~ '/../../labs/*/scenario.yaml 2>/dev/null')
+        | default('')
+        | split('\n')
+        | reject('equalto', '')
         | map('dirname')
         | map('basename')
         | sort
