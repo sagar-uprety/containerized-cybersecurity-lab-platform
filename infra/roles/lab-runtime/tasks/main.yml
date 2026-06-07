@@ -210,6 +210,18 @@
   tags:
     - lab-images
 
+- name: Check whether lab image sources changed
+  ansible.builtin.command:
+    argv:
+      - /usr/local/sbin/thesis-build-lab-images
+      - --changed
+  register: lab_runtime_sources_changed_result
+  changed_when: false
+  failed_when: false
+  check_mode: false
+  tags:
+    - lab-images
+
 - name: Check lab image cache
   ansible.builtin.command:
     argv:
@@ -224,22 +236,7 @@
 
 - name: Determine whether lab images need rebuild
   ansible.builtin.set_fact:
-    lab_runtime_sources_changed: >-
-      {{
-        (
-          lab_source_copy_results.results
-          | selectattr('changed')
-          | list
-          | length > 0
-          if lab_source_copy_results is defined
-          else true
-        )
-        or (
-          platform_image_source_copy_results.changed
-          if platform_image_source_copy_results is defined
-          else true
-        )
-      }}
+    lab_runtime_sources_changed: "{{ lab_runtime_sources_changed_result.rc == 0 }}"
     lab_runtime_images_missing: "{{ lab_runtime_image_presence.rc != 0 }}"
   tags:
     - lab-images
@@ -259,11 +256,24 @@
   ansible.builtin.command:
     argv:
       - /usr/local/sbin/thesis-build-lab-images
+      - --build
   changed_when: true
   when:
     - not ansible_check_mode
     - lab_runtime_build_images | bool
     - lab_runtime_sources_changed or lab_runtime_images_missing
+  tags:
+    - lab-images
+
+- name: Prune dangling images after build
+  ansible.builtin.command:
+    argv:
+      - /usr/local/sbin/thesis-build-lab-images
+      - --prune
+  changed_when: false
+  when:
+    - not ansible_check_mode
+    - lab_runtime_build_images | bool
   tags:
     - lab-images
 

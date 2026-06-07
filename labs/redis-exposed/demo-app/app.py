@@ -1,26 +1,10 @@
 import os
 import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from pathlib import Path
 
-CONFIG_FILE = Path(os.environ.get("APP_CONFIG_FILE", "/app/config/app-config.env"))
 REDIS_HOST = os.environ.get("REDIS_HOST", "redis-host")
 REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
-
-
-def read_config():
-    config = {}
-    try:
-        with CONFIG_FILE.open(encoding="utf-8") as handle:
-            for line in handle:
-                line = line.strip()
-                if not line or line.startswith("#") or "=" not in line:
-                    continue
-                key, value = line.split("=", 1)
-                config[key.strip()] = value.strip()
-    except FileNotFoundError:
-        pass
-    return config
+REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", "")
 
 
 def encode_command(*parts):
@@ -42,11 +26,9 @@ def read_resp_line(sock):
 
 
 def redis_request(*command):
-    config = read_config()
-    password = config.get("REDIS_PASSWORD", "")
     with socket.create_connection((REDIS_HOST, REDIS_PORT), timeout=2) as sock:
-        if password:
-            sock.sendall(encode_command("AUTH", password))
+        if REDIS_PASSWORD:
+            sock.sendall(encode_command("AUTH", REDIS_PASSWORD))
             auth_response = read_resp_line(sock)
             if not auth_response.startswith("+OK"):
                 raise RuntimeError(f"Redis AUTH failed: {auth_response}")

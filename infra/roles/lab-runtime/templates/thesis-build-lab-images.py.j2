@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import hashlib
 import subprocess
 import sys
 from pathlib import Path
@@ -13,6 +14,7 @@ SCENARIOS = {{ thesis_lab_scenarios | to_json }}
 PLATFORM_IMAGES = {{ thesis_platform_images | default([]) | to_json }}
 IMAGE_BUILDER = "{{ lab_runtime_image_builder }}"
 PLATFORM_LABEL = "{{ thesis_platform_name }}"
+CHECKSUM_DIR = Path("{{ thesis_state_root }}/image-checksums")
 
 
 def fail(message):
@@ -66,6 +68,83 @@ def image_exists(name):
     return run([IMAGE_BUILDER, "image", "exists", name], check=False).returncode == 0
 
 
+def checksum_file_for(image_name):
+    safe_name = image_name.replace("/", "_").replace(":", "_")
+    return CHECKSUM_DIR / f"{safe_name}.sha256"
+
+
+def parse_copy_sources(dockerfile):
+    """Parse COPY/ADD instructions and return source paths relative to context."""
+    if not dockerfile.exists():
+        return []
+    text = dockerfile.read_text(encoding="utf-8")
+    lines = text.splitlines()
+    sources = []
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+        while line.endswith("\\") and i + 1 < len(lines):
+            i += 1
+            line = line[:-1].strip() + " " + lines[i].strip()
+        i += 1
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split()
+        if len(parts) < 2:
+            continue
+        keyword = parts[0].upper()
+        if keyword not in ("COPY", "ADD"):
+            continue
+        args = parts[1:]
+        if any(a.startswith("--from=") for a in args):
+            continue
+        skip_flags = [a for a in args if a.startswith("--")]
+        src_dst = [a for a in args if not a.startswith("--")]
+        if len(src_dst) < 2:
+            continue
+        srcs = src_dst[:-1]
+        for src in srcs:
+            sources.append(src)
+    return sources
+
+
+def resolve_copy_sources(context, sources):
+    """Resolve COPY/ADD source paths (with globs) against context directory."""
+    resolved = []
+    for src in sources:
+        matches = sorted(context.glob(src))
+        for path in matches:
+            if path.is_file():
+                resolved.append(path)
+    return resolved
+
+
+def compute_source_checksum(image):
+    hasher = hashlib.sha256()
+    dockerfile = image["dockerfile"]
+    context = image["context"]
+    if dockerfile.exists():
+        hasher.update(dockerfile.read_bytes())
+    copy_sources = parse_copy_sources(dockerfile)
+    if copy_sources:
+        for path in resolve_copy_sources(context, copy_sources):
+            hasher.update(str(path.relative_to(context)).encode())
+            hasher.update(path.read_bytes())
+    return hasher.hexdigest()
+
+
+def load_stored_checksum(image_name):
+    path = checksum_file_for(image_name)
+    if path.exists():
+        return path.read_text().strip()
+    return None
+
+
+def store_checksum(image_name, checksum):
+    CHECKSUM_DIR.mkdir(parents=True, exist_ok=True)
+    checksum_file_for(image_name).write_text(checksum)
+
+
 def check_images(images):
     missing = [image["name"] for image in images if not image_exists(image["name"])]
     if missing:
@@ -74,6 +153,22 @@ def check_images(images):
             print(f"- {name}")
         return 1
     return 0
+
+
+def changed_images(images):
+    changed = []
+    for image in images:
+        current = compute_source_checksum(image)
+        stored = load_stored_checksum(image["name"])
+        if current != stored:
+            changed.append(image)
+    if changed:
+        print("Changed images:")
+        for image in changed:
+            print(f"- {image['name']}")
+        return 0
+    print("No images changed.")
+    return 1
 
 
 def build_images(images):
@@ -91,19 +186,39 @@ def build_images(images):
             "--file", str(image["dockerfile"]),
             str(image["context"]),
         ])
+        store_checksum(image["name"], compute_source_checksum(image))
+    return 0
+
+
+def prune_dangling():
+    result = run([IMAGE_BUILDER, "image", "prune", "-f"], check=False)
+    if result.returncode == 0 and result.stdout.strip():
+        print(result.stdout.strip())
     return 0
 
 
 def main():
     parser = argparse.ArgumentParser(description="Build or verify cached thesis lab images")
-    parser.add_argument("--check", action="store_true", help="return non-zero if any scenario image is missing")
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--check", action="store_true", help="return non-zero if any image is missing")
+    group.add_argument("--changed", action="store_true", help="return 0 if any image source changed since last build")
+    group.add_argument("--build", action="store_true", help="build all images and prune dangling leftovers")
+    group.add_argument("--prune", action="store_true", help="remove dangling images without building")
     args = parser.parse_args()
     images = image_definitions()
     if not images:
         fail("No scenario image build definitions found")
     if args.check:
         sys.exit(check_images(images))
-    sys.exit(build_images(images))
+    if args.changed:
+        sys.exit(changed_images(images))
+    if args.prune:
+        sys.exit(prune_dangling())
+    if args.build:
+        rc = build_images(images)
+        if rc == 0:
+            prune_dangling()
+        sys.exit(rc)
 
 
 if __name__ == "__main__":

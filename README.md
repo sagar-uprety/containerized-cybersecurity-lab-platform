@@ -70,14 +70,10 @@ Playwright E2E tests:
 npm install
 npx playwright install
 
-npm run test:portal              # local
-npm run test:labs                # local (dry-run)
-
-# Live (destructive):
+# Live (requires VPN):
 PORTAL_BASE_URL=http://<x02-ip> \
   PORTAL_USER=student01 \
   PORTAL_PASSWORD=<password> \
-  PORTAL_EXPECT_LIVE=true \
   npm run test:portal
 ```
 

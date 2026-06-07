@@ -96,8 +96,6 @@ workstation:
   shared_volumes:
     - name: redis_config
       target: /lab/redis
-    - name: app_config
-      target: /lab/demo-app
   depends_on:
     - redis-host
     - demo-app
@@ -152,14 +150,11 @@ containers:
     environment:
       REDIS_HOST: redis-host
       REDIS_PORT: "6379"
-      APP_CONFIG_FILE: /app/config/app-config.env
+      REDIS_PASSWORD: "$platform.student_password"
     ports:
       - host_ip: "$platform.host_bind_ip"
         host_port: "$platform.app_port"
         container_port: 8080
-    volumes:
-      - name: app_config
-        target: /app/config
     depends_on:
       - redis-host
     healthcheck:

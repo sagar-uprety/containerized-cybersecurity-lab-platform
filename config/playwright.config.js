@@ -7,7 +7,7 @@ module.exports = defineConfig({
         timeout: 10_000,
     },
     use: {
-        baseURL: process.env.PORTAL_BASE_URL || 'http://127.0.0.1:8000',
+        baseURL: process.env.PORTAL_BASE_URL,
         httpCredentials: {
             username: process.env.PORTAL_USER || 'student01',
             password: process.env.PORTAL_PASSWORD || 'smoke-password',

@@ -11,7 +11,6 @@
       loop:
         - thesis-lab-cleanup.timer
         - thesis-lab-cleanup.service
-        - cadvisor
       failed_when: false
 
     - name: Remove thesis platform systemd units
@@ -21,7 +20,6 @@
       loop:
         - thesis-lab-cleanup.timer
         - thesis-lab-cleanup.service
-        - cadvisor.service
 
     - name: Remove thesis sudoers and logrotate files
       ansible.builtin.file:

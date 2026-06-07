@@ -1,7 +1,6 @@
 const { test, expect } = require('@playwright/test');
 
 const labId = process.env.PORTAL_LAB_ID || 'redis-exposed';
-const expectLive = process.env.PORTAL_EXPECT_LIVE === 'true';
 const portalUser = process.env.PORTAL_USER || 'student01';
 
 async function terminalFrame(page) {
@@ -69,7 +68,6 @@ test('student lab links open expected pages', async ({ page, context }) => {
 
     const terminal = page.locator('#terminal-container');
     if (!(await terminal.isVisible())) {
-        test.skip(!expectLive, 'terminal and demo app links require a running live lab');
         await page.getByRole('button', { name: 'Start Lab' }).click();
         await expect(terminal).toBeVisible({ timeout: 120_000 });
     }
@@ -107,7 +105,6 @@ test('running lab page exposes a resizable terminal pane', async ({ page }) => {
     await page.goto(`/labs/${labId}`);
     const terminal = page.locator('#terminal-container');
     if (!(await terminal.isVisible())) {
-        test.skip(!expectLive, 'live terminal check requires a running lab');
         await page.getByRole('button', { name: 'Start Lab' }).click();
     }
 
@@ -137,8 +134,6 @@ test('running lab page exposes a resizable terminal pane', async ({ page }) => {
 });
 
 test('live terminal iframe creates a websocket connection', async ({ page }) => {
-    test.skip(!expectLive, 'set PORTAL_EXPECT_LIVE=true for live terminal websocket verification');
-
     const websockets = [];
     page.on('websocket', (ws) => websockets.push(ws.url()));
     await page.goto(`/labs/${labId}`);
@@ -151,11 +146,6 @@ test('live terminal iframe creates a websocket connection', async ({ page }) => 
 });
 
 test('live terminal is writable for the student shell', async ({ page }) => {
-    test.skip(
-        !expectLive,
-        'set PORTAL_EXPECT_LIVE=true for live terminal writability verification'
-    );
-
     await page.goto(`/labs/${labId}`);
     if (!(await page.locator('#terminal-iframe').isVisible())) {
         await page.getByRole('button', { name: 'Start Lab' }).click();
@@ -171,8 +161,6 @@ test('live terminal is writable for the student shell', async ({ page }) => {
 });
 
 test('live student can run the checker from the portal', async ({ page }) => {
-    test.skip(!expectLive, 'set PORTAL_EXPECT_LIVE=true for live checker verification');
-
     await page.goto(`/labs/${labId}`);
     if (await page.getByRole('button', { name: 'Start Lab' }).isVisible()) {
         await page.getByRole('button', { name: 'Start Lab' }).click();

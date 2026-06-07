@@ -5,3 +5,4 @@ Documentation=file:{{ thesis_runtime_root }}
 [Service]
 Type=oneshot
 ExecStart=/usr/bin/find {{ thesis_state_root }}/tmp -mindepth 1 -maxdepth 1 -type f -mtime +1 -delete
+ExecStart=/usr/local/sbin/thesis-build-lab-images --prune
