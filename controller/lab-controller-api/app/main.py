@@ -146,16 +146,16 @@ def lab_detail(request: Request, lab_id: str, user: dict = Depends(get_current_u
     if not scenario:
         raise HTTPException(status_code=404, detail="Lab not found")
 
+    if user["role"] != "student":
+        return RedirectResponse(url="/instructor", status_code=303)
+
     student_id = user_student_id(user)
-    if user["role"] == "admin":
-        students = get_student_users()
-        student_id = next(iter(students.values()))["student_id"]
 
     status_text = get_lab_status(lab_id, student_id)
     if status_text == "running":
         update_runtime_state(lab_id, student_id, "running", last_seen=time.time())
 
-    ports = endpoint_ports(scenario, student_id, user if user["role"] == "student" else None)
+    ports = endpoint_ports(scenario, student_id)
 
     runtime_state = runtime_state_for(lab_id, student_id)
     check_result = runtime_state.get("last_check") or load_check_result(lab_id, student_id)
@@ -215,6 +215,17 @@ def start_lab(
 
     student_id = user_student_id(user)
     current_key = state_key(lab_id, student_id)
+
+    for scenario in list_scenarios():
+        if scenario["id"] == lab_id:
+            continue
+        if get_lab_status(scenario["id"], student_id) == "running":
+            raise HTTPException(
+                status_code=409,
+                detail=f"Another lab ({scenario['title']}) is already running. "
+                "End or stop it before starting a new one.",
+            )
+
     if running_student_count(exclude_key=current_key) >= settings.MAX_CONCURRENT_STUDENTS:
         record_event("start", lab_id, student_id, user["username"], "rejected", detail="capacity")
         raise HTTPException(

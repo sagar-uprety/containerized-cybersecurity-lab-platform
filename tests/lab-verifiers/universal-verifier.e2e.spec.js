@@ -42,9 +42,12 @@ async function terminalText(page) {
     });
 }
 
-async function sendTerminalLine(page, frame, line) {
+async function sendTerminalLine(page, line) {
+    const handle = await page.locator('#terminal-iframe').elementHandle();
+    const frame = await handle.contentFrame();
     await frame.locator('.xterm').click();
-    await page.keyboard.type(line, { delay: 1 });
+    await page.waitForTimeout(50);
+    await page.keyboard.type(line, { delay: 5 });
     await page.keyboard.press('Enter');
 }
 
@@ -111,11 +114,21 @@ for (const labId of labs) {
             });
             await expect(page.locator('#terminal-iframe')).toBeVisible({ timeout: 120_000 });
 
-            // 2. Read the canonical guide
-            const guidePath = path.join(__dirname, `../../docs/labs/${labId}.md`);
-            const guideContent = fs.readFileSync(guidePath, 'utf8');
+            // Wait for the terminal shell to be ready before sending commands
+            const handle = await page.locator('#terminal-iframe').elementHandle();
+            const frame = await handle.contentFrame();
+            await expect
+                .poll(() => terminalText(page), { timeout: 30_000 })
+                .toMatch(/student@|[$#]\s*$/m);
+            await expect
+                .poll(() => frame.locator('body').innerText(), { timeout: 5_000 })
+                .not.toContain('Reconnect');
 
             // 3. Extract bash code blocks
+            const guidePath = path.join(__dirname, `../../labs/${labId}/docs/student-guide.md`);
+            const guideContent = fs.readFileSync(guidePath, 'utf8');
+
+            // 3. Extract bash code blocks from the student guide
             const bashBlocks = [];
             const regex = /```bash\n([\s\S]*?)```/g;
             let match;
@@ -130,13 +143,13 @@ for (const labId of labs) {
                 .filter((l) => l.length > 0);
 
             // 4. Execute commands in the terminal
-            const handle = await page.locator('#terminal-iframe').elementHandle();
-            const frame = await handle.contentFrame();
-            await frame.locator('.xterm').click();
-
             for (const cmd of commands) {
                 let prevOutput = await terminalText(page);
-                await sendTerminalLine(page, frame, cmd);
+
+                // Slight delay before sending the command to ensure terminal is settled
+                await page.waitForTimeout(500);
+
+                await sendTerminalLine(page, cmd);
 
                 let output = '';
                 let waited = 0;
@@ -148,6 +161,14 @@ for (const labId of labs) {
                     output = await terminalText(page);
 
                     if (hasTrailingPasswordPrompt(output) && !answeredPassword) {
+                        const currentHandle = await page
+                            .locator('#terminal-iframe')
+                            .elementHandle();
+                        const currentFrame = await currentHandle.contentFrame();
+
+                        // Wait a moment for SSH to flush its input buffer
+                        await page.waitForTimeout(500);
+                        await currentFrame.locator('.xterm').click();
                         await page.keyboard.type(studentPassword, { delay: 5 });
                         await page.keyboard.press('Enter');
                         answeredPassword = true;
@@ -164,7 +185,9 @@ for (const labId of labs) {
 
                 // Check exit code
                 prevOutput = await terminalText(page);
-                await sendTerminalLine(page, frame, 'echo "EXIT_CODE:$?"');
+                await page.waitForTimeout(250);
+
+                await sendTerminalLine(page, 'echo "EXIT_CODE:$?"');
 
                 waited = 0;
                 while (waited < 5000) {
@@ -179,6 +202,9 @@ for (const labId of labs) {
                     }
                 }
 
+                console.log(
+                    `\n--- DEBUG OUTPUT FOR CMD: ${cmd} ---\n${output}\n-----------------------------------\n`
+                );
                 // Assert command succeeded so we get an exact failure trace if a guide command is broken
                 expect(output, `Command failed: ${cmd}\nOutput: ${output}`).toContain(
                     'EXIT_CODE:0'

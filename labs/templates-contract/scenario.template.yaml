@@ -1,0 +1,225 @@
+# ──────────────────────────────────────────────────────────────────────
+# scenario.template.yaml
+#
+# Copy this file to labs/<lab-id>/scenario.yaml and fill in the values.
+# Schema enforcement is done by scenario.schema.json — this file is
+# a human-readable reference for lab authors.
+#
+# Fields marked REQUIRED must be present. All others are optional.
+# ──────────────────────────────────────────────────────────────────────
+
+# REQUIRED. Lab identifier matching the directory name.
+# Pattern: ^[a-z0-9][a-z0-9-]{0,63}$
+id: my-new-lab
+
+# REQUIRED. One-line title shown in the portal and documentation.
+title: Human-Readable Lab Title
+
+# REQUIRED. Difficulty shown to students.
+difficulty: beginner  # beginner | intermediate | advanced
+
+# REQUIRED. Approximate time in minutes for a student to complete.
+duration_minutes: 90
+
+# REQUIRED. Scenario narrative — what the student sees before starting.
+story:
+  # REQUIRED. The role the student assumes.
+  role: Junior Linux Administrator
+  # REQUIRED. The situation they walk into. Keep this vague — do not name
+  # the exact vulnerability in the opening paragraph.
+  situation: >
+    Describe the observed symptom here. What does monitoring see?
+    What is unusual? Why does it matter?
+
+# REQUIRED. Link to the student guide rendered in the MkDocs site.
+documentation:
+  student_guide_url: /docs/labs/my-new-lab/
+
+# ── Access: per-student port allocation ────────────────────────────────
+# REQUIRED. Base ports for student-1. Each student gets base + student_number.
+# e.g. student01 gets ssh_port_base + 1 = 22001.
+access:
+  # REQUIRED. SSH port base. Student-1 gets ssh_port_base + 1.
+  ssh_port_base: 22000
+  # Browser terminal port base (for ttyd). Student-1 gets this + 1.
+  browser_terminal_port_base: 19000
+  # Application port base (optional). Only needed if a lab-specific app
+  # is published to the student. Omit entirely if no app port is needed.
+  app_port_base: 18000
+
+# ── Lifecycle: idle and session limits ─────────────────────────────────
+# REQUIRED.
+lifecycle:
+  # Idle timeout in minutes. Null = disabled (used during evaluation sessions).
+  idle_timeout_minutes: 30
+  # Maximum session length in minutes.
+  max_runtime_minutes: 120
+  # Evaluation-specific idle timeout (null = use idle_timeout_minutes).
+  evaluation_idle_timeout_minutes: null
+  # Auto-destroy after this many minutes regardless of activity.
+  auto_destroy_after_minutes: 180
+
+# ── Checker: portal verification ───────────────────────────────────────
+# REQUIRED. Defines how the portal checks whether the lab is fixed.
+# Every check runs via `podman exec` into the named container.
+checker:
+  # REQUIRED. The three states every check must define conditions for.
+  states:
+    - vulnerable
+    - fixed
+    - broken
+  # REQUIRED. At least one check.
+  checks:
+    - name: my_check_name           # unique identifier for this check
+      exec_in: workstation          # hostname of container to exec into
+      run: "echo test"              # shell command to run
+      states:
+        # REQUIRED. Condition that matches when the lab is vulnerable.
+        # Format: <operator>:<value>   (see operators below)
+        vulnerable: "output_contains: expected_vulnerable_output"
+        # REQUIRED. Condition that matches when the lab is fixed.
+        fixed: "output_contains: expected_fixed_output"
+        # REQUIRED. Condition that matches when the service is broken.
+        broken: "exit_code_ne: 0"
+        #
+        # Available operators:
+        #   output_contains:<text>  — text appears in stdout or stderr
+        #   output_eq:<text>        — stdout equals text exactly
+        #   output_ne:<text>        — stdout does NOT equal text
+        #   exit_code:<n>           — exit code equals n
+        #   exit_code_ne:<n>        — exit code does NOT equal n
+
+# ── Build: images to build for this lab ────────────────────────────────
+# REQUIRED. At least one image.
+build:
+  images:
+    - service: my-service            # matches a key in services:
+      name: thesis-labs/my-service:latest
+      context: .                     # build context relative to this lab dir
+      dockerfile: Dockerfile         # relative to context
+    # Add more images if your lab has multiple custom containers.
+    # Shared platform images (workstation-base, lab-service-base) are
+    # built separately and referenced in services: by tag.
+
+# ── Services: image registry for each container ────────────────────────
+# REQUIRED. Every service that runs in this lab must be declared here.
+# The image field is used to resolve the container image at start time.
+services:
+  workstation:
+    image: thesis-labs/workstation-base:latest
+    role: Student browser terminal and SSH fallback.
+    internal_ports:
+      browser_terminal: 19000
+      ssh: 22
+  my-service:
+    image: thesis-labs/my-service:latest
+    role: Brief description of what this service does.
+    internal_ports:
+      http: 8080
+      # Add more ports as needed.
+
+# ── Resources: per-service container limits ────────────────────────────
+# REQUIRED. Every service declared in services: must have a resource entry.
+resources:
+  workstation:
+    cpus: "0.50"
+    memory: "256m"
+  my-service:
+    cpus: "0.50"
+    memory: "256m"
+
+# ── Workstation: lab-specific student terminal config ──────────────────
+# REQUIRED. The full workstation container is auto-generated by labctl.
+# Only lab-specific pieces are declared here — platform boilerplate
+# (ports, healthcheck, security, standard volumes, standard env vars)
+# is handled automatically.
+workstation:
+  # Lab-specific env vars exposed to the student (e.g. service hostnames).
+  # Standard vars (LAB_ID, STUDENT_ID, STUDENT_PASSWORD, TTYD_CREDENTIAL,
+  # BROWSER_TERMINAL_PORT) are auto-injected — do not repeat them here.
+  environment:
+    MY_SERVICE_HOST: my-service
+    MY_SERVICE_PORT: "8080"
+  # Config volumes shared with service containers. Student edits these
+  # at /lab/<target> inside the workstation.
+  shared_volumes:
+    - name: service_config
+      target: /lab/service-config
+  # Service hostnames the workstation depends on.
+  depends_on:
+    - my-service
+  # Extra Linux capabilities (optional). NET_RAW is common for nmap.
+  cap_add:
+    - NET_RAW
+
+# ── Containers: service container topology ─────────────────────────────
+# REQUIRED. Declares every service container (not the workstation — that
+# is auto-generated from the workstation: section above).
+#
+# Values prefixed with $platform. are resolved at runtime by labctl.
+#
+# Values prefixed with $platform. are resolved at runtime by labctl.
+# Available tokens:
+#   $platform.lab_id                  — e.g. "my-new-lab"
+#   $platform.student_id              — e.g. "student01"
+#   $platform.runtime_project         — e.g. "my-new-lab_student01"
+#   $platform.student_password        — plaintext student password
+#   $platform.ttyd_credential         — "student01:password"
+#   $platform.host_bind_ip            — host IP for published ports
+#   $platform.ssh_port                — computed SSH host port
+#   $platform.browser_terminal_port   — computed browser-terminal port
+#   $platform.app_port                — computed app port (optional)
+#   $platform.thesis_platform_name    — "thesis-labs"
+#   $platform.lab_source_root         — /opt/thesis-labs/labs
+#
+# Container ordering: containers with depends_on: are started after
+# their dependencies. There are no hard start/stop ordering rules —
+# depends_on is the only ordering mechanism.
+
+containers:
+  # ── Vulnerable service (the thing the student must fix) ───────────────
+  - service: my-service               # must match a key in services:
+    hostname: my-service               # DNS name inside the lab network
+    init: true
+    restart: unless-stopped
+    environment:
+      # All env vars are strings. Use $platform. tokens for runtime values.
+      SERVICE_ADMIN_PASSWORD: "$platform.student_password"
+      # Add lab-specific env vars as needed.
+      # LAB_* variables are read by the lab-service-base entrypoint:
+      #   LAB_CONFIG_SRC        source config path inside image
+      #   LAB_CONFIG_DST        runtime config path on volume
+      #   LAB_SERVICE_CMD       command to start the service
+      #   LAB_DATA_DIR          data directory to create on startup
+      #   LAB_DATA_USER         user to own data and config dirs
+      #   LAB_SEED_FILE         path to seed data file inside image
+      #   LAB_SEED_CMD          command for seeding (receives file on stdin)
+      #   LAB_LOG_FILE          log file to tail as foreground output
+      #   LAB_ADMIN_USER        in-container user to set password for
+    expose:
+      - 8080                          # internal-only ports (not published to host)
+    volumes:
+      - name: service_data            # logical name — labctl prepends runtime_project_
+        target: /data                 # path inside container
+      - name: service_config
+        target: /etc/service
+    # Optional: bind-mount a file from the lab source tree on the host.
+    # - host_path: "$platform.lab_source_root/$platform.lab_id/docs/SITREP.txt"
+    #   target: /opt/lab/student/SITREP.txt
+    healthcheck:
+      command:
+        - CMD-SHELL
+        - "curl -sf http://127.0.0.1:8080/health || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    security:
+      no_new_privileges: true
+      privileged: false               # NEVER true — platform rejects it
+      host_network: false             # NEVER true — platform rejects it
+      cap_add: []                     # add only what is strictly needed
+      cap_drop:
+        - ALL                         # drop everything, then cap_add selectively
+    user: "appuser"                   # optional: run as this user (uid or name)
+    read_only: true                   # optional: mount root filesystem read-only

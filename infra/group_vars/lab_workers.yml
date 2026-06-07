@@ -25,6 +25,6 @@ thesis_platform_images:
   - name: thesis-labs/workstation-base:latest
     context: workstation-base
     dockerfile: Dockerfile
-  - name: thesis-labs/lab-service-base:latest
+  - name: thesis-labs/lab-service-base:1.0
     context: lab-service-base
     dockerfile: Dockerfile

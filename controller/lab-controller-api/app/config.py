@@ -29,7 +29,7 @@ class Settings:
     LABS_DIR = os.environ.get("LABS_DIR", "/opt/thesis-labs/labs")
     RESULTS_DIR = os.environ.get("RESULTS_DIR", "/var/lib/thesis-labs/results")
 
-    MAX_CONCURRENT_STUDENTS = _int_from_env("MAX_CONCURRENT_STUDENTS", 1)
+    MAX_CONCURRENT_STUDENTS = _int_from_env("MAX_CONCURRENT_STUDENTS", 5)
     EVALUATION_MODE = _bool_from_env("EVALUATION_MODE", False)
     ENABLE_SCHEDULER = _bool_from_env("ENABLE_SCHEDULER", True)
     EVENT_LOG_PATH = os.environ.get("EVENT_LOG_PATH", "/var/log/thesis-labs/portal-events.jsonl")

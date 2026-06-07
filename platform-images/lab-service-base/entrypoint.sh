@@ -1,18 +1,18 @@
 #!/bin/sh
 set -eu
 
-# ── Config ──────────────────────────────────────────────────────────
-# Set these env vars in podman.yml.tpl per lab:
-#   LAB_CONFIG_SRC   source path inside image (default: /opt/lab/baseline/service.conf)
-#   LAB_CONFIG_DST   runtime config path on volume (default: /etc/service/service.conf)
-#   LAB_SERVICE_CMD  command to start the service (default: none, child Dockerfile
-#                    CMD or ENTRYPOINT args handled via exec "$@")
-#   LAB_SETUP_SCRIPT optional pre-start script at /opt/lab/hooks/pre-start.sh
-#   LAB_SEED_FILE    optional seed file at /opt/lab/seed/seed.txt
-#   LAB_SEED_CMD     command to run for seeding (must accept stdin)
-#   LAB_LOG_FILE     log file to tail after start (default: none, uses wait)
-#   LAB_ADMIN_USER   user to set password for (default: root)
-# ─────────────────────────────────────────────────────────────────────
+#   LAB_CONFIG_SRC        source config path inside image (default: /opt/lab/baseline/service.conf)
+#   LAB_CONFIG_DST        runtime config path on volume   (default: /etc/service/service.conf)
+#   LAB_SERVICE_CMD       command to start the service; if unset, falls back to exec "$@"
+#   LAB_SETUP_SCRIPT      optional pre-start hook at /opt/lab/hooks/pre-start.sh
+#   LAB_DATA_DIR          data directory to create on startup
+#   LAB_DATA_USER         user to own data and config dirs
+#   LAB_SEED_FILE         path to seed data file inside image
+#   LAB_SEED_CMD          command for seeding (receives seed file on stdin)
+#   LAB_LOG_FILE          log file to tail as foreground output; falls back to wait if absent
+#   LAB_ADMIN_USER        in-container user to set password for (default: root)
+#   SERVICE_ADMIN_PASSWORD password assigned to LAB_ADMIN_USER on startup
+# ──────────────────────────────────────────────────────────────────────────────────
 
 CONFIG_SRC="${LAB_CONFIG_SRC:-/opt/lab/baseline/service.conf}"
 CONFIG_DST="${LAB_CONFIG_DST:-/etc/service/service.conf}"

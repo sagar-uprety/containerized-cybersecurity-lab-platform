@@ -1,11 +1,12 @@
 import json
 import logging
+import re as _re
 from typing import Optional
 
 import yaml
-from jinja2 import Environment, FileSystemLoader, StrictUndefined
 
 from labctl_core.config import RuntimePaths
+from labctl_core.manifest import build_manifest
 from labctl_core.podman import (
     PodmanError,
     ensure_network,
@@ -74,13 +75,10 @@ class LabRuntime:
 
     def start(self, lab_id: str, student_id: str) -> None:
         try:
-            _scenario, _student, runtime_project, context = self._load_context(lab_id, student_id)
-            lab_dir = self.paths.labs_dir / lab_id
-            env = Environment(loader=FileSystemLoader(lab_dir), undefined=StrictUndefined)
-            rendered_yaml = env.get_template("podman.yml.tpl").render(context)
+            scenario, _student, runtime_project, context = self._load_context(lab_id, student_id)
+            manifest = build_manifest(scenario, context)
             rendered_path = self._rendered_path(runtime_project)
-            rendered_path.write_text(rendered_yaml, encoding="utf-8")
-            manifest = yaml.safe_load(rendered_yaml) or {}
+            rendered_path.write_text(yaml.dump(manifest, sort_keys=False), encoding="utf-8")
 
             ensure_network(manifest)
             ensure_volumes(manifest)
@@ -127,6 +125,43 @@ class LabRuntime:
         (self.paths.results_dir / f"{runtime_project}.json").unlink(missing_ok=True)
         logging.info("Lab %s for student %s destroyed.", lab_id, student_id)
 
+    def destroy_all(self, lab_id: str) -> None:
+        student_pattern = _re.compile(r"^student[0-9]{2,4}$")
+        prefix = f"{lab_id}_"
+        destroyed = 0
+        for rendered_path in sorted(self.paths.rendered_dir.glob(f"{prefix}*.yml")):
+            student_id = rendered_path.stem[len(prefix) :]
+            if not student_pattern.match(student_id):
+                continue
+            try:
+                self.destroy(lab_id, student_id)
+                destroyed += 1
+            except LabctlError:
+                pass
+        logging.info("destroy-all %s: cleaned %d student instances.", lab_id, destroyed)
+
+    def destroy_all_labs(self) -> None:
+        lab_id_pattern = _re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
+        destroyed = 0
+        for scenario_dir in sorted(self.paths.labs_dir.iterdir()):
+            if not scenario_dir.is_dir():
+                continue
+            lab_id = scenario_dir.name
+            if not lab_id_pattern.fullmatch(lab_id):
+                continue
+            if not (scenario_dir / "scenario.yaml").exists():
+                continue
+            for rendered_path in sorted(self.paths.rendered_dir.glob(f"{lab_id}_*.yml")):
+                student_id = rendered_path.stem[len(lab_id) + 1 :]
+                try:
+                    self.destroy(lab_id, student_id)
+                    destroyed += 1
+                except LabctlError:
+                    pass
+        logging.info(
+            "destroy-all --all-labs: cleaned %d student instances across all labs.", destroyed
+        )
+
     def reset(self, lab_id: str, student_id: str) -> None:
         self.destroy(lab_id, student_id)
         self.start(lab_id, student_id)
@@ -172,12 +207,15 @@ class LabRuntime:
                     if condition and evaluate_condition(condition, exit_code, stdout, stderr):
                         matched_states.append(state)
 
+                passed = "fixed" in matched_states
+
                 results.append(
                     {
                         "name": name,
                         "exit_code": exit_code,
                         "output": stdout[:500],
                         "matched_states": matched_states,
+                        "passed": passed,
                     }
                 )
 

@@ -133,6 +133,12 @@ def container_run_args(container: dict) -> list[str]:
             if healthcheck.get(source):
                 args.extend([option, str(healthcheck[source])])
 
+    if container.get("user"):
+        args.extend(["--user", str(container["user"])])
+
+    if container.get("read_only"):
+        args.append("--read-only")
+
     security = container.get("security", {})
     if security.get("host_network"):
         raise PodmanError(
@@ -146,6 +152,8 @@ def container_run_args(container: dict) -> list[str]:
         args.append("--security-opt=no-new-privileges")
     for capability in security.get("cap_add", []):
         args.extend(["--cap-add", capability])
+    for capability in security.get("cap_drop", []):
+        args.extend(["--cap-drop", capability])
 
     resources = container.get("resources", {})
     if resources.get("cpus"):

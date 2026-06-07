@@ -61,6 +61,7 @@
             <h2>Situation</h2>
             <p><strong>Role:</strong> {{ scenario.story.role }}</p>
             <p>{{ scenario.story.situation }}</p>
+            <p class="duration-warning"><strong>Estimated time:</strong> {{ scenario.duration_minutes }} minutes. The lab will auto-stop after {{ scenario.lifecycle.max_runtime_minutes }} minutes.</p>
         </section>
 
         <section class="panel">
