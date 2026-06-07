@@ -17,4 +17,8 @@ Useful paths:
 - Demo app configuration: /lab/demo-app/app-config.env
 - Reflection template: ~/REFLECTION.md
 
+Full browser guide:
+
+- /docs/labs/redis-exposed/
+
 If the browser terminal is unavailable, use the assigned SSH fallback endpoint.

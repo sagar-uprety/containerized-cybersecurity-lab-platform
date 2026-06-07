@@ -114,6 +114,11 @@ def scenario_idle_timeout(scenario: dict):
     return lifecycle.get("idle_timeout_minutes")
 
 
+def require_student(user: dict) -> None:
+    if user["role"] != "student":
+        raise HTTPException(status_code=403, detail="Student access required")
+
+
 @app.get("/", response_class=HTMLResponse)
 def index():
     return RedirectResponse(url="/portal")
@@ -121,12 +126,14 @@ def index():
 
 @app.get("/portal", response_class=HTMLResponse)
 def portal_overview(request: Request, user: dict = Depends(get_current_user)):
+    if user["role"] == "instructor":
+        return RedirectResponse(url="/instructor", status_code=303)
+
     labs = list_scenarios()
     student_id = user_student_id(user) if user["role"] == "student" else None
     states = {}
-    if student_id:
-        for lab in labs:
-            states[lab["id"]] = get_lab_status(lab["id"], student_id)
+    for lab in labs:
+        states[lab["id"]] = get_lab_status(lab["id"], student_id)
 
     return templates.TemplateResponse(
         "overview.html",
@@ -182,6 +189,7 @@ def lab_detail(request: Request, lab_id: str, user: dict = Depends(get_current_u
 
 @app.get("/labs/{lab_id}/status")
 def lab_status(lab_id: str, user: dict = Depends(get_current_user)):
+    require_student(user)
     scenario = load_scenario_metadata(lab_id)
     if not scenario:
         raise HTTPException(status_code=404, detail="Lab not found")
@@ -208,6 +216,7 @@ def start_lab(
     csrf_token: str = Form(...),
     user: dict = Depends(get_current_user),
 ):
+    require_student(user)
     validate_token(csrf_token, user)
     scenario = load_scenario_metadata(lab_id)
     if not scenario:
@@ -254,10 +263,16 @@ def stop_lab(
     csrf_token: str = Form(...),
     user: dict = Depends(get_current_user),
 ):
+    require_student(user)
     validate_token(csrf_token, user)
     success, _stdout, stderr, _duration = run_action("stop", lab_id, user)
     student_id = user_student_id(user)
-    update_runtime_state(lab_id, student_id, "stopped" if success else "error")
+    update_runtime_state(
+        lab_id,
+        student_id,
+        "stopped" if success else "error",
+        last_seen=time.time(),
+    )
     if not success:
         raise HTTPException(status_code=502, detail=stderr or "Failed to stop lab")
     return RedirectResponse(url=f"/labs/{lab_id}", status_code=303)
@@ -269,6 +284,7 @@ def reset_lab(
     csrf_token: str = Form(...),
     user: dict = Depends(get_current_user),
 ):
+    require_student(user)
     validate_token(csrf_token, user)
     success, _stdout, stderr, _duration = run_action("reset", lab_id, user)
     student_id = user_student_id(user)
@@ -291,6 +307,7 @@ def end_lab(
     csrf_token: str = Form(...),
     user: dict = Depends(get_current_user),
 ):
+    require_student(user)
     validate_token(csrf_token, user)
     success, _stdout, stderr, _duration = run_action("destroy", lab_id, user)
     student_id = user_student_id(user)
@@ -307,6 +324,7 @@ def check_lab(
     csrf_token: str = Form(...),
     user: dict = Depends(get_current_user),
 ):
+    require_student(user)
     validate_token(csrf_token, user)
     success, stdout, stderr, _duration = run_action("check", lab_id, user)
     student_id = user_student_id(user)
@@ -342,6 +360,7 @@ def check_lab(
 
 @app.post("/api/heartbeat/{lab_id}")
 def heartbeat(lab_id: str, user: dict = Depends(get_current_user)):
+    require_student(user)
     validate_lab_id(lab_id)
     student_id = user_student_id(user)
     touch_runtime_state(lab_id, student_id)
@@ -367,7 +386,7 @@ def terminal_auth(
     if not terminal_owner:
         raise HTTPException(status_code=404, detail="Unknown terminal endpoint")
 
-    allowed = user["role"] == "admin" or user_student_id(user) == terminal_owner["student_id"]
+    allowed = user["role"] == "student" and user_student_id(user) == terminal_owner["student_id"]
     if not allowed:
         raise HTTPException(status_code=403, detail="Terminal is not assigned to this user")
 
@@ -380,7 +399,7 @@ def terminal_auth(
 
 @app.get("/instructor", response_class=HTMLResponse)
 def instructor_view(request: Request, user: dict = Depends(get_current_user)):
-    if user["role"] != "admin":
+    if user["role"] != "instructor":
         raise HTTPException(status_code=403, detail="Instructor access required")
 
     rows = []
@@ -445,7 +464,7 @@ def lab_lifecycle_manager():
                 lifecycle = scenario.get("lifecycle", {})
                 idle_timeout = scenario_idle_timeout(scenario)
                 max_runtime = lifecycle.get("max_runtime_minutes")
-                destroy_timeout = lifecycle.get("auto_destroy_after_minutes")
+                destroy_timeout = lifecycle.get("retention_after_stop_minutes")
                 last_seen = runtime_state.get("last_seen", current_time)
                 started_at = runtime_state.get("started_at", current_time)
                 idle_minutes = (current_time - last_seen) / 60
@@ -482,7 +501,7 @@ def lab_lifecycle_manager():
                 ):
                     success, _stdout, stderr = run_labctl("destroy", lab_id, student_id)
                     record_event(
-                        "auto_destroy",
+                        "retention_cleanup",
                         lab_id,
                         student_id,
                         "scheduler",

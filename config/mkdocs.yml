@@ -7,9 +7,5 @@ theme:
   name: mkdocs
 markdown_extensions:
   - pymdownx.snippets
-nav:
-  - Home: index.md
-  - Labs:
-      - The Exposed Cache: labs/redis-exposed.md
 plugins:
   - search

@@ -1,12 +1,46 @@
 import json
+import logging
 import threading
 import time
 from pathlib import Path
 
 from app.config import settings
 
-LAB_STATE = {}
+logger = logging.getLogger(__name__)
+
+
+def _runtime_state_path() -> Path:
+    return Path(settings.RUNTIME_STATE_PATH)
+
+
+def _load_runtime_state() -> dict:
+    path = _runtime_state_path()
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except FileNotFoundError:
+        return {}
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("Could not load portal runtime state from %s: %s", path, exc)
+        return {}
+    if not isinstance(data, dict):
+        logger.warning("Ignoring invalid portal runtime state in %s", path)
+        return {}
+    return {str(key): value for key, value in data.items() if isinstance(value, dict)}
+
+
+LAB_STATE = _load_runtime_state()
 LAB_STATE_LOCK = threading.Lock()
+
+
+def _persist_runtime_state_locked() -> None:
+    path = _runtime_state_path()
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        tmp_path = path.with_name(f"{path.name}.tmp")
+        tmp_path.write_text(json.dumps(LAB_STATE, sort_keys=True, indent=2), encoding="utf-8")
+        tmp_path.replace(path)
+    except OSError as exc:
+        logger.warning("Could not persist portal runtime state to %s: %s", path, exc)
 
 
 def state_key(lab_id: str, student_id: str) -> str:
@@ -21,6 +55,7 @@ def update_runtime_state(lab_id: str, student_id: str, status_text: str, **extra
         )
         value["status"] = status_text
         value.update(extra)
+        _persist_runtime_state_locked()
 
 
 def runtime_state_for(lab_id: str, student_id: str) -> dict:
@@ -31,6 +66,7 @@ def runtime_state_for(lab_id: str, student_id: str) -> dict:
 def forget_runtime_state(lab_id: str, student_id: str) -> None:
     with LAB_STATE_LOCK:
         LAB_STATE.pop(state_key(lab_id, student_id), None)
+        _persist_runtime_state_locked()
 
 
 def touch_runtime_state(lab_id: str, student_id: str) -> None:
@@ -38,16 +74,18 @@ def touch_runtime_state(lab_id: str, student_id: str) -> None:
         key = state_key(lab_id, student_id)
         if key in LAB_STATE:
             LAB_STATE[key]["last_seen"] = time.time()
+            _persist_runtime_state_locked()
 
 
 def tracked_runtime_items():
     with LAB_STATE_LOCK:
-        return list(LAB_STATE.items())
+        return [(key, dict(value)) for key, value in LAB_STATE.items()]
 
 
 def remove_runtime_key(key: str) -> None:
     with LAB_STATE_LOCK:
         LAB_STATE.pop(key, None)
+        _persist_runtime_state_locked()
 
 
 def load_check_result(lab_id: str, student_id: str):

@@ -91,7 +91,7 @@
             "required": [
                 "idle_timeout_minutes",
                 "max_runtime_minutes",
-                "auto_destroy_after_minutes"
+                "retention_after_stop_minutes"
             ],
             "properties": {
                 "idle_timeout_minutes": {
@@ -106,7 +106,7 @@
                     "type": ["integer", "null"],
                     "minimum": 1
                 },
-                "auto_destroy_after_minutes": {
+                "retention_after_stop_minutes": {
                     "type": "integer",
                     "minimum": 1
                 }
@@ -371,7 +371,6 @@
                         "type": "object",
                         "additionalProperties": false,
                         "properties": {
-                            "no_new_privileges": { "type": "boolean" },
                             "privileged": { "type": "boolean" },
                             "host_network": { "type": "boolean" },
                             "cap_add": {

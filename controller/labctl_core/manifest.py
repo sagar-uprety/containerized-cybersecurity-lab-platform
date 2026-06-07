@@ -82,9 +82,8 @@ def _platform_labels(ctx: dict) -> dict:
 def build_manifest(scenario: dict, ctx: dict) -> dict:
     """Return the runtime manifest dict from *scenario* and platform *ctx*.
 
-    This is the pure-Python replacement for rendering ``podman.yml.tpl`` via
-    Jinja2.  The returned dict has the same structure that ``podman.py``
-    (ensure_network, ensure_volumes, start_containers) already consumes.
+    The returned dict has the structure that ``podman.py`` (ensure_network,
+    ensure_volumes, start_containers) consumes.
 
     Parameters
     ----------
@@ -311,7 +310,6 @@ def build_manifest(scenario: dict, ctx: dict) -> dict:
     )
 
     ws_security = {
-        "no_new_privileges": True,
         "privileged": False,
         "host_network": False,
     }

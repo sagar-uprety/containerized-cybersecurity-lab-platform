@@ -61,7 +61,7 @@ sudo /usr/local/sbin/restart-redis
 exit
 ```
 
-When SSH asks for a password, enter your lab password. The `sudo` command is restricted to the Redis restart helper inside the lab container.
+When SSH asks for a password, enter your lab password. The `sudo` command is restricted to the Redis restart helper inside the lab container. The demo app reads `REDIS_PASSWORD` from `/lab/demo-app/app-config.env` on each request, so it will pick up the new password after Redis restarts.
 
 ## 5. Verify
 

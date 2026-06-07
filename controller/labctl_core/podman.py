@@ -148,8 +148,6 @@ def container_run_args(container: dict) -> list[str]:
         raise PodmanError(
             f"Container {container_name} requested privileged mode, which is not allowed"
         )
-    if security.get("no_new_privileges"):
-        args.append("--security-opt=no-new-privileges")
     for capability in security.get("cap_add", []):
         args.extend(["--cap-add", capability])
     for capability in security.get("cap_drop", []):

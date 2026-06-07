@@ -22,7 +22,7 @@ def _load_user_entries():
         username = str(entry.get("username", "")).strip()
         password = str(entry.get("password", ""))
         role = str(entry.get("role", "student")).strip()
-        if not username or not password or role not in {"student", "admin", "instructor"}:
+        if not username or not password or role not in {"student", "instructor"}:
             continue
 
         student_id = str(entry.get("student_id") or username).strip()
@@ -36,7 +36,7 @@ def _load_user_entries():
         entries[username] = {
             "username": username,
             "password": password,
-            "role": "admin" if role == "instructor" else role,
+            "role": role,
             "student_id": student_id,
             "number": number,
         }

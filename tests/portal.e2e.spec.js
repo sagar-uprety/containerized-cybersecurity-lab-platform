@@ -2,6 +2,11 @@ const { test, expect } = require('@playwright/test');
 
 const labId = process.env.PORTAL_LAB_ID || 'redis-exposed';
 const portalUser = process.env.PORTAL_USER || 'student01';
+const portalStudent = process.env.PORTAL_STUDENT_ID || 'student01';
+
+function skipUnlessStudent() {
+    test.skip(portalUser === 'instructor', 'student-only portal flow');
+}
 
 async function terminalFrame(page) {
     const handle = await page.locator('#terminal-iframe').elementHandle();
@@ -37,6 +42,7 @@ async function expectTerminalReady(target) {
 }
 
 test('student can open the portal and lab page', async ({ page }) => {
+    skipUnlessStudent();
     page.on('dialog', (dialog) => {
         throw new Error(`Unexpected dialog appeared: ${dialog.message()}`);
     });
@@ -57,6 +63,7 @@ test('student can open the portal and lab page', async ({ page }) => {
 });
 
 test('student lab links open expected pages', async ({ page, context }) => {
+    skipUnlessStudent();
     await page.goto(`/labs/${labId}`);
 
     const guidePopupPromise = context.waitForEvent('page');
@@ -102,6 +109,7 @@ test('state-changing routes reject missing form tokens', async ({ request }) => 
 });
 
 test('running lab page exposes a resizable terminal pane', async ({ page }) => {
+    skipUnlessStudent();
     await page.goto(`/labs/${labId}`);
     const terminal = page.locator('#terminal-container');
     if (!(await terminal.isVisible())) {
@@ -134,6 +142,7 @@ test('running lab page exposes a resizable terminal pane', async ({ page }) => {
 });
 
 test('live terminal iframe creates a websocket connection', async ({ page }) => {
+    skipUnlessStudent();
     const websockets = [];
     page.on('websocket', (ws) => websockets.push(ws.url()));
     await page.goto(`/labs/${labId}`);
@@ -146,6 +155,7 @@ test('live terminal iframe creates a websocket connection', async ({ page }) => 
 });
 
 test('live terminal is writable for the student shell', async ({ page }) => {
+    skipUnlessStudent();
     await page.goto(`/labs/${labId}`);
     if (!(await page.locator('#terminal-iframe').isVisible())) {
         await page.getByRole('button', { name: 'Start Lab' }).click();
@@ -161,6 +171,7 @@ test('live terminal is writable for the student shell', async ({ page }) => {
 });
 
 test('live student can run the checker from the portal', async ({ page }) => {
+    skipUnlessStudent();
     await page.goto(`/labs/${labId}`);
     if (await page.getByRole('button', { name: 'Start Lab' }).isVisible()) {
         await page.getByRole('button', { name: 'Start Lab' }).click();
@@ -187,5 +198,7 @@ test('instructor can view lightweight evidence', async ({ page }) => {
     await expect(page.getByRole('heading', { name: 'Lab State' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Recent Terminal Commands' })).toBeVisible();
     await expect(page.getByRole('cell', { name: labId, exact: true }).first()).toBeVisible();
-    await expect(page.getByRole('cell', { name: portalUser, exact: true }).first()).toBeVisible();
+    await expect(
+        page.getByRole('cell', { name: portalStudent, exact: true }).first()
+    ).toBeVisible();
 });

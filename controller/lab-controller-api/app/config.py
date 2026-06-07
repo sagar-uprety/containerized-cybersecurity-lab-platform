@@ -28,6 +28,9 @@ class Settings:
     PORTAL_USERS_FILE = os.environ.get("PORTAL_USERS_FILE", "/etc/thesis-labs/portal-users.yml")
     LABS_DIR = os.environ.get("LABS_DIR", "/opt/thesis-labs/labs")
     RESULTS_DIR = os.environ.get("RESULTS_DIR", "/var/lib/thesis-labs/results")
+    RUNTIME_STATE_PATH = os.environ.get(
+        "RUNTIME_STATE_PATH", "/var/lib/thesis-labs/portal-runtime-state.json"
+    )
 
     MAX_CONCURRENT_STUDENTS = _int_from_env("MAX_CONCURRENT_STUDENTS", 5)
     EVALUATION_MODE = _bool_from_env("EVALUATION_MODE", False)

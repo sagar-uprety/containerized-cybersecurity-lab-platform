@@ -19,7 +19,6 @@ thesis_base_packages:
   - git
   - jq
   - chrony
-  - logrotate
   - openssh-clients
   - openssh-server
   - python3
@@ -54,13 +53,10 @@ thesis_students:
     number: 1
     password: smoke-password
 
-thesis_lab_scenarios:
-  - redis-exposed
-
 thesis_instructors:
   - username: instructor
-    password: admin-password
-    role: admin
+    password: instructor-password
+    role: instructor
 
 thesis_max_concurrent_students: 1
 thesis_evaluation_mode: false

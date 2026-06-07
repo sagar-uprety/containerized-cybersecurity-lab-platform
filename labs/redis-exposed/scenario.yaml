@@ -22,7 +22,7 @@ lifecycle:
   idle_timeout_minutes: 30
   max_runtime_minutes: 120
   evaluation_idle_timeout_minutes: null
-  auto_destroy_after_minutes: 180
+  retention_after_stop_minutes: 180
 
 checker:
   states:
@@ -96,6 +96,8 @@ workstation:
   shared_volumes:
     - name: redis_config
       target: /lab/redis
+    - name: redis_config
+      target: /lab/demo-app
   depends_on:
     - redis-host
     - demo-app
@@ -135,7 +137,6 @@ containers:
       retries: 6
       start_period: 5s
     security:
-      no_new_privileges: true
       privileged: false
       host_network: false
       cap_add:
@@ -150,11 +151,13 @@ containers:
     environment:
       REDIS_HOST: redis-host
       REDIS_PORT: "6379"
-      REDIS_PASSWORD: "$platform.student_password"
     ports:
       - host_ip: "$platform.host_bind_ip"
         host_port: "$platform.app_port"
         container_port: 8080
+    volumes:
+      - name: redis_config
+        target: /lab/demo-app
     depends_on:
       - redis-host
     healthcheck:
@@ -166,7 +169,6 @@ containers:
       retries: 6
       start_period: 10s
     security:
-      no_new_privileges: true
       privileged: false
       host_network: false
       cap_drop:

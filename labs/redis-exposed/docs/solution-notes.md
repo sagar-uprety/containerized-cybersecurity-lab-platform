@@ -27,6 +27,9 @@ sudo /usr/local/sbin/restart-redis
 exit
 ```
 
+The demo app reads `REDIS_PASSWORD` from `/lab/demo-app/app-config.env` on each
+request, so it picks up the new password automatically after Redis restarts.
+
 ## Expected Verification
 
 ```bash

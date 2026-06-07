@@ -74,6 +74,20 @@
   tags:
     - portal
 
+- name: Discover local lab scenarios for portal
+  ansible.builtin.set_fact:
+    management_lab_scenarios: >-
+      {{
+        lookup('ansible.builtin.fileglob', playbook_dir ~ '/../../labs/*/scenario.yaml', wantlist=True)
+        | map('dirname')
+        | map('basename')
+        | sort
+        | list
+      }}
+  changed_when: false
+  tags:
+    - portal
+
 - name: Install lab scenario source trees on management node
   ansible.builtin.copy:
     src: "{{ playbook_dir }}/../../labs/{{ item }}/"
@@ -82,7 +96,7 @@
     group: "{{ thesis_admin_group }}"
     mode: preserve
     directory_mode: "0750"
-  loop: "{{ thesis_lab_scenarios }}"
+  loop: "{{ management_lab_scenarios }}"
   tags:
     - portal
 

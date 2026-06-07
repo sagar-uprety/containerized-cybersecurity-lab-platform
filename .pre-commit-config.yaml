@@ -122,7 +122,7 @@ repos:
         additional_dependencies:
           - jsonschema==4.23.0
           - pyyaml==6.0.2
-        files: ^(labs/.*/scenario\.yaml|labs/scenario\.schema\.json)$
+        files: ^(labs/.*/scenario\.yaml|labs/.*/docs/.*\.md|labs/.*/docs/SITREP\.txt|labs/scenario\.schema\.json)$
         pass_filenames: false
 
       # Validate per-lab intentional scanner findings and teaching-purpose risks

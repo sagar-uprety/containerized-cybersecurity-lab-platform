@@ -56,8 +56,8 @@ lifecycle:
   max_runtime_minutes: 120
   # Evaluation-specific idle timeout (null = use idle_timeout_minutes).
   evaluation_idle_timeout_minutes: null
-  # Auto-destroy after this many minutes regardless of activity.
-  auto_destroy_after_minutes: 180
+  # Retention after stop: keep volumes for this long, then remove the instance.
+  retention_after_stop_minutes: 180
 
 # ── Checker: portal verification ───────────────────────────────────────
 # REQUIRED. Defines how the portal checks whether the lab is fixed.
@@ -215,7 +215,6 @@ containers:
       retries: 6
       start_period: 5s
     security:
-      no_new_privileges: true
       privileged: false               # NEVER true — platform rejects it
       host_network: false             # NEVER true — platform rejects it
       cap_add: []                     # add only what is strictly needed

@@ -9,5 +9,5 @@ users:
 {% for instructor in thesis_instructors %}
   - username: {{ instructor.username | to_json }}
     password: {{ instructor.password | to_json }}
-    role: {{ instructor.role | default('admin') | to_json }}
+    role: {{ instructor.role | default('instructor') | to_json }}
 {% endfor %}

@@ -1,10 +1,23 @@
 import os
 import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from pathlib import Path
 
 REDIS_HOST = os.environ.get("REDIS_HOST", "redis-host")
 REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
-REDIS_PASSWORD = os.environ.get("REDIS_PASSWORD", "")
+
+
+def _read_password_from_config():
+    config_path = Path("/lab/demo-app/app-config.env")
+    try:
+        with config_path.open(encoding="utf-8") as f:
+            for line in f:
+                line = line.strip()
+                if line.startswith("REDIS_PASSWORD="):
+                    return line.split("=", 1)[1].strip()
+    except FileNotFoundError:
+        pass
+    return os.environ.get("REDIS_PASSWORD", "")
 
 
 def encode_command(*parts):
@@ -27,8 +40,9 @@ def read_resp_line(sock):
 
 def redis_request(*command):
     with socket.create_connection((REDIS_HOST, REDIS_PORT), timeout=2) as sock:
-        if REDIS_PASSWORD:
-            sock.sendall(encode_command("AUTH", REDIS_PASSWORD))
+        redis_password = _read_password_from_config()
+        if redis_password:
+            sock.sendall(encode_command("AUTH", redis_password))
             auth_response = read_resp_line(sock)
             if not auth_response.startswith("+OK"):
                 raise RuntimeError(f"Redis AUTH failed: {auth_response}")

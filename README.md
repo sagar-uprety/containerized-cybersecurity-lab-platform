@@ -13,16 +13,16 @@ VM-hosted, container-first cybersecurity lab platform. Two RHEL 9.6 VMs: x02
 
 ## Repository Areas
 
-| Path               | Purpose                                                                                                                     |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------------- |
-| `infra/`           | Ansible inventory, playbooks, roles for provisioning both VMs                                                               |
-| `labs/`            | Lab scenarios: `scenario.yaml`, `podman.yml.tpl`, `Dockerfile`, `config.vulnerable`, seed data, MkDocs guides under `docs/` |
-| `platform-images/` | Shared images: `workstation-base` (student attack box), `lab-service-base` (generic env-driven service entrypoint)          |
-| `controller/`      | `labctl` CLI, `labctl_core` lifecycle package, SSH wrapper, FastAPI portal                                                  |
-| `docs/`            | MkDocs student-facing lab guides                                                                                            |
-| `tests/`           | Playwright E2E tests (portal UI + universal lab verifier)                                                                   |
-| `tools/`           | Pre-commit validators                                                                                                       |
-| `resources/`       | Research traceability for scenario selection                                                                                |
+| Path               | Purpose                                                                                                               |
+| ------------------ | --------------------------------------------------------------------------------------------------------------------- |
+| `infra/`           | Ansible inventory, playbooks, roles for provisioning both VMs                                                         |
+| `labs/`            | Lab scenarios: `scenario.yaml`, Dockerfiles, optional lab-specific files at the lab root, MkDocs guides under `docs/` |
+| `platform-images/` | Shared images: `workstation-base` (student attack box), `lab-service-base` (generic env-driven service entrypoint)    |
+| `controller/`      | `labctl` CLI, `labctl_core` lifecycle package, SSH wrapper, FastAPI portal                                            |
+| `docs/`            | MkDocs student-facing lab guides                                                                                      |
+| `tests/`           | Playwright E2E tests (portal UI + universal lab verifier)                                                             |
+| `tools/`           | Pre-commit validators                                                                                                 |
+| `resources/`       | Research traceability for scenario selection                                                                          |
 
 ## labctl layout
 

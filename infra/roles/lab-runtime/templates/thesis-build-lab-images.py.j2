@@ -10,7 +10,7 @@ import yaml
 
 SCENARIO_ROOT = Path("{{ lab_runtime_code_root }}")
 PLATFORM_IMAGE_ROOT = Path("{{ lab_runtime_platform_images_root }}")
-SCENARIOS = {{ thesis_lab_scenarios | to_json }}
+SCENARIOS = {{ lab_runtime_scenarios | to_json }}
 PLATFORM_IMAGES = {{ thesis_platform_images | default([]) | to_json }}
 IMAGE_BUILDER = "{{ lab_runtime_image_builder }}"
 PLATFORM_LABEL = "{{ thesis_platform_name }}"

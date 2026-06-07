@@ -22,6 +22,22 @@
     - labctl
     - lab-runtime
 
+- name: Discover local lab scenarios
+  ansible.builtin.set_fact:
+    lab_runtime_scenarios: >-
+      {{
+        lookup('ansible.builtin.fileglob', lab_runtime_local_scenario_root ~ '/*/scenario.yaml', wantlist=True)
+        | map('dirname')
+        | map('basename')
+        | sort
+        | list
+      }}
+  changed_when: false
+  tags:
+    - lab-source
+    - lab-images
+    - labadmin
+
 - name: Install lab scenario source trees
   ansible.builtin.copy:
     src: "{{ lab_runtime_local_scenario_root }}/{{ item }}/"
@@ -30,7 +46,7 @@
     group: "{{ thesis_admin_group }}"
     mode: preserve
     directory_mode: "0750"
-  loop: "{{ thesis_lab_scenarios }}"
+  loop: "{{ lab_runtime_scenarios }}"
   register: lab_source_copy_results
   tags:
     - lab-source
