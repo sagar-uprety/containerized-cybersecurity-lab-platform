@@ -62,9 +62,9 @@ controller SSH key). Portal and reverse proxy changes belong in
 
 Playwright E2E tests:
 
-| Suite        | File                                                 | Purpose                                                                              |
-| ------------ | ---------------------------------------------------- | ------------------------------------------------------------------------------------ |
-| Portal UI    | `tests/portal.e2e.spec.js`                           | Page rendering, CSRF, lab links, terminal iframe/WebSocket, checker, instructor view |
+| Suite           | File                                              | Purpose                                                                              |
+| --------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------ |
+| Portal UI       | `tests/portal-ui.e2e.spec.js`                     | Page rendering, CSRF, lab links, terminal iframe/WebSocket, checker, instructor view |
 
 ```bash
 npm install

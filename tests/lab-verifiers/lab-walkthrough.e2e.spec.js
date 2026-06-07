@@ -214,5 +214,28 @@ for (const labId of labs) {
             // 5. Verify it's fixed!
             await runPortalCheck(page, 'fixed');
         });
+
+        test('reset after fix restores vulnerable baseline', async ({ page }) => {
+            test.setTimeout(180_000);
+            test.skip(!destructiveAllowed, 'set LAB_VERIFIER_ALLOW_DESTRUCTIVE=true');
+
+            await goToLab(page, labId);
+
+            // Lab should be running and fixed from the previous test
+            await expect(page.getByRole('button', { name: 'Reset' })).toBeVisible({
+                timeout: 120_000,
+            });
+            await Promise.all([
+                page.waitForLoadState('domcontentloaded'),
+                page.getByRole('button', { name: 'Reset' }).click(),
+            ]);
+
+            await expect(page.getByRole('button', { name: 'Run Check' })).toBeVisible({
+                timeout: 120_000,
+            });
+
+            // After reset, the lab must be back to vulnerable
+            await runPortalCheck(page, 'vulnerable');
+        });
     });
 }
