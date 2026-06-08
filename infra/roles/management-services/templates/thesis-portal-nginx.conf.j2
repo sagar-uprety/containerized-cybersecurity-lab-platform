@@ -10,6 +10,10 @@ server {
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 
+    location = /docs {
+        return 301 /docs/;
+    }
+
     location /docs/ {
         alias {{ management_docs_root }}/source/site/;
         index index.html index.htm;

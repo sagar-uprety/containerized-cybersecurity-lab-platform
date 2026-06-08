@@ -22,14 +22,27 @@
     - labctl
     - lab-runtime
 
-- name: Discover local lab scenarios
+- name: Discover local lab scenario files
+  ansible.builtin.find:
+    paths: "{{ lab_runtime_local_scenario_root }}"
+    patterns: scenario.yaml
+    file_type: file
+    recurse: true
+  register: _lab_runtime_scenario_files
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  tags:
+    - lab-source
+    - lab-images
+    - labadmin
+
+- name: Set lab scenario list
   ansible.builtin.set_fact:
     lab_runtime_scenarios: >-
       {{
-        lookup('pipe', 'ls -d ' ~ lab_runtime_local_scenario_root ~ '/*/scenario.yaml 2>/dev/null')
-        | default('')
-        | split('\n')
-        | reject('equalto', '')
+        _lab_runtime_scenario_files.files
+        | map(attribute='path')
         | map('dirname')
         | map('basename')
         | sort
@@ -103,6 +116,9 @@
     owner: root
     group: "{{ thesis_admin_group }}"
     mode: "0640"
+  tags:
+    - lab-source
+    - labadmin
 
 - name: Install lab scenario schema
   ansible.builtin.copy:

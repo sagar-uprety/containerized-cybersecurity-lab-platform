@@ -8,5 +8,7 @@ Start in the portal, open your assigned lab, then keep the guide next to the bro
 
 ## Labs
 
-The deployed site generates this list from `labs/*/scenario.yaml` during the
-management-host docs deployment.
+{% for lab_id in management_lab_scenarios %}
+{% set scenario = lookup('file', playbook_dir ~ '/../../labs/' ~ lab_id ~ '/scenario.yaml') | from_yaml %}
+-   [{{ scenario.title }}](labs/{{ lab_id }}.md)
+{% endfor %}

@@ -22,7 +22,6 @@ from app.auth import get_current_user, get_student_users
 from app.config import settings
 from app.events import read_recent_events, record_event
 from app.feedback import (
-    any_pending_feedback,
     build_evidence_export,
     feedback_exists,
     list_feedback,
@@ -51,7 +50,12 @@ from app.scenarios import (
 )
 from app.ssh_client import run_labctl
 
-app = FastAPI(title="Thesis Lab Portal")
+app = FastAPI(
+    title="Thesis Lab Portal",
+    docs_url=None,
+    redoc_url=None,
+    openapi_url=None,
+)
 app.mount(
     "/static",
     StaticFiles(directory=str(Path(__file__).resolve().parent / "static")),
@@ -153,8 +157,6 @@ def portal_overview(request: Request, user: dict = Depends(get_current_user)):
     for lab in labs:
         states[lab["id"]] = get_lab_status(lab["id"], student_id)
 
-    feedback_pending = user["role"] == "student" and any_pending_feedback(student_id)
-
     return templates.TemplateResponse(
         "overview.html",
         {
@@ -162,7 +164,6 @@ def portal_overview(request: Request, user: dict = Depends(get_current_user)):
             "user": user,
             "labs": labs,
             "states": states,
-            "feedback_pending": feedback_pending,
             "csrf_token": generate_token(user),
         },
     )
@@ -188,11 +189,6 @@ def lab_detail(request: Request, lab_id: str, user: dict = Depends(get_current_u
     runtime_state = runtime_state_for(lab_id, student_id)
     check_result = runtime_state.get("last_check") or load_check_result(lab_id, student_id)
 
-    feedback_submitted = feedback_exists(lab_id, student_id, runtime_state.get("session_id", ""))
-    show_feedback_banner = (
-        runtime_state.get("status") in ("ended", "stopped") and not feedback_submitted
-    )
-
     return templates.TemplateResponse(
         "detail.html",
         {
@@ -208,8 +204,6 @@ def lab_detail(request: Request, lab_id: str, user: dict = Depends(get_current_u
             "app_port": ports.get("app"),
             "host": settings.WORKER_HOST,
             "student_guide_url": student_guide_url(scenario),
-            "feedback_submitted": feedback_submitted,
-            "show_feedback_banner": show_feedback_banner,
             "csrf_token": generate_token(user),
         },
     )
@@ -268,14 +262,6 @@ def start_lab(
         raise HTTPException(
             status_code=503,
             detail="Maximum concurrent students reached. Try again later.",
-        )
-
-    if any_pending_feedback(student_id):
-        raise HTTPException(
-            status_code=403,
-            detail=(
-                "Feedback pending. Submit feedback for your previous lab before starting a new one."
-            ),
         )
 
     success, _stdout, stderr, _duration = run_action("start", lab_id, user)

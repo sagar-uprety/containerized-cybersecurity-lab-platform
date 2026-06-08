@@ -1,0 +1,26 @@
+lab_id: ssh-weak-config
+
+intentional_findings:
+  - id: ssh-weak-user-passwords
+    tool: gitleaks
+    files:
+      - setup-vulnerable.sh
+    patterns:
+      - "demo-ssh-pass"
+    reason: Weak user passwords are intentionally planted for brute-force demonstration. Students discover and fix these during the lab.
+
+  - id: ssh-demo-solution-passwords
+    tool: gitleaks
+    files:
+      - docs/solution-notes.md
+    patterns:
+      - "demo-ssh-pass"
+    reason: Instructor solution notes reference the weak passwords to document the expected remediation workflow.
+
+  - id: ssh-unauthorized-keys
+    tool: gitleaks
+    files:
+      - setup-vulnerable.sh
+    patterns:
+      - "demo-attacker-key"
+    reason: Unauthorized SSH keys simulate prior attacker compromise. Students discover and remove these during the lab.

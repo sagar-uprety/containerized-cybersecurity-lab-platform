@@ -1,0 +1,129 @@
+id: ssh-weak-config
+title: Open Door Policy
+difficulty: intermediate
+duration_minutes: 90
+
+story:
+  role: Incident responder
+  situation: >
+    A server was flagged after suspicious SSH login activity was detected in
+    the logs. The previous administrator may have left weak configurations in
+    place. Audit the SSH service, determine how attackers could have gained
+    access, and harden the server.
+
+documentation:
+  student_guide_url: /docs/labs/ssh-weak-config/
+
+access:
+  ssh_port_base: 22000
+  browser_terminal_port_base: 19000
+
+lifecycle:
+  idle_timeout_minutes: 30
+  max_runtime_minutes: 120
+  evaluation_idle_timeout_minutes: null
+  retention_after_stop_minutes: 180
+
+checker:
+  states:
+    - vulnerable
+    - fixed
+    - broken
+  checks:
+    - name: ssh_password_auth
+      exec_in: workstation
+      run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key student01@ssh-host 'grep -i ^PasswordAuthentication /etc/ssh/sshd_config 2>&1'"
+      states:
+        vulnerable: "output_contains: PasswordAuthentication yes"
+        fixed: "output_contains: PasswordAuthentication no"
+        broken: "exit_code_ne: 0"
+    - name: ssh_fail2ban_active
+      exec_in: workstation
+      run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key student01@ssh-host 'sudo fail2ban-client status sshd 2>&1 || echo FAIL2BAN_NOT_ACTIVE'"
+      states:
+        vulnerable: "output_contains: FAIL2BAN_NOT_ACTIVE"
+        fixed: "output_contains: Status for the jail:"
+        broken: "exit_code_ne: 0"
+    - name: ssh_key_auth
+      exec_in: workstation
+      run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key student01@ssh-host echo KEY_AUTH_OK 2>&1 || true"
+      states:
+        vulnerable: "output_contains: KEY_AUTH_OK"
+        fixed: "output_contains: KEY_AUTH_OK"
+        broken: "output_contains: Connection refused"
+
+build:
+  images:
+    - service: ssh-host
+      name: thesis-labs/ssh-weak-config-ssh:latest
+      context: .
+      dockerfile: Dockerfile
+
+services:
+  workstation:
+    image: thesis-labs/workstation-base:latest
+    role: Student browser terminal and SSH fallback.
+    internal_ports:
+      browser_terminal: 19000
+      ssh: 22
+  ssh-host:
+    image: thesis-labs/ssh-weak-config-ssh:latest
+    role: Vulnerable SSH server.
+    internal_ports:
+      ssh: 22
+
+resources:
+  workstation:
+    cpus: "0.50"
+    memory: "256m"
+  ssh-host:
+    cpus: "0.50"
+    memory: "256m"
+
+workstation:
+  environment:
+    SSH_HOST: ssh-host
+    SSH_PORT: "22"
+  shared_volumes:
+    - name: ssh_keys
+      target: /lab/keys
+  depends_on:
+    - ssh-host
+  cap_add:
+    - NET_RAW
+
+containers:
+  - service: ssh-host
+    hostname: ssh-host
+    init: true
+    restart: unless-stopped
+    environment:
+      LAB_ADMIN_USER: root
+      LAB_CONFIG_SRC: /opt/lab/baseline/sshd_config
+      LAB_CONFIG_DST: /etc/ssh/sshd_config
+      LAB_SERVICE_CMD: "/usr/sbin/sshd -D -e"
+      LAB_DATA_DIR: /var/run/sshd
+      LAB_DATA_USER: root
+      LAB_SETUP_SCRIPT: /opt/lab/hooks/pre-start.sh
+      LAB_LOG_FILE: /var/log/auth.log
+      SERVICE_ADMIN_PASSWORD: "$platform.student_password"
+    expose:
+      - 22
+    volumes:
+      - name: ssh_data
+        target: /var/lib/ssh
+      - name: ssh_keys
+        target: /opt/lab/keys
+    healthcheck:
+      command:
+        - CMD-SHELL
+        - "ss -tlnp | grep -q ':22 ' || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    security:
+      privileged: false
+      host_network: false
+      cap_add:
+        - AUDIT_WRITE

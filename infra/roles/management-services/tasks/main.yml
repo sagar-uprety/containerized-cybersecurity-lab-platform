@@ -76,14 +76,26 @@
   tags:
     - portal
 
-- name: Discover local lab scenarios for portal
+- name: Discover local lab scenario files for portal
+  ansible.builtin.find:
+    paths: "{{ playbook_dir }}/../../labs"
+    patterns: scenario.yaml
+    file_type: file
+    recurse: true
+  register: _management_lab_scenario_files
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  tags:
+    - portal
+    - docs
+
+- name: Set management lab scenario list
   ansible.builtin.set_fact:
     management_lab_scenarios: >-
       {{
-        lookup('pipe', 'ls -d ' ~ playbook_dir ~ '/../../labs/*/scenario.yaml 2>/dev/null')
-        | default('')
-        | split('\n')
-        | reject('equalto', '')
+        _management_lab_scenario_files.files
+        | map(attribute='path')
         | map('dirname')
         | map('basename')
         | sort
@@ -128,6 +140,14 @@
   tags:
     - docs
 
+- name: Remove stale MkDocs source tree
+  ansible.builtin.file:
+    path: "{{ management_docs_root }}/source/docs"
+    state: absent
+  notify: Build MkDocs site
+  tags:
+    - docs
+
 - name: Install MkDocs source tree
   ansible.builtin.copy:
     src: "{{ playbook_dir }}/../../docs/"
@@ -136,6 +156,17 @@
     group: "{{ thesis_admin_group }}"
     mode: preserve
     directory_mode: "0750"
+  notify: Build MkDocs site
+  tags:
+    - docs
+
+- name: Generate MkDocs lab index from scenarios
+  ansible.builtin.template:
+    src: mkdocs-index.md.j2
+    dest: "{{ management_docs_root }}/source/docs/index.md"
+    owner: root
+    group: "{{ thesis_admin_group }}"
+    mode: "0640"
   notify: Build MkDocs site
   tags:
     - docs

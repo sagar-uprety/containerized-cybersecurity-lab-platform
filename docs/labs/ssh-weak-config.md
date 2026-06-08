@@ -1,0 +1,1 @@
+--8<-- "labs/ssh-weak-config/docs/student-guide.md"

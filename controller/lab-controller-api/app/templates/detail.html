@@ -15,13 +15,6 @@
             </span>
         </div>
 
-        {% if show_feedback_banner %}
-        <div class="panel check-vulnerable">
-            <strong>Feedback required:</strong> This lab has ended. Please
-            <a href="/labs/{{ lab_id }}/feedback">submit feedback</a> before starting a new lab.
-        </div>
-        {% endif %}
-
         <div class="toolbar">
             {% if status == 'not_created' or status == 'stopped' or status == 'error' %}
                 <form class="action-form" action="/labs/{{ lab_id }}/start" method="post">
