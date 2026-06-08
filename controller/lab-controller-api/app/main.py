@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 from typing import Optional
 
+import markdown
 from fastapi import Depends, FastAPI, Form, HTTPException, Request, Response, status
 from fastapi.responses import (
     FileResponse,
@@ -486,13 +487,14 @@ def instructor_solution_notes(
         raise HTTPException(status_code=404, detail="Solution notes not found for this lab")
 
     raw_md = solution_path.read_text(encoding="utf-8")
+    html_content = markdown.markdown(raw_md, extensions=["fenced_code", "tables"])
     return templates.TemplateResponse(
         "solution_notes.html",
         {
             "request": request,
             "user": user,
             "lab_id": lab_id,
-            "content": raw_md,
+            "content": html_content,
         },
     )
 

@@ -211,16 +211,19 @@
                     return;
                 }
 
-                // For Start/Stop/Reset/End, we want to reload the page to show new state
+                // For Start/Stop/Reset/End, reload the page to show new state
+                // If the server redirected us (e.g. End Lab → feedback form), follow it
                 if (response.ok || response.redirected) {
-                    // Setting location.href bypasses iframe beforeunload issues better than reload
-                    // But first, let's remove the iframe so it doesn't prompt
                     const iframe = document.getElementById('terminal-iframe');
                     if (iframe) {
                         iframe.src = 'about:blank';
                         iframe.remove();
                     }
-                    window.location.href = window.location.pathname;
+                    if (response.redirected) {
+                        window.location.href = response.url;
+                    } else {
+                        window.location.href = window.location.pathname;
+                    }
                 } else {
                     const errorData = await response.json().catch(() => ({}));
                     alert('Action failed: ' + (errorData.detail || response.statusText));
