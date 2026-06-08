@@ -7,16 +7,30 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import Depends, FastAPI, Form, HTTPException, Request, Response, status
-from fastapi.responses import HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse
+from fastapi.responses import (
+    FileResponse,
+    HTMLResponse,
+    JSONResponse,
+    PlainTextResponse,
+    RedirectResponse,
+)
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 
 from app.auth import get_current_user, get_student_users
 from app.config import settings
 from app.events import read_recent_events, record_event
+from app.feedback import (
+    any_pending_feedback,
+    build_evidence_export,
+    feedback_exists,
+    list_feedback,
+    save_check_result,
+    save_command_events,
+    save_feedback,
+)
 from app.form_tokens import generate_token, validate_token
 from app.runtime_state import (
-    forget_runtime_state,
     load_check_result,
     remove_runtime_key,
     runtime_state_for,
@@ -73,7 +87,10 @@ def get_lab_status_details(lab_id: str, student_id: str) -> tuple[str, list[dict
     success, stdout, _stderr = run_labctl("status", lab_id, student_id)
     if not success:
         return "error", []
-    return parse_status_output(stdout)
+    status_text, command_logs = parse_status_output(stdout)
+    if command_logs:
+        save_command_events(lab_id, student_id, command_logs)
+    return status_text, command_logs
 
 
 def run_action(verb: str, lab_id: str, user: dict) -> tuple[bool, str, str, float]:
@@ -135,6 +152,8 @@ def portal_overview(request: Request, user: dict = Depends(get_current_user)):
     for lab in labs:
         states[lab["id"]] = get_lab_status(lab["id"], student_id)
 
+    feedback_pending = user["role"] == "student" and any_pending_feedback(student_id)
+
     return templates.TemplateResponse(
         "overview.html",
         {
@@ -142,6 +161,7 @@ def portal_overview(request: Request, user: dict = Depends(get_current_user)):
             "user": user,
             "labs": labs,
             "states": states,
+            "feedback_pending": feedback_pending,
             "csrf_token": generate_token(user),
         },
     )
@@ -167,6 +187,11 @@ def lab_detail(request: Request, lab_id: str, user: dict = Depends(get_current_u
     runtime_state = runtime_state_for(lab_id, student_id)
     check_result = runtime_state.get("last_check") or load_check_result(lab_id, student_id)
 
+    feedback_submitted = feedback_exists(lab_id, student_id)
+    show_feedback_banner = (
+        runtime_state.get("status") in ("ended", "stopped") and not feedback_submitted
+    )
+
     return templates.TemplateResponse(
         "detail.html",
         {
@@ -182,6 +207,8 @@ def lab_detail(request: Request, lab_id: str, user: dict = Depends(get_current_u
             "app_port": ports.get("app"),
             "host": settings.WORKER_HOST,
             "student_guide_url": student_guide_url(scenario),
+            "feedback_submitted": feedback_submitted,
+            "show_feedback_banner": show_feedback_banner,
             "csrf_token": generate_token(user),
         },
     )
@@ -240,6 +267,14 @@ def start_lab(
         raise HTTPException(
             status_code=503,
             detail="Maximum concurrent students reached. Try again later.",
+        )
+
+    if any_pending_feedback(student_id):
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                "Feedback pending. Submit feedback for your previous lab before starting a new one."
+            ),
         )
 
     success, _stdout, stderr, _duration = run_action("start", lab_id, user)
@@ -311,10 +346,10 @@ def end_lab(
     validate_token(csrf_token, user)
     success, _stdout, stderr, _duration = run_action("destroy", lab_id, user)
     student_id = user_student_id(user)
-    forget_runtime_state(lab_id, student_id)
+    update_runtime_state(lab_id, student_id, "ended")
     if not success:
         raise HTTPException(status_code=502, detail=stderr or "Failed to end lab")
-    return RedirectResponse(url=f"/labs/{lab_id}", status_code=303)
+    return RedirectResponse(url=f"/labs/{lab_id}/feedback", status_code=303)
 
 
 @app.post("/labs/{lab_id}/check")
@@ -326,7 +361,7 @@ def check_lab(
 ):
     require_student(user)
     validate_token(csrf_token, user)
-    success, stdout, stderr, _duration = run_action("check", lab_id, user)
+    success, stdout, stderr, duration = run_action("check", lab_id, user)
     student_id = user_student_id(user)
     if not success:
         update_runtime_state(lab_id, student_id, "error")
@@ -346,6 +381,7 @@ def check_lab(
         record_event("check", lab_id, student_id, user["username"], "error", detail=str(exc))
         raise HTTPException(status_code=502, detail="Checker did not return valid JSON") from exc
 
+    save_check_result(lab_id, student_id, check_result, duration_seconds=duration)
     update_runtime_state(
         lab_id,
         student_id,
@@ -415,6 +451,7 @@ def instructor_view(request: Request, user: dict = Depends(get_current_user)):
                     "title": scenario["title"],
                     "student": student["student_id"],
                     "status": status_text,
+                    "feedback_submitted": feedback_exists(scenario["id"], student["student_id"]),
                 }
             )
             command_logs.extend(recent_commands)
@@ -433,6 +470,97 @@ def instructor_view(request: Request, user: dict = Depends(get_current_user)):
             "command_logs": command_logs,
             "csrf_token": generate_token(user),
         },
+    )
+
+
+@app.get("/labs/{lab_id}/feedback", response_class=HTMLResponse)
+def feedback_form(request: Request, lab_id: str, user: dict = Depends(get_current_user)):
+    require_student(user)
+    validate_lab_id(lab_id)
+    student_id = user_student_id(user)
+    already_submitted = feedback_exists(lab_id, student_id)
+    return templates.TemplateResponse(
+        "feedback.html",
+        {
+            "request": request,
+            "user": user,
+            "lab_id": lab_id,
+            "already_submitted": already_submitted,
+            "csrf_token": generate_token(user),
+        },
+    )
+
+
+@app.post("/labs/{lab_id}/feedback")
+def submit_feedback(
+    lab_id: str,
+    csrf_token: str = Form(...),
+    section_a: str = Form(""),
+    section_b_rating: int = Form(3),
+    section_b: str = Form(""),
+    user: dict = Depends(get_current_user),
+):
+    require_student(user)
+    validate_token(csrf_token, user)
+    validate_lab_id(lab_id)
+    student_id = user_student_id(user)
+    save_feedback(lab_id, student_id, section_a, section_b_rating, section_b)
+    return RedirectResponse(url="/portal", status_code=303)
+
+
+@app.get("/instructor/feedback/{lab_id}", response_class=HTMLResponse)
+def instructor_feedback(
+    request: Request,
+    lab_id: str,
+    user: dict = Depends(get_current_user),
+):
+    if user["role"] != "instructor":
+        raise HTTPException(status_code=403, detail="Instructor access required")
+    validate_lab_id(lab_id)
+    feedback_items = list_feedback(lab_id)
+    return templates.TemplateResponse(
+        "instructor_feedback.html",
+        {
+            "request": request,
+            "user": user,
+            "lab_id": lab_id,
+            "feedback_items": feedback_items,
+            "csrf_token": generate_token(user),
+        },
+    )
+
+
+@app.post("/instructor/evidence/export")
+def export_evidence(
+    csrf_token: str = Form(...),
+    evaluation_id: str = Form(...),
+    anonymize: bool = Form(False),
+    user: dict = Depends(get_current_user),
+):
+    if user["role"] != "instructor":
+        raise HTTPException(status_code=403, detail="Instructor access required")
+    validate_token(csrf_token, user)
+    build_evidence_export(evaluation_id, anonymize=anonymize)
+    return RedirectResponse(
+        url=f"/instructor/evidence/export/{evaluation_id}",
+        status_code=303,
+    )
+
+
+@app.get("/instructor/evidence/export/{export_id}")
+def download_export(export_id: str, user: dict = Depends(get_current_user)):
+    if user["role"] != "instructor":
+        raise HTTPException(status_code=403, detail="Instructor access required")
+
+    export_path = (
+        Path(settings.RUNTIME_STATE_PATH).parent / "evidence" / "exports" / f"{export_id}.tar.gz"
+    )
+    if not export_path.is_file():
+        raise HTTPException(status_code=404, detail="Export not found")
+    return FileResponse(
+        str(export_path),
+        media_type="application/gzip",
+        filename=f"{export_id}.tar.gz",
     )
 
 

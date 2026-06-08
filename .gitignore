@@ -73,6 +73,7 @@ nginx-thesis.conf
 # Tool caches
 .cache/
 .ansible/
+.playwright/
 
 # Packaged archives
 *.tar

@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import Optional
 
 from app.config import settings
+from app.feedback import save_lifecycle_event
 
 EVENT_LOCK = threading.Lock()
 
@@ -35,6 +36,17 @@ def record_event(
     event_path.parent.mkdir(parents=True, exist_ok=True)
     with EVENT_LOCK, event_path.open("a", encoding="utf-8") as handle:
         handle.write(json.dumps(event, sort_keys=True) + "\n")
+
+    # Also persist to the evidence store
+    save_lifecycle_event(
+        action=action,
+        lab_id=lab_id,
+        student_id=student_id,
+        actor=actor,
+        result=result,
+        duration_seconds=duration_seconds,
+        detail=detail,
+    )
 
 
 def read_recent_events(limit: int = 50):

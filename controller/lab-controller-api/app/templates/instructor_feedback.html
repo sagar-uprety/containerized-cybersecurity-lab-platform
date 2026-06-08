@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="backline"><a href="/instructor">Back to instructor view</a></div>
+
+<h1>Feedback for {{ lab_id }}</h1>
+
+{% if feedback_items %}
+<table class="table">
+    <thead>
+        <tr>
+            <th>Student</th>
+            <th>Timestamp</th>
+            <th>Section A (Reflection)</th>
+            <th>Section B Rating</th>
+            <th>Section B (Evaluation)</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for item in feedback_items %}
+        <tr>
+            <td>{{ item.student_id }}</td>
+            <td>{{ item.timestamp }}</td>
+            <td>{{ item.section_a }}</td>
+            <td>{{ item.section_b_rating }}</td>
+            <td>{{ item.section_b }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% else %}
+<p class="muted">No feedback submissions for this lab yet.</p>
+{% endif %}
+{% endblock %}

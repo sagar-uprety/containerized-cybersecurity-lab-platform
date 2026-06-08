@@ -19,7 +19,7 @@ not a substitute for service authentication.
 
 ## POC Fix
 
-```bash
+```bash verifier
 printf '\nrequirepass demo-redis-password\n' >> /lab/redis/redis.conf
 printf 'REDIS_PASSWORD=demo-redis-password\n' > /lab/demo-app/app-config.env
 ssh -o StrictHostKeyChecking=accept-new redisadmin@redis-host

@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="backline"><a href="/portal">Back to overview</a></div>
+
+<h1>Lab Feedback</h1>
+
+{% if already_submitted %}
+<div class="panel check-fixed">
+    <p>Feedback for this lab has already been submitted. Thank you.</p>
+    <a href="/portal" class="btn btn-primary">Return to Overview</a>
+</div>
+{% else %}
+<div class="panel">
+    <p><strong>Ethical notice:</strong> This feedback form is part of the thesis evaluation process. Your responses are used to improve the lab platform and are <strong>not linked to your grade</strong>. Participation is mandatory so we can measure learning outcomes, but individual responses remain confidential.</p>
+</div>
+
+<form action="/labs/{{ lab_id }}/feedback" method="post" class="panel">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+
+    <h2>Section A — Reflection</h2>
+    <p>Free-text reflection on what you learned during this lab.</p>
+    <textarea name="section_a" rows="6" class="input" placeholder="What was the most surprising thing you discovered? What would you do differently next time?" required></textarea>
+
+    <h2>Section B — Evaluation</h2>
+    <p>Rate the clarity of the lab guide and instructions.</p>
+    <label>
+        Rating (1 = very unclear, 5 = very clear)
+        <select name="section_b_rating" class="input" required>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3" selected>3</option>
+            <option value="4">4</option>
+            <option value="5">5</option>
+        </select>
+    </label>
+
+    <p>Free-text feedback on what was confusing or could be improved.</p>
+    <textarea name="section_b" rows="4" class="input" placeholder="Which step was hardest to follow? What additional hint would have helped?" required></textarea>
+
+    <button type="submit" class="btn btn-success">Submit Feedback</button>
+</form>
+{% endif %}
+{% endblock %}

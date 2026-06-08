@@ -9,6 +9,8 @@
             <th>Lab</th>
             <th>Student</th>
             <th>Status</th>
+            <th>Feedback</th>
+            <th>Actions</th>
         </tr>
     </thead>
     <tbody>
@@ -21,10 +23,34 @@
                         {{ row.status }}
                     </span>
                 </td>
+                <td>
+                    {% if row.feedback_submitted %}
+                        <span class="badge badge-running">Submitted</span>
+                    {% else %}
+                        <span class="badge badge-stopped">Pending</span>
+                    {% endif %}
+                </td>
+                <td>
+                    <a href="/instructor/feedback/{{ row.lab_id }}" class="btn btn-small btn-quiet">View Feedback</a>
+                </td>
             </tr>
         {% endfor %}
     </tbody>
 </table>
+
+<h2 class="section-heading">Evidence Export</h2>
+<form action="/instructor/evidence/export" method="post" class="panel">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <label>
+        Evaluation ID
+        <input type="text" name="evaluation_id" class="input" placeholder="e.g., eval-2024-06-01" required>
+    </label>
+    <label>
+        <input type="checkbox" name="anonymize" value="true">
+        Anonymize student IDs
+    </label>
+    <button type="submit" class="btn btn-primary">Export Evidence</button>
+</form>
 
 <h2 class="section-heading">Recent Terminal Commands</h2>
 <table class="table">
