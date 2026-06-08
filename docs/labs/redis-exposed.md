@@ -1,1 +1,1 @@
---8<-- "../../labs/redis-exposed/docs/student-guide.md"
+--8<-- "labs/redis-exposed/docs/student-guide.md"

@@ -1,116 +1,85 @@
 # The Exposed Cache
 
-You are the junior Linux administrator assigned to a small order application. Monitoring saw direct cache traffic that does not look like normal application traffic. Your job is to investigate, prove the impact with fake data, harden the cache, and keep the application working.
+You've been assigned as the junior administrator for a small order-processing
+application. Monitoring has flagged unusual direct connections to the
+application's cache service — connections that don't appear to come from the
+application itself. Your job is to figure out what's going on, demonstrate
+why it matters, fix it, and make sure the application still works afterward.
 
-> **Authoring note:** Bash blocks in this guide are diagnostic only. The verifier does not read this file. Only `bash verifier` blocks in `solution-notes.md` are executed by the verifier. This distinction must appear in every lab's student guide.
+## Objectives
 
-## Success Criteria
+By the end of this lab you should be able to:
 
--   State the security issue in your own words.
--   Demonstrate impact using only provided dummy data.
--   Apply the intended remediation.
--   Keep required application/service functionality working.
--   Run the portal checker and receive the expected fixed result.
+-   Identify and explain the security issue in your own words
+-   Demonstrate the impact using only the provided demo data
+-   Apply an appropriate fix without breaking dependent services
+-   Verify your fix using the portal checker
 
-## 1. Orient
+## Getting Started
 
-Read the incident brief and locate the allowed files or services.
+Read the incident brief to understand your mission:
 
 ```bash
 cat ~/SITREP.txt
-ls -l /lab/redis /lab/demo-app
 ```
 
-List the important paths or endpoints for this lab.
+Your lab environment includes a workstation, the cache server, and the demo
+application — all on an isolated lab network. Use the portal to **Start Lab**,
+**Run Check**, **Reset**, or **End Lab** as needed.
 
-## 2. Discover
+## Investigation
 
-Use normal Linux or service-administration commands to inspect the environment. Keep this section focused on investigation, not remediation.
+Before fixing anything, understand the environment and confirm the problem
+is real.
 
-**Investigation questions:**
+**Guiding questions:**
 
--   Which services are reachable on the internal network?
--   Does any service accept connections without credentials?
+-   What services are running and reachable on the lab network?
+-   Does the cache service require any form of authentication?
+-   Can you access stored data without credentials?
 
-**Tools available:** `nmap`, `redis-cli`, `curl`, `getent`
+Use network scanners, the cache service's own command-line client, and
+standard Linux tools to explore the environment.
 
-```bash
-getent hosts redis-host demo-app
-nmap -sV -p 6379 redis-host
-nmap -sV -p 8080 demo-app
-curl -s http://demo-app:8080/health
-```
+**Proving impact:** Once you've identified the issue, demonstrate that an
+unauthenticated user can read and manipulate data. The cache contains seeded
+demo records — use only that data to prove your point. Do not introduce real
+credentials or sensitive information.
 
-**What to look for:** Open ports, service banners, and any mention of authentication requirements.
+## Remediate
 
-**Evidence checkpoint:** Record which services you found and what ports they use.
+Now fix the issue.
 
-## 3. Demonstrate Impact
+**Goal:** Require authentication for the cache service so that only
+authorized clients can connect.
 
-Prove why the issue matters using safe, seeded, fake data only.
+**Constraints:** The demo application depends on the cache. Your fix must
+not break the application. Changes should survive a service restart.
 
-**Impact to prove:** A workstation user can read cache data without knowing a password.
+**References:**
 
-```bash
-redis-cli -h redis-host ping
-redis-cli -h redis-host keys '*'
-redis-cli -h redis-host get support_token:demo-only-token
-```
+-   Official documentation: <https://redis.io/docs/latest/operate/oss_and_stack/management/security/>
+-   Local: `man redis.conf`, `redis-cli --help`
 
-**Evidence checkpoint:** What specific output proves the vulnerability?
+**Need a hint?**
 
-## 4. Remediate
+-   Think about what principle requires verifying identity before granting access.
+-   Look for the configuration directive that controls password authentication.
+-   Check the official security documentation for the specific setting name
+    and syntax.
 
-State the hardening objective and constraints. Provide official documentation links and a hint ladder. Do NOT include exact remediation commands, passwords, or configuration changes — students must figure these out using the references.
+## Verify
 
-**Objective:** Require authentication for the cache service and ensure the order application can still connect.
+After applying your fix, confirm two things:
 
-**Constraints:** Do not break the demo application. Changes must survive a restart.
+1. The cache service now requires authentication
+2. The demo application still works as expected
 
-**Official Documentation:**
-
--   Redis security: <https://redis.io/docs/management/security/>
-
-**Local Fallback:**
-
--   `man redis.conf`
--   `redis-cli --help`
-
-**Hints:**
-
--   Level 1 (conceptual): Redis can require a password before accepting commands.
--   Level 2 (directional): Look for the `requirepass` directive in the Redis configuration file.
--   Level 3 (specific): See `redis.io/docs/management/security/` and `man redis.conf`
-
-**Evidence checkpoint:** What did you change and why?
-
-## 5. Verify
-
-Verify both security and service continuity, then run **Run Check** in the portal. Do NOT include authenticated verification commands that reveal the solution credential.
-
-```bash
-# Confirm the application health endpoint still responds
-curl -s http://demo-app:8080/health
-```
-
-**Checker states:**
-
--   `vulnerable`: Issue still present
--   `fixed`: Issue resolved, service working
--   `broken`: Service broken or misconfigured
-
-**Evidence checkpoint:** What does the checker result tell you?
-
-## 6. Evidence & Feedback
-
-List the evidence items you should have collected during this lab:
-
--   [ ] Service inventory showing exposed cache port
--   [ ] Proof of unauthenticated data access
--   [ ] Description of the hardening change applied
-
-After ending the lab, complete the **mandatory** combined feedback form in the portal. You cannot start a new lab until feedback is submitted for the previous lab. Responses are not graded — they are thesis evaluation evidence only.
+Use the same tools from your investigation to re-check. When satisfied,
+click **Run Check** in the portal.
 
 ---
 
-**Note:** This file lives at `labs/<lab-id>/docs/student-guide.md`. The MkDocs include at `docs/labs/<lab-id>.md` pulls it automatically via `--8<--` snippet. You do not need to edit the MkDocs file separately.
+_When you're done, end the lab through the portal and complete the feedback
+form. Take a moment to reflect on what you learned — what surprised you,
+what you'd do differently, and how this applies beyond this specific scenario._

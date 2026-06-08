@@ -276,10 +276,6 @@ def validate_lab_docs(
         else:
             errors.append(f"{student_guide}: missing Remediate section for hint-ladder check")
 
-        # 6. Evidence checkpoints
-        if not re.search(r"[Ee]vidence checkpoint", sg_content):
-            errors.append(f"{student_guide}: must contain at least one evidence checkpoint")
-
     return errors
 
 

@@ -1,106 +1,70 @@
 # <Lab Title>
 
-Briefly state the student's role and the observed symptom. Do not name the exact vulnerability.
+<2-3 sentence narrative setting the scene: the student's role, what's been observed, and what they need to do. Write naturally — do not name the vulnerability or use bold labels. Let the situation unfold like a real work assignment.>
 
-> **Authoring note:** Bash blocks in this guide are diagnostic only. The verifier does not read this file. Only `bash verifier` blocks in `solution-notes.md` are executed by the verifier. This distinction must appear in every lab's student guide.
+## Objectives
 
-## Success Criteria
+By the end of this lab you should be able to:
 
--   State the security issue in your own words.
--   Demonstrate impact using only provided dummy data.
--   Apply the intended remediation.
--   Keep required application/service functionality working.
--   Run the portal checker and receive the expected fixed result.
+-   Identify and explain the security issue in your own words
+-   Demonstrate the impact using only the lab environment
+-   Apply an appropriate fix
+-   Verify your fix using the portal checker
 
-## 1. Orient
+## Getting Started
 
-Read the incident brief and locate the allowed files or services.
+Read the incident brief to understand your mission:
 
 ```bash
 cat ~/SITREP.txt
 ```
 
-List the important paths or endpoints for this lab.
+Your lab environment includes the containers and networks described in the brief. Use the portal to **Start Lab**, **Run Check**, **Reset**, or **End Lab** as needed.
 
-## 2. Discover
+## Investigation
 
-Use normal Linux or service-administration commands to inspect the environment. Keep this section focused on investigation, not remediation.
+Before fixing anything, understand the environment and confirm the problem is real.
 
-**Investigation questions:**
+**Guiding questions:**
 
--   <question 1>
--   <question 2>
+-   <What should the student figure out about the network or services?>
+-   <What behavior would indicate a vulnerability?>
 
-**Tools available:** <tool list>
+Use standard Linux and service-administration tools to explore the environment. <Describe tool families available in this specific lab.>
 
-```bash
-# diagnostic commands — students run these to investigate, verifier ignores them
-```
+**Proving impact:** Once you've identified the issue, demonstrate that it has real consequences. Use only what the lab environment provides — do not introduce real credentials or external resources.
 
-**What to look for:** <output patterns, not exact values>
+## Remediate
 
-**Evidence checkpoint:** Record which services you found and what ports they use.
+Now fix the issue.
 
-## 3. Demonstrate Impact
+**Goal:** <what to achieve — stated as an outcome, not a command>
 
-Prove why the issue matters using safe, seeded, fake data only.
+**Constraints:** Changes must survive a service restart.
 
-**Impact to prove:** <what students should demonstrate to show the vulnerability matters>
+**References:**
 
-```bash
-# diagnostic commands — prove the vulnerability exists, verifier ignores them
-```
+-   Official documentation: <link>
+-   Local: `man <page>`, `<cli> --help`
 
-**Evidence checkpoint:** What specific output proves the vulnerability?
+**If you're stuck:**
 
-## 4. Remediate
+-   <Conceptual: what security principle applies here?>
+-   <Directional: what area of configuration controls this?>
+-   <Specific: where in the documentation to look?>
 
-State the hardening objective and constraints. Provide official documentation links and a hint ladder. Do NOT include exact remediation commands, passwords, or configuration changes — students must figure these out using the references.
+## Verify
 
-**Objective:** <what to achieve>
+After applying your fix, confirm:
 
-**Constraints:** <what must remain working>
+1.  The vulnerability is no longer exploitable
+2.  The service is functioning correctly
 
-**Official Documentation:**
+When satisfied, click **Run Check** in the portal.
 
--   <link to official docs>
+---
 
-**Local Fallback:**
-
--   `man <page>` or `<command> --help`
-
-**Hints:**
-
--   Level 1 (conceptual): <general security principle>
--   Level 2 (directional): <which parameter or area controls this>
--   Level 3 (specific): See <doc reference>
-
-**Evidence checkpoint:** What did you change and why?
-
-## 5. Verify
-
-Verify both security and service continuity, then run **Run Check** in the portal. Do NOT include authenticated verification commands that reveal the solution credential.
-
-```bash
-# diagnostic commands — confirm service still works, verifier ignores them
-```
-
-**Checker states:**
-
--   `vulnerable`: Issue still present
--   `fixed`: Issue resolved, service working
--   `broken`: Service broken or misconfigured
-
-**Evidence checkpoint:** What does the checker result tell you?
-
-## 6. Evidence & Feedback
-
-List the evidence items you should have collected during this lab:
-
--   [ ] <evidence item 1>
--   [ ] <evidence item 2>
-
-After ending the lab, complete the **mandatory** combined feedback form in the portal. You cannot start a new lab until feedback is submitted for the previous lab. Responses are not graded — they are thesis evaluation evidence only.
+_When you're done, end the lab through the portal and complete the feedback form. Take a moment to reflect on what you learned — what surprised you, what you'd do differently, and how this applies beyond this specific scenario._
 
 ---
 

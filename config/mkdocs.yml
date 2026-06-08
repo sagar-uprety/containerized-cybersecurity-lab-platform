@@ -6,6 +6,10 @@ use_directory_urls: true
 theme:
   name: mkdocs
 markdown_extensions:
-  - pymdownx.snippets
+  - pymdownx.snippets:
+      base_path:
+        - ../../controller/lab-controller-api
+        - .
+      check_paths: true
 plugins:
   - search

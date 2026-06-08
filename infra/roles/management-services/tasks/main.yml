@@ -91,6 +91,7 @@
   changed_when: false
   tags:
     - portal
+    - docs
 
 - name: Install lab scenario source trees on management node
   ansible.builtin.copy:
@@ -103,6 +104,7 @@
   loop: "{{ management_lab_scenarios }}"
   tags:
     - portal
+    - docs
 
 - name: Install scenario metadata schema on management node
   ansible.builtin.copy:
@@ -133,6 +135,14 @@
     group: "{{ thesis_admin_group }}"
     mode: preserve
     directory_mode: "0750"
+  notify: Build MkDocs site
+  tags:
+    - docs
+
+- name: Remove legacy MkDocs lab source mirror
+  ansible.builtin.file:
+    path: "{{ management_docs_root }}/source/labs"
+    state: absent
   notify: Build MkDocs site
   tags:
     - docs
