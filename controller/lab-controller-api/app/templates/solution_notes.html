@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Solution Notes — {{ lab_id }}</h1>
+
+<div class="nav-back">
+    <a href="/instructor" class="btn btn-small btn-quiet">&larr; Back to Instructor View</a>
+</div>
+
+<pre class="solution-notes">{{ content }}</pre>
+{% endblock %}

@@ -473,6 +473,30 @@ def instructor_view(request: Request, user: dict = Depends(get_current_user)):
     )
 
 
+@app.get("/instructor/solution-notes/{lab_id}", response_class=HTMLResponse)
+def instructor_solution_notes(
+    request: Request, lab_id: str, user: dict = Depends(get_current_user)
+):
+    if user["role"] != "instructor":
+        raise HTTPException(status_code=403, detail="Instructor access required")
+    validate_lab_id(lab_id)
+
+    solution_path = Path(settings.LABS_DIR) / lab_id / "docs" / "solution-notes.md"
+    if not solution_path.is_file():
+        raise HTTPException(status_code=404, detail="Solution notes not found for this lab")
+
+    raw_md = solution_path.read_text(encoding="utf-8")
+    return templates.TemplateResponse(
+        "solution_notes.html",
+        {
+            "request": request,
+            "user": user,
+            "lab_id": lab_id,
+            "content": raw_md,
+        },
+    )
+
+
 @app.get("/labs/{lab_id}/feedback", response_class=HTMLResponse)
 def feedback_form(request: Request, lab_id: str, user: dict = Depends(get_current_user)):
     require_student(user)

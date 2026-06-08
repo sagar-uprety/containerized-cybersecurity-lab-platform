@@ -2,6 +2,14 @@
 {% block content %}
 <h1>Instructor View</h1>
 
+<h2 class="section-heading">Solution Notes</h2>
+<div class="panel">
+    {% set lab_ids = rows | map(attribute='lab_id') | unique | list %}
+    {% for lid in lab_ids %}
+        <a href="/instructor/solution-notes/{{ lid }}" class="btn btn-small">📄 Solution Notes: {{ lid }}</a>
+    {% endfor %}
+</div>
+
 <h2>Lab State</h2>
 <table class="table">
     <thead>
