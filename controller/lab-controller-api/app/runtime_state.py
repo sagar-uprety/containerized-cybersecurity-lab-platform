@@ -2,7 +2,9 @@ import json
 import logging
 import threading
 import time
+import uuid
 from pathlib import Path
+from typing import Optional
 
 from app.config import settings
 
@@ -53,6 +55,8 @@ def update_runtime_state(lab_id: str, student_id: str, status_text: str, **extra
             state_key(lab_id, student_id),
             {"started_at": time.time(), "last_seen": time.time()},
         )
+        if "started_at" in extra:
+            value["session_id"] = str(uuid.uuid4())
         value["status"] = status_text
         value.update(extra)
         _persist_runtime_state_locked()
@@ -61,6 +65,14 @@ def update_runtime_state(lab_id: str, student_id: str, status_text: str, **extra
 def runtime_state_for(lab_id: str, student_id: str) -> dict:
     with LAB_STATE_LOCK:
         return dict(LAB_STATE.get(state_key(lab_id, student_id), {}))
+
+
+def session_id_for(lab_id: str, student_id: str) -> Optional[str]:
+    with LAB_STATE_LOCK:
+        state = LAB_STATE.get(state_key(lab_id, student_id))
+        if state:
+            return state.get("session_id")
+        return None
 
 
 def forget_runtime_state(lab_id: str, student_id: str) -> None:

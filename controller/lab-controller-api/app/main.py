@@ -188,7 +188,7 @@ def lab_detail(request: Request, lab_id: str, user: dict = Depends(get_current_u
     runtime_state = runtime_state_for(lab_id, student_id)
     check_result = runtime_state.get("last_check") or load_check_result(lab_id, student_id)
 
-    feedback_submitted = feedback_exists(lab_id, student_id)
+    feedback_submitted = feedback_exists(lab_id, student_id, runtime_state.get("session_id", ""))
     show_feedback_banner = (
         runtime_state.get("status") in ("ended", "stopped") and not feedback_submitted
     )
@@ -446,13 +446,17 @@ def instructor_view(request: Request, user: dict = Depends(get_current_user)):
             status_text, recent_commands = get_lab_status_details(
                 scenario["id"], student["student_id"]
             )
+            student_state = runtime_state_for(scenario["id"], student["student_id"])
+            session_id = student_state.get("session_id", "")
             rows.append(
                 {
                     "lab_id": scenario["id"],
                     "title": scenario["title"],
                     "student": student["student_id"],
                     "status": status_text,
-                    "feedback_submitted": feedback_exists(scenario["id"], student["student_id"]),
+                    "feedback_submitted": feedback_exists(
+                        scenario["id"], student["student_id"], session_id
+                    ),
                 }
             )
             command_logs.extend(recent_commands)
@@ -504,13 +508,16 @@ def feedback_form(request: Request, lab_id: str, user: dict = Depends(get_curren
     require_student(user)
     validate_lab_id(lab_id)
     student_id = user_student_id(user)
-    already_submitted = feedback_exists(lab_id, student_id)
+    runtime_state = runtime_state_for(lab_id, student_id)
+    session_id = runtime_state.get("session_id", "")
+    already_submitted = feedback_exists(lab_id, student_id, session_id)
     return templates.TemplateResponse(
         "feedback.html",
         {
             "request": request,
             "user": user,
             "lab_id": lab_id,
+            "session_id": session_id,
             "already_submitted": already_submitted,
             "csrf_token": generate_token(user),
         },
@@ -521,6 +528,7 @@ def feedback_form(request: Request, lab_id: str, user: dict = Depends(get_curren
 def submit_feedback(
     lab_id: str,
     csrf_token: str = Form(...),
+    session_id: str = Form(""),
     section_a: str = Form(""),
     section_b_rating: int = Form(3),
     section_b: str = Form(""),
@@ -530,7 +538,10 @@ def submit_feedback(
     validate_token(csrf_token, user)
     validate_lab_id(lab_id)
     student_id = user_student_id(user)
-    save_feedback(lab_id, student_id, section_a, section_b_rating, section_b)
+    if not session_id:
+        runtime_state = runtime_state_for(lab_id, student_id)
+        session_id = runtime_state.get("session_id", "")
+    save_feedback(lab_id, student_id, session_id, section_a, section_b_rating, section_b)
     return RedirectResponse(url="/portal", status_code=303)
 
 

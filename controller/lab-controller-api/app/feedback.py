@@ -27,6 +27,7 @@ def _append_jsonl(path: Path, record: dict[str, Any]) -> None:
 def save_feedback(
     lab_id: str,
     student_id: str,
+    session_id: str,
     section_a: str,
     section_b_rating: int,
     section_b: str,
@@ -38,6 +39,7 @@ def save_feedback(
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "lab_id": lab_id,
         "student_id": student_id,
+        "session_id": session_id,
         "section_a": section_a,
         "section_b_rating": section_b_rating,
         "section_b": section_b,
@@ -47,8 +49,8 @@ def save_feedback(
     return response_id
 
 
-def feedback_exists(lab_id: str, student_id: str) -> bool:
-    """Return True if the student has already submitted feedback for this lab."""
+def feedback_exists(lab_id: str, student_id: str, session_id: str) -> bool:
+    """Return True if the student has already submitted feedback for this lab session."""
     path = EVIDENCE_DIR / "feedback-responses.jsonl"
     if not path.exists():
         return False
@@ -58,7 +60,11 @@ def feedback_exists(lab_id: str, student_id: str) -> bool:
                 if not line.strip():
                     continue
                 record = json.loads(line)
-                if record.get("lab_id") == lab_id and record.get("student_id") == student_id:
+                if (
+                    record.get("lab_id") == lab_id
+                    and record.get("student_id") == student_id
+                    and record.get("session_id") == session_id
+                ):
                     return True
     except (OSError, json.JSONDecodeError):
         pass
@@ -85,13 +91,9 @@ def list_feedback(lab_id: Optional[str] = None):
 
 
 def any_pending_feedback(student_id: str) -> bool:
-    """Return True if the student has any unsubmitted feedback for previously ended labs."""
-    # We only know about labs that have runtime state recorded as ended/destroyed.
-    # This is a best-effort check: if a lab was ended and no feedback exists,
-    # we treat it as pending. We look at the runtime state to find ended labs.
+    """Return True if the student has any unsubmitted feedback for previously ended sessions."""
     from app.runtime_state import LAB_STATE  # noqa: PLC0415
 
-    pending = False
     for key, value in LAB_STATE.items():
         if not isinstance(value, dict):
             continue
@@ -101,15 +103,14 @@ def any_pending_feedback(student_id: str) -> bool:
         lab_id, sid = parts
         if sid != student_id:
             continue
-        if value.get("status") in (
-            "ended",
-            "stopped",
-            "destroyed",
-            "not_created",
-        ) and not feedback_exists(lab_id, student_id):
-            pending = True
-            break
-    return pending
+        if value.get("status") not in ("ended", "stopped", "destroyed", "not_created"):
+            continue
+        session_id = value.get("session_id")
+        if not session_id:
+            continue
+        if not feedback_exists(lab_id, student_id, session_id):
+            return True
+    return False
 
 
 def save_check_result(

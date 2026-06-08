@@ -6,7 +6,8 @@
 
 {% if already_submitted %}
 <div class="panel check-fixed">
-    <p>Feedback for this lab has already been submitted. Thank you.</p>
+    <p>Feedback for this lab session has already been submitted. Thank you.</p>
+    <p class="muted">Session: {{ session_id[:8] }}...</p>
     <a href="/portal" class="btn btn-primary">Return to Overview</a>
 </div>
 {% else %}
@@ -16,6 +17,7 @@
 
 <form action="/labs/{{ lab_id }}/feedback" method="post" class="panel">
     <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="session_id" value="{{ session_id }}">
 
     <h2>Section A — Reflection</h2>
     <p>Free-text reflection on what you learned during this lab.</p>
