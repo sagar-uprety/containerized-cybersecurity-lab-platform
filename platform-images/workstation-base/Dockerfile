@@ -44,6 +44,7 @@ RUN apt-get update \
       nmap \
       openssh-client \
       openssh-server \
+      sshpass \
       procps \
       redis-tools \
       smbclient \

@@ -1,0 +1,128 @@
+id: unpatched-apache-cve
+title: Patch Me If You Can
+difficulty: intermediate
+duration_minutes: 75
+
+story:
+  role: Security assessor
+  situation: >
+    During a routine asset inventory, a legacy web server was discovered still
+    running in the lab network. No one knows when it was last patched. Your job
+    is to assess whether it is safe to keep online and, if not, apply an
+    immediate protective fix.
+
+documentation:
+  student_guide_url: /docs/labs/unpatched-apache-cve/
+
+access:
+  ssh_port_base: 34000
+  browser_terminal_port_base: 19200
+
+lifecycle:
+  idle_timeout_minutes: 30
+  max_runtime_minutes: 120
+  evaluation_idle_timeout_minutes: null
+  retention_after_stop_minutes: 180
+
+checker:
+  states:
+    - vulnerable
+    - fixed
+    - broken
+  checks:
+    - name: apache_exploit
+      exec_in: workstation
+      run: >
+        OUT=$(curl --path-as-is -s http://apache-host/cgi-bin/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd 2>/dev/null);
+        EC=$?;
+        if [ "$EC" -ne 0 ]; then echo DOWN;
+        elif echo "$OUT" | grep -q '^root:'; then echo EXPLOITABLE;
+        else echo SAFE;
+        fi
+      states:
+        vulnerable: "output_eq: EXPLOITABLE"
+        fixed: "output_eq: SAFE"
+        broken: "output_eq: DOWN"
+    - name: apache_home
+      exec_in: workstation
+      run: "if curl -s -o /dev/null -w '' --connect-timeout 5 http://apache-host/ 2>/dev/null; then echo 200; else echo DOWN; fi"
+      states:
+        vulnerable: "output_eq: 200"
+        fixed: "output_eq: 200"
+        broken: "output_eq: DOWN"
+
+build:
+  images:
+    - service: apache-host
+      name: thesis-labs/unpatched-apache-cve-apache:latest
+      context: .
+      dockerfile: Dockerfile
+
+services:
+  workstation:
+    image: thesis-labs/workstation-base:latest
+    role: Student browser terminal and SSH fallback.
+    internal_ports:
+      browser_terminal: 19200
+      ssh: 22
+  apache-host:
+    image: thesis-labs/unpatched-apache-cve-apache:latest
+    role: Vulnerable Apache HTTP server.
+    internal_ports:
+      http: 80
+
+resources:
+  workstation:
+    cpus: "0.50"
+    memory: "256m"
+  apache-host:
+    cpus: "0.50"
+    memory: "256m"
+
+workstation:
+  environment:
+    APACHE_HOST: apache-host
+    APACHE_PORT: "80"
+  shared_volumes:
+    - name: apache_config
+      target: /lab/apache
+  depends_on:
+    - apache-host
+  cap_add:
+    - NET_RAW
+
+containers:
+  - service: apache-host
+    hostname: apache-host
+    init: true
+    restart: unless-stopped
+    environment:
+      LAB_ADMIN_USER: apacheadmin
+      LAB_CONFIG_SRC: /opt/lab/baseline/httpd.conf
+      LAB_CONFIG_DST: /usr/local/apache2/conf/httpd.conf
+      LAB_SERVICE_CMD: "/usr/local/apache2/bin/httpd -f /usr/local/apache2/conf/httpd.conf -DFOREGROUND"
+      LAB_DATA_DIR: /usr/local/apache2/htdocs
+      LAB_DATA_USER: apache
+      LAB_LOG_FILE: /usr/local/apache2/logs/error_log
+      LAB_SETUP_SCRIPT: /opt/lab/hooks/pre-start.sh
+      SERVICE_ADMIN_PASSWORD: "$platform.student_password"
+    expose:
+      - 80
+    volumes:
+      - name: apache_config
+        target: /usr/local/apache2/conf
+      - name: apache_htdocs
+        target: /usr/local/apache2/htdocs
+    healthcheck:
+      command:
+        - CMD-SHELL
+        - "curl -sf http://127.0.0.1:80/ >/dev/null 2>&1 || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    security:
+      privileged: false
+      host_network: false
+      cap_add:
+        - AUDIT_WRITE

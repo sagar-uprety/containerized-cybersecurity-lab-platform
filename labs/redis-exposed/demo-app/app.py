@@ -7,17 +7,21 @@ REDIS_HOST = os.environ.get("REDIS_HOST", "redis-host")
 REDIS_PORT = int(os.environ.get("REDIS_PORT", "6379"))
 
 
-def _read_password_from_config():
+def _read_config():
+    config = {}
     config_path = Path("/lab/demo-app/app-config.env")
     try:
         with config_path.open(encoding="utf-8") as f:
             for line in f:
                 line = line.strip()
-                if line.startswith("REDIS_PASSWORD="):
-                    return line.split("=", 1)[1].strip()
+                if not line or line.startswith("#"):
+                    continue
+                if "=" in line:
+                    key, _, value = line.partition("=")
+                    config[key.strip()] = value.strip()
     except FileNotFoundError:
         pass
-    return os.environ.get("REDIS_PASSWORD", "")
+    return config
 
 
 def encode_command(*parts):
@@ -39,10 +43,15 @@ def read_resp_line(sock):
 
 
 def redis_request(*command):
+    config = _read_config()
     with socket.create_connection((REDIS_HOST, REDIS_PORT), timeout=2) as sock:
-        redis_password = _read_password_from_config()
-        if redis_password:
-            sock.sendall(encode_command("AUTH", redis_password))
+        username = config.get("REDIS_USERNAME", "")
+        password = config.get("REDIS_PASSWORD", "")
+        if username:
+            sock.sendall(encode_command("AUTH", username, password))
+        elif password:
+            sock.sendall(encode_command("AUTH", password))
+        if username or password:
             auth_response = read_resp_line(sock)
             if not auth_response.startswith("+OK"):
                 raise RuntimeError(f"Redis AUTH failed: {auth_response}")

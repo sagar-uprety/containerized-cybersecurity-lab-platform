@@ -1,13 +1,13 @@
 Monitoring noticed direct connections to the order cache service that do not appear to come from the application.
 
-The order application still works, but the cache may be exposed on the internal network.
+The cache holds customer data, order state, session tokens, and internal configuration values. The order application still works, but the cache may be exposed on the internal network.
 
 Your mission:
 
 1. Use the browser terminal to inspect the lab network.
-2. Identify the cache service and determine whether it requires credentials.
-3. Demonstrate the impact using only the fake demo data.
-4. Harden the cache without breaking the order application.
+2. Identify the cache service, check its network binding, and determine whether it requires credentials.
+3. Demonstrate the impact using only the fake demo data — show that both read and write access are possible.
+4. Hardened the cache with layered controls (network + access) without breaking the order application.
 5. Run the portal check and record the result.
 6. Complete the mandatory feedback form after ending the lab.
 

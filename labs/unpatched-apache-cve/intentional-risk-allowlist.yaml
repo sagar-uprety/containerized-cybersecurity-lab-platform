@@ -1,0 +1,19 @@
+lab_id: unpatched-apache-cve
+
+intentional_findings:
+  - id: apache-vulnerable-version
+    tool: semgrep
+    files:
+      - Dockerfile
+    patterns:
+      - "httpd-2.4.49.tar.gz"
+    reason: Apache 2.4.49 is intentionally installed as a known-vulnerable version for CVE-2021-41773 demonstration. Students discover and remediate the vulnerability during the lab.
+
+  - id: apache-vulnerable-cgi-config
+    tool: semgrep
+    files:
+      - config.vulnerable
+    patterns:
+      - "Alias /cgi-bin/"
+      - "Require all granted"
+    reason: The Alias directive and permissive directory configuration are intentionally vulnerable baseline settings that students fix during the lab.

@@ -7,14 +7,27 @@ class PodmanError(Exception):
     pass
 
 
+def _sanitize_cmd(args: list[str]) -> str:
+    """Return a short, safe description of the command for error messages."""
+    if not args:
+        return "<empty command>"
+    parts = list(args[:2])
+    for i, arg in enumerate(args):
+        if arg == "--name" and i + 1 < len(args):
+            parts.extend(["--name", args[i + 1]])
+            break
+    return " ".join(parts)
+
+
 def run_command(args: list[str], check: bool = True) -> subprocess.CompletedProcess:
     logging.debug("Running command: %s", " ".join(args))
     result = subprocess.run(args, capture_output=True, text=True)
     if check and result.returncode != 0:
         raise PodmanError(
-            "Command failed: {}\nSTDOUT: {}\nSTDERR: {}".format(
-                " ".join(args), result.stdout, result.stderr
-            )
+            f"Command failed ({result.returncode}): "
+            f"{_sanitize_cmd(args)}\n"
+            f"STDOUT: {result.stdout}\n"
+            f"STDERR: {result.stderr}"
         )
     return result
 

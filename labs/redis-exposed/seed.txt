@@ -1,6 +1,18 @@
-SET session:alice "demo-only session for alice"
-SET session:bob "demo-only session for bob"
-SET cart:1001 "coffee:2,notebook:1"
-SET cart:1002 "tea:1,pen:3"
+HSET customer:1001 name "Alice Chen" email "alice.chen@demo-corp.internal" phone "+1-555-0101" loyalty_tier "gold" stored_payment_token "tok_cust_1001_v1"
+HSET customer:1002 name "Bob Martinez" email "bob.martinez@demo-corp.internal" phone "+1-555-0102" loyalty_tier "silver" stored_payment_token "tok_cust_1002_v1"
+HSET customer:1003 name "Carol Ng" email "carol.ng@demo-corp.internal" phone "+1-555-0103" loyalty_tier "gold" stored_payment_token "tok_cust_1003_v1"
+
+HSET order:5001 customer_id "1001" status "shipped" total "42.97" items "coffee:2,notebook:1"
+HSET order:5002 customer_id "1002" status "processing" total "18.50" items "tea:1,pen:3"
+HSET order:5003 customer_id "1003" status "pending" total "129.00" items "headphones:1,case:1"
+
+SET session:alice "eyJ1c2VyIjoiYWxpY2VfY2hlbiIsInJvbGUiOiJjdXN0b21lciJ9"
+SET session:bob   "eyJ1c2VyIjoiYm9iX21hcnRpbmV6Iiwicm9sZSI6ImN1c3RvbWVyIn0"
+
 SET feature_flag:admin_mode "false"
+SET feature_flag:dark_launch_recommendations "true"
+
+SET rate_limit:api:customer_lookup "1000"
+SET internal:db_connection_string "demo-postgresql://fake-svc@demo-host.internal:5432/demo-db"
+
 SET support_token:demo-only-token "not-a-real-secret"

@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<html>
+<head><title>Legacy Web Server</title></head>
+<body>
+<h1>Welcome to the Legacy Web Server</h1>
+<p>This server is running an older version of Apache. Please check with the administrator about upgrade plans.</p>
+</body>
+</html>

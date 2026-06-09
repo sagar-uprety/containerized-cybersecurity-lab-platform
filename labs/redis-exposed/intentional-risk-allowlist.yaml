@@ -1,7 +1,5 @@
 lab_id: redis-exposed
 
-# Intentional findings document teaching-purpose weaknesses. They do not disable
-# scanners by themselves; tool suppressions must point back to these IDs.
 intentional_findings:
   - id: redis-dummy-seed-token
     tool: gitleaks
@@ -9,15 +7,17 @@ intentional_findings:
       - seed.txt
     patterns:
       - support_token:demo-only-token
-    reason: Dummy Redis seed data gives students realistic keys to enumerate without committing real secrets.
+      - demo-postgresql://fake-svc
+    reason: Dummy Redis seed data gives students realistic keys to enumerate without committing real secrets. All connection strings and tokens are obviously fake demo values.
 
-  - id: redis-demo-solution-password
+  - id: redis-demo-solution-passwords
     tool: gitleaks
     files:
       - docs/solution-notes.md
     patterns:
-      - demo-redis-password
-    reason: Instructor solution notes use an obvious demo password to document the expected remediation workflow.
+      - admin-demo-password
+      - app-demo-password
+    reason: Instructor solution notes use obvious demo passwords (admin-demo-password, app-demo-password) to document the expected ACL remediation workflow.
 
   - id: redis-demo-app-container-bind
     tool: bandit

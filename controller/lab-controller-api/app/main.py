@@ -1,5 +1,6 @@
 import base64
 import json
+import logging
 import re
 import threading
 import time
@@ -49,6 +50,8 @@ from app.scenarios import (
     validate_lab_id,
 )
 from app.ssh_client import run_labctl
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="Thesis Lab Portal",
@@ -266,8 +269,9 @@ def start_lab(
 
     success, _stdout, stderr, _duration = run_action("start", lab_id, user)
     if not success:
+        logger.error("Lab start failed for %s/%s: %s", lab_id, student_id, stderr)
         update_runtime_state(lab_id, student_id, "error")
-        raise HTTPException(status_code=502, detail=stderr or "Failed to start lab")
+        raise HTTPException(status_code=502, detail="Failed to start lab")
 
     update_runtime_state(
         lab_id,
@@ -296,7 +300,8 @@ def stop_lab(
         last_seen=time.time(),
     )
     if not success:
-        raise HTTPException(status_code=502, detail=stderr or "Failed to stop lab")
+        logger.error("Lab stop failed for %s/%s: %s", lab_id, student_id, stderr)
+        raise HTTPException(status_code=502, detail="Failed to stop lab")
     return RedirectResponse(url=f"/labs/{lab_id}", status_code=303)
 
 
@@ -319,7 +324,8 @@ def reset_lab(
         last_check=None,
     )
     if not success:
-        raise HTTPException(status_code=502, detail=stderr or "Failed to reset lab")
+        logger.error("Lab reset failed for %s/%s: %s", lab_id, student_id, stderr)
+        raise HTTPException(status_code=502, detail="Failed to reset lab")
     return RedirectResponse(url=f"/labs/{lab_id}", status_code=303)
 
 
@@ -335,7 +341,8 @@ def end_lab(
     student_id = user_student_id(user)
     update_runtime_state(lab_id, student_id, "ended")
     if not success:
-        raise HTTPException(status_code=502, detail=stderr or "Failed to end lab")
+        logger.error("Lab end failed for %s/%s: %s", lab_id, student_id, stderr)
+        raise HTTPException(status_code=502, detail="Failed to end lab")
     return RedirectResponse(url=f"/labs/{lab_id}/feedback", status_code=303)
 
 
@@ -351,13 +358,14 @@ def check_lab(
     success, stdout, stderr, duration = run_action("check", lab_id, user)
     student_id = user_student_id(user)
     if not success:
+        logger.error("Lab check failed for %s/%s: %s", lab_id, student_id, stderr)
         update_runtime_state(lab_id, student_id, "error")
         if request.headers.get("x-requested-with") == "fetch":
             return JSONResponse(
-                {"detail": stderr or "Failed to run check"},
+                {"detail": "Failed to run check"},
                 status_code=502,
             )
-        raise HTTPException(status_code=502, detail=stderr or "Failed to run check")
+        raise HTTPException(status_code=502, detail="Failed to run check")
 
     try:
         json_start = stdout.find("{")
