@@ -313,7 +313,9 @@ def build_manifest(scenario: dict, ctx: dict) -> dict:
         "privileged": False,
         "host_network": False,
     }
-    ws_cap_add = ws_cfg.get("cap_add", ["NET_RAW"])
+    ws_cap_add = list(ws_cfg.get("cap_add", ["NET_RAW"]))
+    if "AUDIT_WRITE" not in ws_cap_add:
+        ws_cap_add.append("AUDIT_WRITE")
     if ws_cap_add:
         ws_security["cap_add"] = ws_cap_add
 
