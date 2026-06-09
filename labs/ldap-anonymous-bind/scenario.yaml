@@ -86,7 +86,7 @@ containers:
     environment:
       LAB_CONFIG_SRC: /opt/lab/baseline/slapd-config.ldif
       LAB_CONFIG_DST: /etc/ldap/slapd.d/config-applied.flag
-      LAB_SERVICE_CMD: "/usr/sbin/slapd -h 'ldap:/// ldapi:///' -u openldap -g openldap -F /etc/ldap/slapd.d"
+      LAB_SERVICE_CMD: "/usr/sbin/slapd -h 'ldap:/// ldaps:/// ldapi:///' -u openldap -g openldap -F /etc/ldap/slapd.d"
       LAB_DATA_DIR: /var/lib/ldap
       LAB_DATA_USER: openldap
       LAB_SETUP_SCRIPT: /opt/lab/hooks/pre-start.sh
