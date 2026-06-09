@@ -28,7 +28,6 @@ checker:
   states:
     - vulnerable
     - fixed
-    - broken
   checks:
     - name: redis_unauth_blocked
       exec_in: workstation
@@ -36,21 +35,18 @@ checker:
       states:
         vulnerable: "output_contains: PONG"
         fixed: "output_contains: NOAUTH"
-        broken: "exit_code_ne: 0"
     - name: redis_acl_enforced
       exec_in: workstation
       run: "redis-cli -h redis-host --user app --pass app-demo-password SET lab-test checker-value 2>&1"
       states:
         vulnerable: "output_contains: OK"
         fixed: "output_contains: NOPERM"
-        broken: "exit_code_ne: 0"
     - name: demo_app_healthy
       exec_in: workstation
       run: "curl -s -o /dev/null -w '%{http_code}' http://demo-app:8080/health"
       states:
         vulnerable: "output_eq: 200"
         fixed: "output_eq: 200"
-        broken: "output_ne: 200"
 
 build:
   images:

@@ -4,40 +4,37 @@ set -eu
 touch /var/log/auth.log
 
 # Create weak passwords for test accounts
-echo "student01:demo-ssh-pass" | chpasswd
-echo "student02:demo-ssh-pass" | chpasswd
+echo "lab-user:demo-ssh-pass" | chpasswd
+echo "svc-user:demo-ssh-pass" | chpasswd
 
 # Generate attacker key pair (simulates prior compromise)
 mkdir -p /tmp/demo-attacker-key
 ssh-keygen -t ed25519 -f /tmp/demo-attacker-key/id_ed25519 -N "" -q
 
-# Plant unauthorized keys in root and student01 authorized_keys
-for user_home in /root /home/student01; do
+# Plant unauthorized keys in root and lab-user authorized_keys
+for user_home in /root /home/lab-user; do
     mkdir -p "${user_home}/.ssh"
     cat /tmp/demo-attacker-key/id_ed25519.pub >> "${user_home}/.ssh/authorized_keys"
     chmod 600 "${user_home}/.ssh/authorized_keys"
     chown -R "$(basename "${user_home}")" "${user_home}/.ssh" 2>/dev/null || true
 done
 
-# Install build-time generated student public key for student01
-cat /opt/lab/keys/lab_key.pub >> /home/student01/.ssh/authorized_keys
-chown -R student01 /home/student01/.ssh
+# Install build-time generated student public key for lab-user
+cat /opt/lab/keys/lab_key.pub >> /home/lab-user/.ssh/authorized_keys
+chown -R lab-user /home/lab-user/.ssh
 
-# Configure fail2ban with SSH jail (not started — student must enable it)
-cat > /etc/fail2ban/jail.local <<'EOF'
-[sshd]
-enabled = false
-port = ssh
-filter = sshd
-logpath = /var/log/auth.log
-maxretry = 3
-bantime = 600
-findtime = 600
-EOF
+# Start fail2ban (jail.local is created in Dockerfile; starts with jail disabled)
+rm -f /var/run/fail2ban/fail2ban.sock 2>/dev/null || true
+fail2ban-client start || true
 
 # Clean up temporary files
 rm -rf /tmp/demo-attacker-key
 
-# Allow student01 to run fail2ban-client without password
-echo "student01 ALL=(root) NOPASSWD: /usr/bin/fail2ban-client" > /etc/sudoers.d/student01-fail2ban
-chmod 0440 /etc/sudoers.d/student01-fail2ban
+# Allow any student account to run lab-required commands without password
+groupadd -r student 2>/dev/null || true
+usermod -aG student lab-user
+usermod -aG student svc-user
+cat > /etc/sudoers.d/student-lab <<'EOF'
+%student ALL=(root) NOPASSWD: /usr/bin/fail2ban-client, /usr/bin/sed, /usr/bin/systemctl, /usr/bin/truncate, /bin/cp, /bin/chown, /bin/chmod, /bin/kill, /usr/bin/pkill
+EOF
+chmod 0440 /etc/sudoers.d/student-lab

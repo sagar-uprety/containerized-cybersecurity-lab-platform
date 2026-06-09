@@ -260,7 +260,6 @@ pre {
 
 .check-fixed { background: #e2f3e9; border-color: #abd9bd; }
 .check-vulnerable { background: #f8e4e4; border-color: #e0b1b1; }
-.check-broken { background: #fff3d8; border-color: #e3c27c; }
 
 @media (max-width: 900px) {
     .lab-shell {

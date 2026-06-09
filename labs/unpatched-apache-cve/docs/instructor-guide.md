@@ -60,7 +60,6 @@ remove the `ScriptAlias`) to block the attack path.
 | ------------ | --------------------------------------------------------------------------------------- |
 | `vulnerable` | Path traversal to `/etc/passwd` via `/cgi-bin/.%2e/...` succeeds; home page returns 200 |
 | `fixed`      | Path traversal blocked (returns empty or 404); home page still returns 200              |
-| `broken`     | Apache not running; home page unreachable; or legitimate requests also blocked          |
 
 ## Interpreting Feedback
 

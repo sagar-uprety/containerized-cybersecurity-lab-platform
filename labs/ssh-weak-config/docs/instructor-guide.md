@@ -60,7 +60,6 @@ Students investigate an SSH server flagged for suspicious login activity. They d
 | ------------ | -------------------------------------------------------------------------------------- |
 | `vulnerable` | Password auth succeeds for user accounts, fail2ban inactive, unauthorized keys present |
 | `fixed`      | Password auth rejected, key auth works, fail2ban sshd jail active                      |
-| `broken`     | SSH unreachable or key-based auth broken                                               |
 
 ## Interpreting Feedback
 

@@ -46,7 +46,7 @@
             {% endif %}
         </div>
 
-        <div id="check-result-panel" class="panel {% if check_result %}{% if check_result.status == 'fixed' %}check-fixed{% elif check_result.status == 'vulnerable' %}check-vulnerable{% else %}check-broken{% endif %}{% endif %}" {% if not check_result %}hidden{% endif %}>
+        <div id="check-result-panel" class="panel {% if check_result %}{% if check_result.status == 'fixed' %}check-fixed{% else %}check-vulnerable{% endif %}{% endif %}" {% if not check_result %}hidden{% endif %}>
             {% if check_result %}
                 <h2>Check Result: {{ check_result.status | upper }}</h2>
                 <ul>
@@ -171,7 +171,7 @@
         } else if (result.status === 'vulnerable') {
             panel.classList.add('check-vulnerable');
         } else {
-            panel.classList.add('check-broken');
+            panel.classList.add('check-vulnerable');
         }
         const items = (result.checks || []).map((check) => {
             const outcome = check.passed ? 'PASS' : 'FAIL';
@@ -226,7 +226,7 @@
             } catch (error) {
                 if (form.getAttribute('data-async-check') === 'true') {
                     renderCheckResult({
-                        status: 'broken',
+                        status: 'vulnerable',
                         checks: [{ name: error.message, passed: false }],
                     });
                 } else {

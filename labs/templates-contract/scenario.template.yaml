@@ -63,11 +63,10 @@ lifecycle:
 # REQUIRED. Defines how the portal checks whether the lab is fixed.
 # Every check runs via `podman exec` into the named container.
 checker:
-  # REQUIRED. The three states every check must define conditions for.
+  # REQUIRED. The two states every check must define conditions for.
   states:
     - vulnerable
     - fixed
-    - broken
   # REQUIRED. At least one check.
   checks:
     - name: my_check_name           # unique identifier for this check
@@ -79,8 +78,6 @@ checker:
         vulnerable: "output_contains: expected_vulnerable_output"
         # REQUIRED. Condition that matches when the lab is fixed.
         fixed: "output_contains: expected_fixed_output"
-        # REQUIRED. Condition that matches when the service is broken.
-        broken: "exit_code_ne: 0"
         #
         # Available operators:
         #   output_contains:<text>  — text appears in stdout or stderr

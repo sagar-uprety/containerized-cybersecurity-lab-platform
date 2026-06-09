@@ -27,6 +27,14 @@ Your lab environment includes a workstation and the target SSH server on an
 isolated lab network. Use the portal to **Start Lab**, **Run Check**, **Reset**,
 or **End Lab** as needed.
 
+**SSH access:** Use the lab key to connect to the target server:
+
+```bash
+ssh -i /lab/keys/lab_key lab-user@ssh-host
+```
+
+When prompted for a password (for `sudo`), use: `demo-ssh-pass`
+
 ## Investigation
 
 Before fixing anything, understand the environment and confirm the problem

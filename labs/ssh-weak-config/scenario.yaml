@@ -28,29 +28,25 @@ checker:
   states:
     - vulnerable
     - fixed
-    - broken
   checks:
     - name: ssh_password_auth
       exec_in: workstation
-      run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key student01@ssh-host 'grep -i ^PasswordAuthentication /etc/ssh/sshd_config 2>&1'"
+      run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key lab-user@ssh-host 'grep -i ^PasswordAuthentication /etc/ssh/sshd_config 2>&1'"
       states:
         vulnerable: "output_contains: PasswordAuthentication yes"
         fixed: "output_contains: PasswordAuthentication no"
-        broken: "exit_code_ne: 0"
     - name: ssh_fail2ban_active
       exec_in: workstation
-      run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key student01@ssh-host 'sudo fail2ban-client status sshd 2>&1 || echo FAIL2BAN_NOT_ACTIVE'"
+      run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key lab-user@ssh-host 'sudo fail2ban-client status sshd 2>&1 || echo FAIL2BAN_NOT_ACTIVE'"
       states:
         vulnerable: "output_contains: FAIL2BAN_NOT_ACTIVE"
         fixed: "output_contains: Status for the jail:"
-        broken: "exit_code_ne: 0"
     - name: ssh_key_auth
       exec_in: workstation
-      run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key student01@ssh-host echo KEY_AUTH_OK 2>&1 || true"
+      run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key lab-user@ssh-host echo KEY_AUTH_OK 2>&1 || true"
       states:
         vulnerable: "output_contains: KEY_AUTH_OK"
         fixed: "output_contains: KEY_AUTH_OK"
-        broken: "output_contains: Connection refused"
 
 build:
   images:

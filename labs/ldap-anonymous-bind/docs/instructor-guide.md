@@ -56,11 +56,10 @@ Students investigate an OpenLDAP directory server on the internal network. They 
 
 ## Checker States
 
-| State        | Condition                                                                      |
-| ------------ | ------------------------------------------------------------------------------ |
-| `vulnerable` | Anonymous ldapsearch returns user entries including cn, mail, userPassword     |
-| `fixed`      | Anonymous ldapsearch returns Insufficient access; StartTLS query succeeds      |
-| `broken`     | slapd not running, connection refused, or TLS configured with wrong cert paths |
+| State        | Condition                                                                  |
+| ------------ | -------------------------------------------------------------------------- |
+| `vulnerable` | Anonymous ldapsearch returns user entries including cn, mail, userPassword |
+| `fixed`      | Anonymous ldapsearch returns Insufficient access; StartTLS query succeeds  |
 
 ## Interpreting Feedback
 

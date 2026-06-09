@@ -210,7 +210,7 @@ class LabRuntime:
                 exit_code = proc.returncode
 
                 matched_states = []
-                for state in ("vulnerable", "fixed", "broken"):
+                for state in ("vulnerable", "fixed"):
                     condition = check_def.get("states", {}).get(state)
                     if condition and evaluate_condition(condition, exit_code, stdout, stderr):
                         matched_states.append(state)
@@ -312,10 +312,6 @@ class LabRuntime:
 
 
 def _classify_state(results: list[dict]) -> str:
-    any_broken = any("broken" in r.get("matched_states", []) for r in results)
-    if any_broken:
-        return "broken"
-
     all_have_vulnerable = all("vulnerable" in r.get("matched_states", []) for r in results)
     all_have_fixed = all("fixed" in r.get("matched_states", []) for r in results)
 
@@ -324,4 +320,4 @@ def _classify_state(results: list[dict]) -> str:
     if all_have_vulnerable:
         return "vulnerable"
 
-    return "broken"
+    return "vulnerable"

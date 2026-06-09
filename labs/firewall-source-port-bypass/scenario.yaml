@@ -29,7 +29,6 @@ checker:
   states:
     - vulnerable
     - fixed
-    - broken
   checks:
     - name: fw_direct_highport
       exec_in: workstation
@@ -37,21 +36,18 @@ checker:
       states:
         vulnerable: "output_contains: 000"
         fixed: "output_contains: 000"
-        broken: "output_contains: 200"
     - name: fw_sourceport80
       exec_in: workstation
       run: "FW_IP=$(cat /lab/config/fw_internal_ip.txt 2>/dev/null || echo 10.99.0.1); curl --local-port 80 -s -o /dev/null -w '%{http_code}' --connect-timeout 5 http://${FW_IP}:8080/ 2>&1 || echo CURL_FAILED"
       states:
         vulnerable: "output_contains: 200"
         fixed: "output_contains: 000"
-        broken: "output_contains: CURL_FAILED"
     - name: fw_outbound_http
       exec_in: workstation
       run: "curl -s -o /dev/null -w '%{http_code}' --connect-timeout 5 http://example.com/ 2>&1 || echo CURL_FAILED"
       states:
         vulnerable: "output_contains: 200"
         fixed: "output_contains: 200"
-        broken: "output_contains: CURL_FAILED"
 
 build:
   images:

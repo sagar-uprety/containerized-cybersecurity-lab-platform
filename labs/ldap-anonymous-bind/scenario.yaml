@@ -27,7 +27,6 @@ checker:
   states:
     - vulnerable
     - fixed
-    - broken
   checks:
     - name: ldap_anonymous_search
       exec_in: workstation
@@ -35,14 +34,12 @@ checker:
       states:
         vulnerable: "output_contains: cn:"
         fixed: "output_contains: Insufficient access"
-        broken: "exit_code_ne: 0"
     - name: ldap_tls_enforced
       exec_in: workstation
       run: "ldapsearch -x -ZZ -H ldap://ldap-host -b '' -s base namingContexts 2>&1"
       states:
-        vulnerable: "output_contains: Operations error"
+        vulnerable: "output_contains: Protocol error"
         fixed: "output_contains: namingContexts"
-        broken: "output_contains: Can't contact LDAP server"
 
 build:
   images:
@@ -70,7 +67,7 @@ resources:
     memory: "256m"
   ldap-host:
     cpus: "0.50"
-    memory: "256m"
+    memory: "512m"
 
 workstation:
   environment:

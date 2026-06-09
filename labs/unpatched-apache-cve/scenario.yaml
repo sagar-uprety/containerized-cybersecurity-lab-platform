@@ -28,7 +28,6 @@ checker:
   states:
     - vulnerable
     - fixed
-    - broken
   checks:
     - name: apache_exploit
       exec_in: workstation
@@ -42,14 +41,12 @@ checker:
       states:
         vulnerable: "output_eq: EXPLOITABLE"
         fixed: "output_eq: SAFE"
-        broken: "output_eq: DOWN"
     - name: apache_home
       exec_in: workstation
       run: "if curl -s -o /dev/null -w '' --connect-timeout 5 http://apache-host/ 2>/dev/null; then echo 200; else echo DOWN; fi"
       states:
         vulnerable: "output_eq: 200"
         fixed: "output_eq: 200"
-        broken: "output_eq: DOWN"
 
 build:
   images:

@@ -10,16 +10,16 @@ unauthorized public keys in `authorized_keys` indicate a prior compromise.
 
 ```bash
 # Show weak password auth works
-sshpass -p 'demo-ssh-pass' ssh -o StrictHostKeyChecking=no student01@ssh-host whoami
+sshpass -p 'demo-ssh-pass' ssh -o StrictHostKeyChecking=no lab-user@ssh-host whoami
 
 # Show root login with password
 sshpass -p 'demo-ssh-pass' ssh -o StrictHostKeyChecking=no root@ssh-host whoami
 
 # Show unauthorized keys
-ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i /lab/keys/lab_key student01@ssh-host cat ~/.ssh/authorized_keys
+ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i /lab/keys/lab_key lab-user@ssh-host cat ~/.ssh/authorized_keys
 
 # Brute-force demonstration
-hydra -l student01 -P /usr/share/wordlists/rockyou.txt ssh://ssh-host -t 4 -f
+hydra -l lab-user -P /usr/share/wordlists/rockyou.txt ssh://ssh-host -t 4 -f
 ```
 
 ## POC Fix
@@ -29,7 +29,7 @@ hydra -l student01 -P /usr/share/wordlists/rockyou.txt ssh://ssh-host -t 4 -f
 SSH into the server and edit the config with vi:
 
 ```bash
-ssh -o StrictHostKeyChecking=no -i /lab/keys/lab_key student01@ssh-host
+ssh -o StrictHostKeyChecking=no -i /lab/keys/lab_key lab-user@ssh-host
 sudo vi /etc/ssh/sshd_config
 ```
 
@@ -76,42 +76,42 @@ sudo systemctl restart sshd
 
 ```bash verifier
 # 1. Harden sshd_config
-ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i /lab/keys/lab_key student01@ssh-host << 'ENDSSH'
+ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i /lab/keys/lab_key lab-user@ssh-host << 'ENDSSH'
 sudo sed -i 's/^PermitRootLogin yes/PermitRootLogin prohibit-password/' /etc/ssh/sshd_config
 sudo sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
 sudo sed -i 's/^MaxAuthTries 6/MaxAuthTries 3/' /etc/ssh/sshd_config
 ENDSSH
 
 # 2. Remove unauthorized keys (keep only the lab student key)
-ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i /lab/keys/lab_key student01@ssh-host << 'ENDSSH'
+ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i /lab/keys/lab_key lab-user@ssh-host << 'ENDSSH'
 cp ~/.ssh/authorized_keys ~/.ssh/authorized_keys.bak
 tail -1 ~/.ssh/authorized_keys.bak > ~/.ssh/authorized_keys
-chown student01:student01 ~/.ssh/authorized_keys
+chown lab-user:lab-user ~/.ssh/authorized_keys
 chmod 600 ~/.ssh/authorized_keys
 sudo truncate -s 0 /root/.ssh/authorized_keys
 ENDSSH
 
 # 3. Enable fail2ban
-ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i /lab/keys/lab_key student01@ssh-host << 'ENDSSH'
+ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i /lab/keys/lab_key lab-user@ssh-host << 'ENDSSH'
 sudo sed -i 's/^enabled = false/enabled = true/' /etc/fail2ban/jail.local
 sudo systemctl start fail2ban || sudo fail2ban-client start
 ENDSSH
 
 # 4. Restart sshd
-ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i /lab/keys/lab_key student01@ssh-host sudo systemctl restart sshd
+ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i /lab/keys/lab_key lab-user@ssh-host sudo systemctl restart sshd
 ```
 
 ## Expected Verification
 
 ```bash
 # Password auth should be disabled
-ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i /lab/keys/lab_key student01@ssh-host grep -i ^PasswordAuthentication /etc/ssh/sshd_config
+ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i /lab/keys/lab_key lab-user@ssh-host grep -i ^PasswordAuthentication /etc/ssh/sshd_config
 
 # Key auth should still work
-ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i /lab/keys/lab_key student01@ssh-host echo KEY_AUTH_OK
+ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i /lab/keys/lab_key lab-user@ssh-host echo KEY_AUTH_OK
 
 # fail2ban should be active
-ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i /lab/keys/lab_key student01@ssh-host sudo fail2ban-client status sshd
+ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i /lab/keys/lab_key lab-user@ssh-host sudo fail2ban-client status sshd
 ```
 
 PasswordAuthentication should show `no`. Key auth should succeed. fail2ban should

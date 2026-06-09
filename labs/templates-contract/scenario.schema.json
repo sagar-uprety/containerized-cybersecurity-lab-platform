@@ -120,9 +120,9 @@
                 "states": {
                     "type": "array",
                     "items": {
-                        "enum": ["vulnerable", "fixed", "broken"]
+                        "enum": ["vulnerable", "fixed"]
                     },
-                    "minItems": 3
+                    "minItems": 2
                 },
                 "checks": {
                     "type": "array",
@@ -147,11 +147,10 @@
                             "states": {
                                 "type": "object",
                                 "additionalProperties": false,
-                                "required": ["vulnerable", "fixed", "broken"],
+                                "required": ["vulnerable", "fixed"],
                                 "properties": {
                                     "vulnerable": { "type": "string", "minLength": 1 },
-                                    "fixed": { "type": "string", "minLength": 1 },
-                                    "broken": { "type": "string", "minLength": 1 }
+                                    "fixed": { "type": "string", "minLength": 1 }
                                 }
                             }
                         }

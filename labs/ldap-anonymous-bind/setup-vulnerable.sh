@@ -16,7 +16,7 @@ done
 ldapmodify -Y EXTERNAL -H ldapi:// -f /opt/lab/baseline/slapd-config.ldif 2>/dev/null || true
 
 # ── Create base DIT ──────────────────────────────────────────────────
-ldapadd -x -H ldapi:// -c -D "cn=admin,dc=lab,dc=local" -w dummypassword <<'EOF'
+ldapadd -x -H ldapi:// -c -D "cn=admin,dc=lab,dc=local" -w dummypassword <<'EOF' || true
 dn: dc=lab,dc=local
 objectClass: dcObject
 objectClass: organization
@@ -33,7 +33,7 @@ ou: groups
 EOF
 
 # ── Seed synthetic employee entries ──────────────────────────────────
-ldapadd -x -H ldapi:// -c -D "cn=admin,dc=lab,dc=local" -w dummypassword <<'EOF'
+ldapadd -x -H ldapi:// -c -D "cn=admin,dc=lab,dc=local" -w dummypassword <<'EOF' || true
 dn: uid=jdoe,ou=people,dc=lab,dc=local
 objectClass: inetOrgPerson
 objectClass: posixAccount
@@ -179,7 +179,7 @@ userPassword: {SSHA}dUmMyHaShFoRlDaPdMiNiStRaToRpAsSwD11
 EOF
 
 # ── Seed synthetic group entries ─────────────────────────────────────
-ldapadd -x -H ldapi:// -c -D "cn=admin,dc=lab,dc=local" -w dummypassword <<'EOF'
+ldapadd -x -H ldapi:// -c -D "cn=admin,dc=lab,dc=local" -w dummypassword <<'EOF' || true
 dn: cn=developers,ou=groups,dc=lab,dc=local
 objectClass: posixGroup
 cn: developers

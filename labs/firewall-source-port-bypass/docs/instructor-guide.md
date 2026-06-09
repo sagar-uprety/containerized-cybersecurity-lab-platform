@@ -58,11 +58,10 @@ Students investigate a stateless firewall that protects an internal web server. 
 
 ## Checker States
 
-| State        | Condition                                                                                           |
-| ------------ | --------------------------------------------------------------------------------------------------- |
-| `vulnerable` | Source-port 80 bypass succeeds (returns 200), direct high-port blocked, outbound HTTP works         |
-| `fixed`      | Source-port 80 bypass blocked (timeout), direct high-port blocked, outbound HTTP works              |
-| `broken`     | Outbound HTTP broken, or internal server unreachable even through bypass, or firewall rules corrupt |
+| State        | Condition                                                                                   |
+| ------------ | ------------------------------------------------------------------------------------------- |
+| `vulnerable` | Source-port 80 bypass succeeds (returns 200), direct high-port blocked, outbound HTTP works |
+| `fixed`      | Source-port 80 bypass blocked (timeout), direct high-port blocked, outbound HTTP works      |
 
 ## Interpreting Feedback
 

@@ -53,7 +53,6 @@ Brief description of the scenario and what students will do.
 | ------------ | ----------- |
 | `vulnerable` | <condition> |
 | `fixed`      | <condition> |
-| `broken`     | <condition> |
 
 ## Interpreting Feedback
 

@@ -66,7 +66,6 @@ Students discover an unauthenticated Redis instance bound to all interfaces, rea
 | ------------ | ------------------------------------------------------------------------------------ |
 | `vulnerable` | Redis accepts unauth commands, write via app user succeeds (no ACL)                  |
 | `fixed`      | Redis rejects unauth commands (NOAUTH), app user write blocked (NOPERM), app healthy |
-| `broken`     | Redis unreachable, app unhealthy, or config corrupted                                |
 
 ## Interpreting Feedback
 

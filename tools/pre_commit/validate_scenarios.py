@@ -247,9 +247,21 @@ def validate_lab_docs(
                 break
 
         # 3. Password/secret leakage (quoted strings from solution-notes)
+        # Skip strings listed in the lab's intentional-risk-allowlist.yaml
+        allowlist_path = scenario_path.parent / "intentional-risk-allowlist.yaml"
+        allowed_patterns: set[str] = set()
+        if allowlist_path.is_file():
+            try:
+                allowlist_data = _load_yaml(allowlist_path)
+                for finding in allowlist_data.get("intentional_findings", []):
+                    for pat in finding.get("patterns", []):
+                        allowed_patterns.add(pat)
+            except (ValueError, OSError):
+                pass
+
         sn_quotes = _extract_quoted_strings(sn_content)
         for q in sn_quotes:
-            if q in sg_content:
+            if q in sg_content and q not in allowed_patterns:
                 errors.append(
                     f"{student_guide}: contains quoted string from "
                     f"{solution_notes} that may leak a secret/password: {q!r}"

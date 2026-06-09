@@ -8,7 +8,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 RUN useradd -m -s /bin/bash firewall \
-    && echo "firewall ALL=(root) NOPASSWD: /usr/sbin/iptables, /usr/sbin/iptables-save, /usr/sbin/iptables-restore, /usr/sbin/ip6tables, /usr/sbin/ip6tables-save, /usr/sbin/ip6tables-restore, /usr/sbin/sysctl, /opt/lab/start-firewall.sh" > /etc/sudoers.d/firewall \
+    && echo "firewall ALL=(root) NOPASSWD: /usr/sbin/iptables, /usr/sbin/iptables-save, /usr/sbin/iptables-restore, /usr/sbin/ip6tables, /usr/sbin/ip6tables-save, /usr/sbin/ip6tables-restore, /usr/sbin/sysctl, /usr/bin/cp, /opt/lab/start-firewall.sh" > /etc/sudoers.d/firewall \
     && chmod 0440 /etc/sudoers.d/firewall
 
 COPY config.vulnerable /opt/lab/baseline/rules.v4
