@@ -36,7 +36,7 @@ checker:
         fixed: "output_contains: Insufficient access"
     - name: ldap_tls_enforced
       exec_in: workstation
-      run: "ldapsearch -x -ZZ -H ldap://ldap-host -b '' -s base namingContexts 2>&1"
+      run: "LDAPTLS_REQCERT=never ldapsearch -x -ZZ -H ldap://ldap-host -b '' -s base namingContexts 2>&1"
       states:
         vulnerable: "output_contains: Protocol error"
         fixed: "output_contains: namingContexts"

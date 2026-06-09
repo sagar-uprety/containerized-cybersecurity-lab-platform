@@ -3,7 +3,7 @@
 ## Root Cause
 
 The OpenLDAP server is configured with `olcAccess: to * by * read` on the
-frontend database. This grants anonymous users full read access to the entire
+mdb database. This grants anonymous users full read access to the entire
 directory, including user accounts, email addresses, group memberships, and
 password hashes. TLS is not configured, so all queries travel in plaintext.
 
@@ -31,9 +31,11 @@ Apply an ACL that requires authentication for read access:
 
 ```bash
 ldapmodify -Y EXTERNAL -H ldapi:// <<'EOF'
-dn: olcDatabase={-1}frontend,cn=config
+dn: olcDatabase={1}mdb,cn=config
 changetype: modify
 replace: olcAccess
+olcAccess: to attrs=userPassword by self write by anonymous auth by * none
+olcAccess: to attrs=shadowLastChange by self write by * read
 olcAccess: to * by users read by anonymous auth
 EOF
 ```
@@ -60,12 +62,16 @@ EOF
 ### 3. Restart slapd
 
 ```bash
-# Kill the running slapd process — the entrypoint will restart it
+# Kill the running slapd process
 pkill slapd
 sleep 2
+# Then restart the container from the portal, or manually start slapd:
+# podman exec -d <container> /usr/sbin/slapd -h 'ldap:/// ldaps:/// ldapi:///' -u openldap -g openldap -F /etc/ldap/slapd.d
 ```
 
-Or restart the container from the portal.
+Note: the entrypoint runs `tail -f` as a foreground process, so killing
+slapd does NOT auto-restart it. You must restart the container or start
+slapd manually.
 
 ### 4. Verify with StartTLS
 
@@ -81,9 +87,11 @@ over an encrypted connection. Without TLS, this would fail.
 ```bash verifier
 # 1. Restrict anonymous access
 ldapmodify -Y EXTERNAL -H ldapi:// <<'EOF'
-dn: olcDatabase={-1}frontend,cn=config
+dn: olcDatabase={1}mdb,cn=config
 changetype: modify
 replace: olcAccess
+olcAccess: to attrs=userPassword by self write by anonymous auth by * none
+olcAccess: to attrs=shadowLastChange by self write by * read
 olcAccess: to * by users read by anonymous auth
 EOF
 
@@ -110,8 +118,8 @@ sleep 3
 ldapsearch -x -H ldap://ldap-host -b "dc=lab,dc=local" "(objectClass=posixAccount)" cn
 # Expected: Insufficient access
 
-# StartTLS should work
-ldapsearch -x -ZZ -H ldap://ldap-host -b "" -s base namingContexts
+# StartTLS should work (self-signed cert requires LDAPTLS_REQCERT=never)
+LDAPTLS_REQCERT=never ldapsearch -x -ZZ -H ldap://ldap-host -b "" -s base namingContexts
 # Expected: namingContexts: dc=lab,dc=local
 ```
 
