@@ -117,9 +117,17 @@ class LabRuntime:
             run_command(["podman", "rm", "-f", container.get("name")], check=False)
         for volume in manifest.get("volumes", []):
             run_command(["podman", "volume", "rm", "-f", volume.get("name")], check=False)
-        network_name = manifest.get("network", {}).get("name")
-        if network_name:
-            run_command(["podman", "network", "rm", "-f", network_name], check=False)
+
+        # Remove all networks (multi-network support)
+        networks = manifest.get("networks", [])
+        if not networks:
+            net = manifest.get("network", {})
+            if net:
+                networks = [net]
+        for net in networks:
+            network_name = net.get("name")
+            if network_name:
+                run_command(["podman", "network", "rm", "-f", network_name], check=False)
 
         rendered_path.unlink(missing_ok=True)
         (self.paths.results_dir / f"{runtime_project}.json").unlink(missing_ok=True)

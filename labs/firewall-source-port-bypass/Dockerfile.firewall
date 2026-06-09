@@ -1,0 +1,21 @@
+FROM thesis-labs/lab-service-base:1.0
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+      iptables \
+      iproute2 \
+      curl \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd -m -s /bin/bash firewall \
+    && echo "firewall ALL=(root) NOPASSWD: /usr/sbin/iptables, /usr/sbin/iptables-save, /usr/sbin/iptables-restore, /usr/sbin/ip6tables, /usr/sbin/ip6tables-save, /usr/sbin/ip6tables-restore, /usr/sbin/sysctl, /opt/lab/start-firewall.sh" > /etc/sudoers.d/firewall \
+    && chmod 0440 /etc/sudoers.d/firewall
+
+COPY config.vulnerable /opt/lab/baseline/rules.v4
+COPY rules.empty-v6 /opt/lab/baseline/rules.v6
+COPY setup-firewall.sh /opt/lab/start-firewall.sh
+RUN chmod 0755 /opt/lab/start-firewall.sh
+
+RUN mkdir -p /etc/iptables /var/lib/firewall /var/log
+
+EXPOSE 22

@@ -102,17 +102,38 @@ def build_manifest(scenario: dict, ctx: dict) -> dict:
     # ------------------------------------------------------------------ #
     # runtime / network                                                    #
     # ------------------------------------------------------------------ #
+    # Build network list. If scenario declares custom networks, create them;
+    # otherwise fall back to a single default lab network.
+    scenario_networks = scenario.get("networks", [])
+    if scenario_networks:
+        networks = []
+        for net_def in scenario_networks:
+            net_name = net_def["name"]
+            net_entry = {
+                "name": f"{runtime_project}_{net_name}",
+                "internal": net_def.get("internal", False),
+                "labels": labels,
+            }
+            if net_def.get("driver"):
+                net_entry["driver"] = net_def["driver"]
+            networks.append(net_entry)
+    else:
+        networks = [
+            {
+                "name": f"{runtime_project}_labnet",
+                "internal": False,
+                "labels": labels,
+            }
+        ]
+
     manifest: dict = {
         "runtime": {
             "engine": "podman",
             "instance": runtime_project,
             "labels": labels,
         },
-        "network": {
-            "name": f"{runtime_project}_labnet",
-            "internal": False,
-            "labels": labels,
-        },
+        "network": networks[0] if len(networks) == 1 else None,
+        "networks": networks,
         "volumes": [],
         "containers": [],
     }
@@ -214,11 +235,26 @@ def build_manifest(scenario: dict, ctx: dict) -> dict:
         if resolved_volumes:
             entry["volumes"] = resolved_volumes
 
-        # network
-        entry["network"] = {
-            "name": f"{runtime_project}_labnet",
-            "aliases": cdef.get("network_aliases", [hostname]),
-        }
+        # network — assign to specified networks or default lab network
+        container_networks = cdef.get("networks", [])
+        if container_networks and scenario_networks:
+            # Primary network is the first one listed
+            primary = container_networks[0]
+            entry["network"] = {
+                "name": f"{runtime_project}_{primary}",
+                "aliases": cdef.get("network_aliases", [hostname]),
+            }
+            # Additional networks to connect after creation
+            if len(container_networks) > 1:
+                entry["additional_networks"] = [
+                    {"name": f"{runtime_project}_{net}", "aliases": [hostname]}
+                    for net in container_networks[1:]
+                ]
+        else:
+            entry["network"] = {
+                "name": f"{runtime_project}_labnet",
+                "aliases": cdef.get("network_aliases", [hostname]),
+            }
 
         # depends_on
         if cdef.get("depends_on"):
@@ -321,6 +357,14 @@ def build_manifest(scenario: dict, ctx: dict) -> dict:
 
     ws_resources = resources_cfg.get("workstation", {})
 
+    # Workstation goes on the first (external) network if scenario defines custom
+    # networks, otherwise the default labnet.
+    ws_primary_network = (
+        f"{runtime_project}_{scenario_networks[0]['name']}"
+        if scenario_networks
+        else f"{runtime_project}_labnet"
+    )
+
     workstation_entry = {
         "name": f"{runtime_project}_workstation",
         "image": services.get("workstation", {}).get("image", ""),
@@ -343,7 +387,7 @@ def build_manifest(scenario: dict, ctx: dict) -> dict:
         ],
         "volumes": ws_volumes,
         "network": {
-            "name": f"{runtime_project}_labnet",
+            "name": ws_primary_network,
             "aliases": ["workstation"],
         },
         "depends_on": ws_cfg.get("depends_on", []),

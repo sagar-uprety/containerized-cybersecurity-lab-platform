@@ -48,20 +48,28 @@ def sort_containers(containers: Iterable[dict]) -> list[dict]:
 
 
 def ensure_network(manifest: dict) -> None:
-    network = manifest.get("network", {})
-    network_name = network.get("name")
-    if not network_name:
-        return
-    if run_command(["podman", "network", "exists", network_name], check=False).returncode == 0:
-        return
+    """Create all networks declared in the manifest (single or multi-network)."""
+    networks = manifest.get("networks", [])
+    if not networks:
+        # Fallback to single network for backward compatibility
+        network = manifest.get("network", {})
+        if network:
+            networks = [network]
 
-    args = ["podman", "network", "create"]
-    if network.get("internal"):
-        args.append("--internal")
-    for key, value in network.get("labels", {}).items():
-        args.extend(["--label", f"{key}={value}"])
-    args.append(network_name)
-    run_command(args)
+    for network in networks:
+        network_name = network.get("name")
+        if not network_name:
+            continue
+        if run_command(["podman", "network", "exists", network_name], check=False).returncode == 0:
+            continue
+
+        args = ["podman", "network", "create"]
+        if network.get("internal"):
+            args.append("--internal")
+        for key, value in network.get("labels", {}).items():
+            args.extend(["--label", f"{key}={value}"])
+        args.append(network_name)
+        run_command(args)
 
 
 def ensure_volumes(manifest: dict) -> None:
@@ -175,3 +183,11 @@ def start_containers(manifest: dict) -> None:
             run_command(["podman", "start", container_name], check=False)
         else:
             run_command(container_run_args(container))
+
+        # Connect to additional networks (for multi-network topologies)
+        for net in container.get("additional_networks", []):
+            net_name = net.get("name")
+            if not net_name:
+                continue
+            connect_args = ["podman", "network", "connect", net_name, container_name]
+            run_command(connect_args, check=False)

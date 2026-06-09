@@ -1,0 +1,188 @@
+id: firewall-source-port-bypass
+title: The Return Path
+difficulty: intermediate
+duration_minutes: 90
+
+story:
+  role: Network security auditor
+  situation: >
+    The organization's perimeter firewall was configured by a previous
+    administrator to allow outbound web and DNS traffic. Management wants
+    you to verify that internal services are properly protected from
+    external access. The firewall sits between the external network and
+    an internal web server that should not be reachable from outside.
+
+documentation:
+  student_guide_url: /docs/labs/firewall-source-port-bypass/
+
+access:
+  ssh_port_base: 22000
+  browser_terminal_port_base: 19000
+
+lifecycle:
+  idle_timeout_minutes: 30
+  max_runtime_minutes: 120
+  evaluation_idle_timeout_minutes: null
+  retention_after_stop_minutes: 180
+
+checker:
+  states:
+    - vulnerable
+    - fixed
+    - broken
+  checks:
+    - name: fw_direct_highport
+      exec_in: workstation
+      run: "FW_IP=$(cat /lab/config/fw_internal_ip.txt 2>/dev/null || echo 10.99.0.1); curl -s -o /dev/null -w '%{http_code}' --connect-timeout 3 http://${FW_IP}:8080/ 2>&1 || echo CURL_FAILED"
+      states:
+        vulnerable: "output_contains: 000"
+        fixed: "output_contains: 000"
+        broken: "output_contains: 200"
+    - name: fw_sourceport80
+      exec_in: workstation
+      run: "FW_IP=$(cat /lab/config/fw_internal_ip.txt 2>/dev/null || echo 10.99.0.1); curl --local-port 80 -s -o /dev/null -w '%{http_code}' --connect-timeout 5 http://${FW_IP}:8080/ 2>&1 || echo CURL_FAILED"
+      states:
+        vulnerable: "output_contains: 200"
+        fixed: "output_contains: 000"
+        broken: "output_contains: CURL_FAILED"
+    - name: fw_outbound_http
+      exec_in: workstation
+      run: "curl -s -o /dev/null -w '%{http_code}' --connect-timeout 5 http://example.com/ 2>&1 || echo CURL_FAILED"
+      states:
+        vulnerable: "output_contains: 200"
+        fixed: "output_contains: 200"
+        broken: "output_contains: CURL_FAILED"
+
+build:
+  images:
+    - service: firewall-host
+      name: thesis-labs/firewall-source-port-bypass-fw:latest
+      context: .
+      dockerfile: Dockerfile.firewall
+    - service: internal-server
+      name: thesis-labs/firewall-source-port-bypass-server:latest
+      context: .
+      dockerfile: Dockerfile.server
+
+services:
+  workstation:
+    image: thesis-labs/workstation-base:latest
+    role: Student browser terminal and SSH fallback.
+    internal_ports:
+      browser_terminal: 19000
+      ssh: 22
+  firewall-host:
+    image: thesis-labs/firewall-source-port-bypass-fw:latest
+    role: Stateful firewall protecting the internal network.
+    internal_ports:
+      ssh: 22
+  internal-server:
+    image: thesis-labs/firewall-source-port-bypass-server:latest
+    role: Internal web server behind the firewall.
+    internal_ports:
+      http: 8080
+
+resources:
+  workstation:
+    cpus: "0.50"
+    memory: "256m"
+  firewall-host:
+    cpus: "0.50"
+    memory: "256m"
+  internal-server:
+    cpus: "0.50"
+    memory: "256m"
+
+# Two-network topology: external (workstation <-> firewall) and internal (firewall <-> server).
+# The firewall bridges both networks. The workstation can only reach the internal-server
+# through the firewall — this is what makes the source-port bypass exploitable.
+networks:
+  - name: external
+  - name: internal
+
+workstation:
+  environment:
+    FIREWALL_HOST: firewall-host
+    INTERNAL_SERVER_HOST: internal-server
+  shared_volumes:
+    - name: fw_config
+      target: /lab/config
+  depends_on:
+    - firewall-host
+    - internal-server
+  cap_add:
+    - NET_RAW
+
+containers:
+  - service: firewall-host
+    hostname: firewall-host
+    networks:
+      - external
+      - internal
+    init: true
+    restart: unless-stopped
+    environment:
+      LAB_ADMIN_USER: firewall
+      LAB_CONFIG_SRC: /opt/lab/baseline/rules.v4
+      LAB_CONFIG_DST: /etc/iptables/rules.v4
+      LAB_SERVICE_CMD: "/opt/lab/start-firewall.sh"
+      LAB_DATA_DIR: /etc/iptables
+      LAB_DATA_USER: root
+      LAB_LOG_FILE: /var/log/firewall.log
+      SERVICE_ADMIN_PASSWORD: "$platform.student_password"
+    expose:
+      - 22
+    volumes:
+      - name: fw_config
+        target: /lab/config
+      - name: fw_state
+        target: /var/lib/firewall
+    healthcheck:
+      command:
+        - CMD-SHELL
+        - "iptables -L FORWARD -n >/dev/null 2>&1 || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    security:
+      privileged: false
+      host_network: false
+      cap_add:
+        - NET_ADMIN
+        - AUDIT_WRITE
+
+  - service: internal-server
+    hostname: internal-server
+    networks:
+      - internal
+    init: true
+    restart: unless-stopped
+    environment:
+      LAB_CONFIG_SRC: /opt/lab/baseline/nginx.conf
+      LAB_CONFIG_DST: /etc/nginx/sites-enabled/default
+      LAB_SERVICE_CMD: "nginx -g 'daemon off;'"
+      LAB_DATA_DIR: /var/www/html
+      LAB_DATA_USER: www-data
+      LAB_LOG_FILE: /var/log/nginx/access.log
+      LAB_SETUP_SCRIPT: /opt/lab/hooks/pre-start.sh
+    expose:
+      - 8080
+    volumes:
+      - name: server_data
+        target: /var/www/html
+      - name: fw_config
+        target: /lab/config
+    healthcheck:
+      command:
+        - CMD-SHELL
+        - "curl -sf http://127.0.0.1:8080/ >/dev/null 2>&1 || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    security:
+      privileged: false
+      host_network: false
+      cap_add:
+        - NET_ADMIN
