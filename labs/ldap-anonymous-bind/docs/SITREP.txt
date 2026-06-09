@@ -1,0 +1,25 @@
+A directory service is running on the internal network. Its security
+posture has never been formally assessed. The service may be exposing
+organizational data to unauthenticated users.
+
+Your mission:
+
+1. Use the browser terminal to inspect the lab network.
+2. Identify the directory service and determine its type.
+3. Check whether anonymous queries return organizational data.
+4. Enumerate user accounts, email addresses, and group memberships.
+5. Demonstrate the impact of exposed directory information.
+6. Restrict access so only authenticated users can read the directory.
+7. Enable TLS encryption for directory connections.
+8. Run the portal check and record the result.
+9. Complete the mandatory feedback form after ending the lab.
+
+Useful paths:
+
+- ~/SITREP.txt
+
+Full browser guide:
+
+- /docs/labs/ldap-anonymous-bind/
+
+If the browser terminal is unavailable, use the assigned SSH fallback endpoint.

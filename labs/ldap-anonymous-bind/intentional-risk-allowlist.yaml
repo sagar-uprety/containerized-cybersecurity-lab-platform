@@ -1,0 +1,13 @@
+lab_id: ldap-anonymous-bind
+
+intentional_findings:
+  - id: ldap-demo-user-passwords
+    tool: gitleaks
+    files:
+      - setup-vulnerable.sh
+    patterns:
+      - "dummypassword"
+    reason: >
+      Synthetic admin password and user password hashes are intentionally
+      planted for the lab. Students discover weak credentials during
+      investigation and replace them during remediation.

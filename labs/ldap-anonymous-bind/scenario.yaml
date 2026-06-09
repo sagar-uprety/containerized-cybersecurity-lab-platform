@@ -1,0 +1,116 @@
+id: ldap-anonymous-bind
+title: Open Directory
+difficulty: intermediate
+duration_minutes: 90
+
+story:
+  role: Security auditor
+  situation: >
+    An LDAP directory service is running on the internal network. Its
+    security posture is unknown. Assess whether directory data is exposed
+    to unauthenticated users and harden the service.
+
+documentation:
+  student_guide_url: /docs/labs/ldap-anonymous-bind/
+
+access:
+  ssh_port_base: 33000
+  browser_terminal_port_base: 19100
+
+lifecycle:
+  idle_timeout_minutes: 30
+  max_runtime_minutes: 120
+  evaluation_idle_timeout_minutes: null
+  retention_after_stop_minutes: 180
+
+checker:
+  states:
+    - vulnerable
+    - fixed
+    - broken
+  checks:
+    - name: ldap_anonymous_search
+      exec_in: workstation
+      run: "ldapsearch -x -H ldap://ldap-host -b 'dc=lab,dc=local' '(objectClass=posixAccount)' cn 2>&1"
+      states:
+        vulnerable: "output_contains: cn:"
+        fixed: "output_contains: Insufficient access"
+        broken: "exit_code_ne: 0"
+    - name: ldap_tls_enforced
+      exec_in: workstation
+      run: "ldapsearch -x -ZZ -H ldap://ldap-host -b '' -s base namingContexts 2>&1"
+      states:
+        vulnerable: "output_contains: Operations error"
+        fixed: "output_contains: namingContexts"
+        broken: "output_contains: Can't contact LDAP server"
+
+build:
+  images:
+    - service: ldap-host
+      name: thesis-labs/ldap-anonymous-bind-ldap:latest
+      context: .
+      dockerfile: Dockerfile
+
+services:
+  workstation:
+    image: thesis-labs/workstation-base:latest
+    role: Student browser terminal and SSH fallback.
+    internal_ports:
+      browser_terminal: 19000
+      ssh: 22
+  ldap-host:
+    image: thesis-labs/ldap-anonymous-bind-ldap:latest
+    role: Vulnerable OpenLDAP server.
+    internal_ports:
+      ldap: 389
+
+resources:
+  workstation:
+    cpus: "0.50"
+    memory: "256m"
+  ldap-host:
+    cpus: "0.50"
+    memory: "256m"
+
+workstation:
+  environment:
+    LDAP_HOST: ldap-host
+    LDAP_PORT: "389"
+  depends_on:
+    - ldap-host
+  cap_add:
+    - NET_RAW
+
+containers:
+  - service: ldap-host
+    hostname: ldap-host
+    init: false
+    restart: unless-stopped
+    environment:
+      LAB_CONFIG_SRC: /opt/lab/baseline/slapd-config.ldif
+      LAB_CONFIG_DST: /etc/ldap/slapd.d/config-applied.flag
+      LAB_SERVICE_CMD: "/usr/sbin/slapd -h 'ldap:/// ldapi:///' -u openldap -g openldap -F /etc/ldap/slapd.d"
+      LAB_DATA_DIR: /var/lib/ldap
+      LAB_DATA_USER: openldap
+      LAB_SETUP_SCRIPT: /opt/lab/hooks/pre-start.sh
+      LAB_LOG_FILE: /var/log/slapd.log
+      LAB_ADMIN_USER: root
+      SERVICE_ADMIN_PASSWORD: "$platform.student_password"
+    expose:
+      - 389
+    volumes:
+      - name: ldap_data
+        target: /var/lib/ldap
+      - name: ldap_config
+        target: /etc/ldap/slapd.d
+    healthcheck:
+      command:
+        - CMD-SHELL
+        - "ldapsearch -x -H ldapi:// -b '' -s base '(objectClass=*)' >/dev/null 2>&1 || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    security:
+      privileged: false
+      host_network: false

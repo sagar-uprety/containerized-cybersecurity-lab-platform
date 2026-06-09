@@ -1,0 +1,6 @@
+# Vulnerable ACL: anonymous read access to entire directory
+# Applied via ldapmodify to the cn=config frontend database
+dn: olcDatabase={-1}frontend,cn=config
+changetype: modify
+replace: olcAccess
+olcAccess: to * by * read
