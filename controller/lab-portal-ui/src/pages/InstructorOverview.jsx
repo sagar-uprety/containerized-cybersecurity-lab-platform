@@ -62,7 +62,6 @@ export default function InstructorOverview({ user, onLogout }) {
                   </div>
                   <div className="lab-card-meta">
                     <span className="badge">{lab.difficulty}</span>
-                    <span className="badge">{lab.duration_minutes} min</span>
                   </div>
                   <div style={{ fontSize: "0.85rem", color: "var(--muted)", marginTop: "0.5rem", marginBottom: "0.5rem" }}>
                     {lab.active_sessions} active session{lab.active_sessions !== 1 ? "s" : ""} / {lab.total_students} total students

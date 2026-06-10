@@ -50,7 +50,7 @@ How to use combined feedback form responses for this lab:
 
 ## Teaching Notes
 
-Key concepts to emphasize, real-world references, estimated duration, evaluation episode this lab belongs to.
+Key concepts to emphasize, real-world references, evaluation episode this lab belongs to.
 
 ---
 

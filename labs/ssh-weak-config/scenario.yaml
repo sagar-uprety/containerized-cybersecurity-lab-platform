@@ -1,7 +1,6 @@
 id: ssh-weak-config
 title: Weak SSH Configuration and Brute-Force Vulnerability
 difficulty: intermediate
-duration_minutes: 90
 
 story:
   role: Incident responder

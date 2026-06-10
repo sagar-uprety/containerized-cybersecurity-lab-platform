@@ -281,7 +281,6 @@ def api_labs(user: dict = Depends(get_authenticated_user)):
                 "id": lab["id"],
                 "title": lab["title"],
                 "difficulty": lab.get("difficulty"),
-                "duration_minutes": lab.get("duration_minutes"),
                 "story": lab.get("story"),
                 "status": lab_status,
             }
@@ -661,7 +660,6 @@ def api_instructor_labs(user: dict = Depends(get_authenticated_user)):
                 "id": lab_id,
                 "title": scenario["title"],
                 "difficulty": scenario.get("difficulty"),
-                "duration_minutes": scenario.get("duration_minutes"),
                 "active_sessions": active_count,
                 "total_students": total_students,
                 "student_guide_url": student_guide_url(scenario),

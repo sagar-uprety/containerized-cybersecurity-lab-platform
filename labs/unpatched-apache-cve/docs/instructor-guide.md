@@ -60,7 +60,6 @@ How to use combined feedback form responses for this lab:
 -   Emphasize that "still works" does not mean "still secure" - the Equifax breach is a prime example of deferred patching.
 -   Contrast immediate patching vs. virtual patching / compensating controls.
 -   Real-world reference: Deng et al. (2025) found 53.54% of affected HTTP services running end-of-life versions.
--   Duration: ~60–75 minutes
 -   The lab teaches vulnerability assessment as an operational discipline, not just exploit execution.
 
 ---

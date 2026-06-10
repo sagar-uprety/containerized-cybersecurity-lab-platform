@@ -61,7 +61,6 @@ How to use combined feedback form responses for this lab:
 -   Connect to Munteanu et al. (2025): 21,700 compromised SSH hosts found via attacker-installed keys
 -   Connect to Verizon DBIR 2025: credential abuse is the #1 initial-access vector (~22%)
 -   Discuss defense in depth: password auth + fail2ban + key rotation + monitoring
--   Duration: ~60-90 minutes
 
 ---
 

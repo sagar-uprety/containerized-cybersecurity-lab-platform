@@ -68,7 +68,6 @@ How to use combined feedback form responses for this lab:
 -   Walk through the layered defense mindset: network binding → authentication → authorization → least privilege
 -   Real-world reference: Ferrari et al. (2020) found 1,532 exposed Redis instances; ENISA 2024 names exposed Redis as current risk
 -   ACLs are the recommended approach since Redis 6 - `requirepass` is legacy
--   Duration: ~60-75 minutes (longer than the original requirepass-only version due to ACL complexity)
 
 ---
 

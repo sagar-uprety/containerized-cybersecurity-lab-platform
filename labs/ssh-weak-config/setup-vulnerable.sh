@@ -36,6 +36,6 @@ groupadd -r student 2>/dev/null || true
 usermod -aG student lab-user
 usermod -aG student svc-user
 cat > /etc/sudoers.d/student-lab <<'EOF'
-%student ALL=(root) NOPASSWD: /usr/bin/fail2ban-client, /usr/bin/sed, /usr/bin/systemctl, /usr/bin/truncate, /bin/cp, /bin/chown, /bin/chmod, /bin/kill, /usr/bin/pkill
+%student ALL=(root) NOPASSWD: /usr/bin/fail2ban-client, /usr/bin/sed, /usr/bin/systemctl, /usr/bin/truncate, /bin/cp, /bin/chown, /bin/chmod, /bin/kill, /usr/bin/pkill, /usr/bin/vi
 EOF
 chmod 0440 /etc/sudoers.d/student-lab

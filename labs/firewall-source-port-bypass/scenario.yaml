@@ -1,7 +1,6 @@
 id: firewall-source-port-bypass
 title: Firewall Rule Misconfiguration — Source-Port Bypass
 difficulty: intermediate
-duration_minutes: 90
 
 story:
   role: Network security auditor

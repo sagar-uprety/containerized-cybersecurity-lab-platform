@@ -51,7 +51,6 @@ export default function Overview({ user, onLogout }) {
                 </div>
                 <div className="lab-card-meta">
                   <span className="badge">{lab.difficulty}</span>
-                  <span className="badge">{lab.duration_minutes} min</span>
                 </div>
                 <p className="lab-card-story">{lab.story?.situation}</p>
                 <div className="lab-card-actions">

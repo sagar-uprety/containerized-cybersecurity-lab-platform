@@ -1,7 +1,6 @@
 id: redis-exposed
 title: Unauthenticated NoSQL Database Exposure
 difficulty: beginner
-duration_minutes: 90
 
 story:
   role: Junior Linux administrator

@@ -18,9 +18,6 @@ title: Human-Readable Lab Title
 # REQUIRED. Difficulty shown to students.
 difficulty: beginner  # beginner | intermediate | advanced
 
-# REQUIRED. Approximate time in minutes for a student to complete.
-duration_minutes: 90
-
 # REQUIRED. Scenario narrative — what the student sees before starting.
 story:
   # REQUIRED. The role the student assumes.

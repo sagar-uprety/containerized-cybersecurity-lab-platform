@@ -1,7 +1,6 @@
 id: ldap-anonymous-bind
 title: LDAP Directory Exposure with Anonymous Bind
 difficulty: intermediate
-duration_minutes: 90
 
 story:
   role: Security auditor

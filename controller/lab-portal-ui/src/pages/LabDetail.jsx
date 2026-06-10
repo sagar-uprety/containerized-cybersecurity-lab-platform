@@ -254,7 +254,7 @@ export default function LabDetail({ user, labId, onLogout }) {
               <p><strong>Role:</strong> {scenario.story?.role}</p>
               <p>{scenario.story?.situation}</p>
               <div className="duration-warning">
-                Estimated time: {scenario.duration_minutes} min. Auto-stop after {scenario.lifecycle?.max_runtime_minutes} min.
+                This lab will auto-stop if idle for {scenario.lifecycle?.idle_timeout_minutes} min or if running for more than {scenario.lifecycle?.max_runtime_minutes} min.
               </div>
             </div>
 

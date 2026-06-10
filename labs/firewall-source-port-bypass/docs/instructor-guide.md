@@ -62,7 +62,6 @@ How to use combined feedback form responses for this lab:
 -   Emphasize that "allowing return traffic by source port" is a common real-world mistake - Deng et al. (2025) found 2.4M services behind this exact misconfiguration
 -   The dual-stack lesson is pedagogically valuable: administrators who configure iptables for IPv4 frequently leave ip6tables empty
 -   Connect to Dietrich (2018): faulty firewall rules are among the top self-reported misconfiguration types
--   Duration: ~60-90 minutes
 -   This lab requires NET_ADMIN capability on the firewall container (documented in scenario.yaml)
 
 ---

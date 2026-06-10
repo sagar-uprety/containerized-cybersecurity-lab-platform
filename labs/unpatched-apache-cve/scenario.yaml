@@ -1,7 +1,6 @@
 id: unpatched-apache-cve
 title: Unpatched Service with Known Vulnerability
 difficulty: intermediate
-duration_minutes: 75
 
 story:
   role: Security assessor

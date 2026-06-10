@@ -62,7 +62,6 @@ How to use combined feedback form responses for this lab:
 -   Discuss that anonymous bind is part of the LDAP RFC (4513) - administrators must explicitly disable it
 -   Connect to MITRE ATT&CK T1087 (Account Discovery) and T1018 (Remote System Discovery)
 -   Discuss defense in depth: ACLs + TLS + monitoring + network segmentation
--   Duration: ~60-90 minutes
 
 ---
 
