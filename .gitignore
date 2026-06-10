@@ -74,9 +74,11 @@ nginx-thesis.conf
 .cache/
 .ansible/
 .playwright/
+.playwright-cli/
 
 # Packaged archives
 *.tar
 *.tar.gz
 *.tgz
 *.zip
+controller/lab-portal-ui/package-lock.json

@@ -90,6 +90,63 @@ def list_feedback(lab_id: Optional[str] = None):
     return responses
 
 
+def get_check_results_for_student(lab_id: str, student_id: str) -> list[dict]:
+    """Return all check results for a specific lab and student."""
+    path = EVIDENCE_DIR / "check-results.jsonl"
+    if not path.exists():
+        return []
+    results = []
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                record = json.loads(line)
+                if record.get("lab_id") == lab_id and record.get("student_id") == student_id:
+                    results.append(record)
+    except (OSError, json.JSONDecodeError):
+        pass
+    return results
+
+
+def get_command_events_for_student(lab_id: str, student_id: str) -> list[dict]:
+    """Return all command events for a specific lab and student."""
+    path = EVIDENCE_DIR / "command-events.jsonl"
+    if not path.exists():
+        return []
+    results = []
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                record = json.loads(line)
+                if record.get("lab_id") == lab_id and record.get("student_id") == student_id:
+                    results.append(record)
+    except (OSError, json.JSONDecodeError):
+        pass
+    return results
+
+
+def get_lifecycle_events_for_student(lab_id: str, student_id: str) -> list[dict]:
+    """Return all lifecycle events for a specific lab and student."""
+    path = EVIDENCE_DIR / "lifecycle-events.jsonl"
+    if not path.exists():
+        return []
+    results = []
+    try:
+        with path.open("r", encoding="utf-8") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                record = json.loads(line)
+                if record.get("lab_id") == lab_id and record.get("student_id") == student_id:
+                    results.append(record)
+    except (OSError, json.JSONDecodeError):
+        pass
+    return results
+
+
 def any_pending_feedback(student_id: str) -> bool:
     """Return True if the student has any unsubmitted feedback for previously ended sessions."""
     from app.runtime_state import LAB_STATE  # noqa: PLC0415

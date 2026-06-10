@@ -14,6 +14,8 @@ story:
 
 documentation:
   student_guide_url: /docs/labs/firewall-source-port-bypass/
+  solution_guide_url: /docs/labs/firewall-source-port-bypass-solution/
+  instructor_guide_url: /docs/labs/firewall-source-port-bypass-instructor/
 
 access:
   ssh_port_base: 22000

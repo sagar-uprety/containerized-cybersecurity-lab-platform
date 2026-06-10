@@ -34,6 +34,8 @@ story:
 # REQUIRED. Link to the student guide rendered in the MkDocs site.
 documentation:
   student_guide_url: /docs/labs/my-new-lab/
+  solution_guide_url: /docs/labs/my-new-lab-solution/
+  instructor_guide_url: /docs/labs/my-new-lab-instructor/
 
 # ── Access: per-student port allocation ────────────────────────────────
 # REQUIRED. Base ports for student-1. Each student gets base + student_number.

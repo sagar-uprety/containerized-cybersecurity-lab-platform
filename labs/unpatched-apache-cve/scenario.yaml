@@ -13,6 +13,8 @@ story:
 
 documentation:
   student_guide_url: /docs/labs/unpatched-apache-cve/
+  solution_guide_url: /docs/labs/unpatched-apache-cve-solution/
+  instructor_guide_url: /docs/labs/unpatched-apache-cve-instructor/
 
 access:
   ssh_port_base: 34000

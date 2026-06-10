@@ -64,6 +64,52 @@
   tags:
     - portal
 
+- name: Check if npm is available locally
+  ansible.builtin.command:
+    argv: [npm, --version]
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  failed_when: false
+  register: _npm_version
+  tags:
+    - portal
+
+- name: Install portal UI dependencies
+  ansible.builtin.command:
+    argv: [npm, ci]
+    chdir: "{{ playbook_dir }}/../../controller/lab-portal-ui"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  when: _npm_version.rc == 0
+  tags:
+    - portal
+
+- name: Build portal UI (React SPA)
+  ansible.builtin.command:
+    argv: [npm, run, build]
+    chdir: "{{ playbook_dir }}/../../controller/lab-portal-ui"
+  delegate_to: localhost
+  become: false
+  register: _spa_build
+  changed_when: _spa_build.rc == 0
+  when: _npm_version.rc == 0
+  tags:
+    - portal
+
+- name: Remove old Jinja student templates
+  ansible.builtin.file:
+    path: "{{ management_controller_root }}/lab-controller-api/app/templates/{{ item }}"
+    state: absent
+  loop:
+    - overview.html
+    - detail.html
+    - feedback.html
+  notify: Restart thesis portal
+  tags:
+    - portal
+
 - name: Copy portal API code
   ansible.builtin.copy:
     src: "{{ playbook_dir }}/../../controller/lab-controller-api/"

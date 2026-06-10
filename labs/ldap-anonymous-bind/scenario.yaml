@@ -12,6 +12,8 @@ story:
 
 documentation:
   student_guide_url: /docs/labs/ldap-anonymous-bind/
+  solution_guide_url: /docs/labs/ldap-anonymous-bind-solution/
+  instructor_guide_url: /docs/labs/ldap-anonymous-bind-instructor/
 
 access:
   ssh_port_base: 33000

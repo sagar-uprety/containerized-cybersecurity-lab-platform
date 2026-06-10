@@ -1,0 +1,1 @@
+--8<-- "labs/ldap-anonymous-bind/docs/instructor-guide.md"

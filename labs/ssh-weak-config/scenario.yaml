@@ -13,6 +13,8 @@ story:
 
 documentation:
   student_guide_url: /docs/labs/ssh-weak-config/
+  solution_guide_url: /docs/labs/ssh-weak-config-solution/
+  instructor_guide_url: /docs/labs/ssh-weak-config-instructor/
 
 access:
   ssh_port_base: 22000

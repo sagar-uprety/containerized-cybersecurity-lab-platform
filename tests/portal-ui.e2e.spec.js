@@ -49,7 +49,7 @@ test('student can open the portal and lab page', async ({ page }) => {
 
     await page.goto('/portal');
     await expect(page.getByRole('heading', { name: 'Available Labs' })).toBeVisible();
-    await expect(page.locator('link[rel="stylesheet"][href*="/static/app.css"]')).toHaveCount(1);
+    await expect(page.locator('#root')).toHaveCount(1);
     await page.getByRole('link', { name: 'Open Lab' }).first().click();
     await expect(page).toHaveURL(new RegExp(`/labs/${labId}$`));
     await expect(page.locator('.lab-content h1')).toBeVisible();

@@ -5,6 +5,8 @@ site_dir: site
 use_directory_urls: true
 theme:
   name: mkdocs
+extra_css:
+  - stylesheets/tum-theme.css
 markdown_extensions:
   - pymdownx.snippets:
       base_path:
@@ -13,3 +15,11 @@ markdown_extensions:
       check_paths: true
 plugins:
   - search
+nav:
+  - Home: index.md
+  - Labs:
+      - The Exposed Cache: labs/redis-exposed.md
+      - Open Door Policy: labs/ssh-weak-config.md
+      - Open Directory: labs/ldap-anonymous-bind.md
+      - Patch Me If You Can: labs/unpatched-apache-cve.md
+      - The Return Path: labs/firewall-source-port-bypass.md

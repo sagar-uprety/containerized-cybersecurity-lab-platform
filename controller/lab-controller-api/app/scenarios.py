@@ -88,6 +88,16 @@ def student_guide_url(scenario: dict) -> str:
     return documentation.get("student_guide_url") or f"/docs/labs/{scenario['id']}/"
 
 
+def solution_guide_url(scenario: dict) -> str:
+    documentation = scenario.get("documentation", {})
+    return documentation.get("solution_guide_url") or f"/docs/labs/{scenario['id']}-solution/"
+
+
+def instructor_guide_url(scenario: dict) -> str:
+    documentation = scenario.get("documentation", {})
+    return documentation.get("instructor_guide_url") or f"/docs/labs/{scenario['id']}-instructor/"
+
+
 def terminal_owner_for_port(terminal_port: int):
     for student in get_student_users().values():
         for scenario in list_scenarios():

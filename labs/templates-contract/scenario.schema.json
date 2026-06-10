@@ -60,6 +60,14 @@
                 "student_guide_url": {
                     "type": "string",
                     "minLength": 1
+                },
+                "solution_guide_url": {
+                    "type": "string",
+                    "minLength": 1
+                },
+                "instructor_guide_url": {
+                    "type": "string",
+                    "minLength": 1
                 }
             }
         },

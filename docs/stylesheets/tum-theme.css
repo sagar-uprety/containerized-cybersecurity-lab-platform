@@ -1,0 +1,172 @@
+:root {
+  --tum-blue: #0065BD;
+  --tum-blue-dark: #005288;
+  --tum-blue-darker: #003359;
+  --tum-light-blue: #E8F2FB;
+  --tum-lighter-blue: #F0F7FD;
+  --bs-primary: #0065BD;
+  --bs-primary-rgb: 0, 101, 189;
+  --bs-link-color: #0065BD;
+  --bs-link-hover-color: #005288;
+}
+
+/* Navbar - override Bootstrap primary blue */
+.navbar.bg-primary {
+  background-color: var(--tum-blue) !important;
+  background-image: none !important;
+}
+
+.navbar-dark .navbar-brand,
+.navbar-dark .navbar-brand:hover,
+.navbar-dark .navbar-brand:focus {
+  color: #fff;
+}
+
+.navbar-dark .navbar-nav .nav-link,
+.navbar-dark .navbar-nav .nav-link:hover,
+.navbar-dark .navbar-nav .nav-link:focus {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.navbar-dark .navbar-nav .nav-link.active,
+.navbar-dark .navbar-nav .nav-link.show {
+  color: #fff;
+}
+
+/* Dropdown items */
+.dropdown-item.active,
+.dropdown-item:active {
+  background-color: var(--tum-blue);
+  color: #fff;
+}
+
+.dropdown-item:hover,
+.dropdown-item:focus {
+  background-color: var(--tum-light-blue);
+  color: var(--tum-blue-dark);
+}
+
+/* Sidebar navigation */
+.bs-sidebar .nav-link {
+  color: var(--ink);
+}
+
+.bs-sidebar .nav-link:hover,
+.bs-sidebar .nav-link:focus {
+  color: var(--tum-blue);
+  background-color: var(--tum-light-blue);
+}
+
+.bs-sidebar .nav-link.active {
+  color: var(--tum-blue);
+  background-color: var(--tum-light-blue);
+  border-left: 3px solid var(--tum-blue);
+}
+
+/* Main content links */
+.col-md-9[role="main"] a,
+.col-md-9[role="main"] a:hover,
+.col-md-9[role="main"] a:focus {
+  color: var(--tum-blue);
+  text-decoration: none;
+}
+
+.col-md-9[role="main"] a:hover {
+  text-decoration: underline;
+}
+
+/* Buttons */
+.btn-primary {
+  background-color: var(--tum-blue) !important;
+  border-color: var(--tum-blue) !important;
+  color: #fff;
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+  background-color: var(--tum-blue-dark) !important;
+  border-color: var(--tum-blue-dark) !important;
+}
+
+/* Table headers */
+.table thead th {
+  background-color: var(--tum-blue);
+  color: #fff;
+  border-bottom: 2px solid var(--tum-blue-dark);
+}
+
+.table tbody tr:nth-child(odd) {
+  background-color: var(--tum-lighter-blue);
+}
+
+/* Code blocks */
+pre {
+  background-color: var(--tum-lighter-blue);
+  border-left: 3px solid var(--tum-blue);
+  border-radius: 4px;
+  padding: 0.75rem;
+}
+
+pre code {
+  background-color: transparent;
+  color: var(--tum-blue-darker);
+}
+
+/* Inline code */
+:not(pre) > code {
+  background-color: var(--tum-light-blue);
+  color: var(--tum-blue-dark);
+  padding: 0.15em 0.4em;
+  border-radius: 4px;
+}
+
+/* Admonitions */
+.admonition {
+  background-color: var(--tum-light-blue);
+  border-left: 3px solid var(--tum-blue);
+  border-radius: 4px;
+  padding: 0.75rem 1rem;
+  margin-bottom: 1rem;
+}
+
+.admonition-title {
+  background-color: var(--tum-blue);
+  color: #fff;
+  font-weight: 600;
+  padding: 0.5rem 0.75rem;
+  margin: -0.75rem -1rem 0.5rem -1rem;
+  border-radius: 4px 4px 0 0;
+}
+
+/* Footer */
+footer a,
+footer a:hover {
+  color: var(--tum-blue);
+}
+
+/* Modal header */
+.modal-header {
+  background-color: var(--tum-blue);
+  color: #fff;
+}
+
+.modal-header .modal-title {
+  color: #fff;
+}
+
+.modal-header .btn-close {
+  filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* Search input focus */
+.form-control:focus {
+  border-color: var(--tum-blue);
+  box-shadow: 0 0 0 0.25rem rgba(0, 101, 189, 0.25);
+}
+
+/* Keyboard shortcuts */
+kbd {
+  background-color: var(--tum-blue);
+  color: #fff;
+}

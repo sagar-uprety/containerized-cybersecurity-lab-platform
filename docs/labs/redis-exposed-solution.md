@@ -1,0 +1,1 @@
+--8<-- "labs/redis-exposed/docs/solution-guide.md"

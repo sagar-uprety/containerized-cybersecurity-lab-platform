@@ -12,6 +12,8 @@ story:
 
 documentation:
   student_guide_url: /docs/labs/redis-exposed/
+  solution_guide_url: /docs/labs/redis-exposed-solution/
+  instructor_guide_url: /docs/labs/redis-exposed-instructor/
 
 access:
   ssh_port_base: 22000
