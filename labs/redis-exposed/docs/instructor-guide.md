@@ -1,4 +1,4 @@
-# The Exposed Cache — Instructor Guide
+# Unauthenticated NoSQL Database Exposure - Instructor Guide
 
 ## Lab Overview
 
@@ -14,20 +14,6 @@ Students discover an unauthenticated Redis instance bound to all interfaces, rea
 | 4   | Apply ACL-based authentication             | Student creates ACL users with `default off`, admin + app users        |
 | 5   | Enforce least-privilege for the app        | Student creates app user with `+@read` only, confirms write is blocked |
 | 6   | Verify security and continuity             | Student confirms checker reports `fixed` and app health is OK          |
-
-## Reveal Boundary
-
-| Content                  | Student Guide            | Solution Notes       | This Guide        |
-| ------------------------ | ------------------------ | -------------------- | ----------------- |
-| Mission/role             | Yes                      | No                   | Summary           |
-| Diagnostic commands      | Yes (investigation only) | Yes (full)           | Reference         |
-| Impact demonstration     | Yes (what to observe)    | Yes (exact commands) | Expected evidence |
-| Remediation objective    | Yes (goal + constraints) | Yes (exact commands) | Rubric            |
-| Solution password/config | NEVER                    | Yes                  | Reference         |
-| Restart sequence         | NEVER                    | Yes                  | Reference         |
-| Hint ladder              | Yes (3 levels)           | No                   | Reveal policy     |
-| Official doc links       | Yes                      | Yes                  | Yes               |
-| Evidence checklist       | Yes                      | No                   | Expected answers  |
 
 ## Expected Evidence by Phase
 
@@ -47,18 +33,18 @@ Students discover an unauthenticated Redis instance bound to all interfaces, rea
 
 | Level | When to Reveal         | Content                                                                                                      |
 | ----- | ---------------------- | ------------------------------------------------------------------------------------------------------------ |
-| 1     | Student asks for help  | Network isolation alone is not enough — consider the interface binding and what authentication Redis offers. |
+| 1     | Student asks for help  | Network isolation alone is not enough - consider the interface binding and what authentication Redis offers. |
 | 2     | Student stuck > 10 min | Redis 6+ supports ACLs with per-user command permissions. The `aclfile` directive loads user definitions.    |
 | 3     | Student stuck > 20 min | See ACL reference: `redis.io/docs/management/security/acl/`. The app config supports `REDIS_USERNAME`.       |
 
 ## Common Mistakes
 
--   Students only fix auth but leave `bind 0.0.0.0` — How to address: Ask what other services on the network could reach this port if binding is unrestricted.
--   Students set a password but forget to disable `user default` — How to address: Ask what happens when no credentials are supplied and a default user exists.
--   Students give the app user `+@all` instead of `+@read` — How to address: Ask "what is the minimum set of commands the application actually needs?"
--   Students update `app-config.env` with password but forget `REDIS_USERNAME` — How to address: ACL AUTH requires both username and password; check the app.py source.
--   Students forget to add the `aclfile` directive to redis.conf — How to address: Ask how Redis knows where to find the ACL definitions.
--   Students forget to restart Redis after config changes — How to address: Ask when a service reads its configuration file.
+-   Students only fix auth but leave `bind 0.0.0.0` - How to address: Ask what other services on the network could reach this port if binding is unrestricted.
+-   Students set a password but forget to disable `user default` - How to address: Ask what happens when no credentials are supplied and a default user exists.
+-   Students give the app user `+@all` instead of `+@read` - How to address: Ask "what is the minimum set of commands the application actually needs?"
+-   Students update `app-config.env` with password but forget `REDIS_USERNAME` - How to address: ACL AUTH requires both username and password; check the app.py source.
+-   Students forget to add the `aclfile` directive to redis.conf - How to address: Ask how Redis knows where to find the ACL definitions.
+-   Students forget to restart Redis after config changes - How to address: Ask when a service reads its configuration file.
 
 ## Checker States
 
@@ -77,11 +63,11 @@ How to use combined feedback form responses for this lab:
 
 ## Teaching Notes
 
--   Emphasize that "default != secure" — Redis defaults to no auth, bind 0.0.0.0
+-   Emphasize that "default != secure" - Redis defaults to no auth, bind 0.0.0.0
 -   Contrast `protected-mode` (insufficient alone) vs proper auth
 -   Walk through the layered defense mindset: network binding → authentication → authorization → least privilege
 -   Real-world reference: Ferrari et al. (2020) found 1,532 exposed Redis instances; ENISA 2024 names exposed Redis as current risk
--   ACLs are the recommended approach since Redis 6 — `requirepass` is legacy
+-   ACLs are the recommended approach since Redis 6 - `requirepass` is legacy
 -   Duration: ~60-75 minutes (longer than the original requirepass-only version due to ACL complexity)
 
 ---

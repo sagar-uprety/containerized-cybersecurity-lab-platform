@@ -792,6 +792,8 @@ def api_instructor_session_detail(
     if check_results:
         latest_check = check_results[-1].get("check_result")
 
+    scenario = load_scenario_metadata(lab_id)
+
     return {
         "lab_id": lab_id,
         "student_id": student_id,
@@ -804,6 +806,7 @@ def api_instructor_session_detail(
         "check_results": check_results,
         "latest_check": latest_check,
         "lifecycle_events": lifecycle_events,
+        "scenario": scenario,
         "feedback": list_feedback(lab_id)
         if feedback_exists(lab_id, student_id, session_id)
         else None,

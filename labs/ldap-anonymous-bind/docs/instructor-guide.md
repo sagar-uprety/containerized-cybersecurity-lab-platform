@@ -1,4 +1,4 @@
-# Open Directory — Instructor Guide
+# LDAP Directory Exposure with Anonymous Bind - Instructor Guide
 
 ## Lab Overview
 
@@ -15,20 +15,6 @@ Students investigate an OpenLDAP directory server on the internal network. They 
 | 5   | Enable TLS for LDAP connections               | Student configures olcTLSCertificateFile/KeyFile and verifies StartTLS works  |
 | 6   | Verify remediation with authenticated queries | Student confirms anonymous search fails and authenticated TLS search works    |
 
-## Reveal Boundary
-
-| Content                 | Student Guide            | Solution Notes       | This Guide        |
-| ----------------------- | ------------------------ | -------------------- | ----------------- |
-| Mission/role            | Yes                      | No                   | Summary           |
-| Diagnostic commands     | Yes (investigation only) | Yes (full)           | Reference         |
-| Impact demonstration    | Yes (what to observe)    | Yes (exact commands) | Expected evidence |
-| Remediation objective   | Yes (goal + constraints) | Yes (exact commands) | Rubric            |
-| Solution admin password | NEVER                    | Yes                  | Reference         |
-| Restart sequence        | NEVER                    | Yes                  | Reference         |
-| Hint ladder             | Yes (3 levels)           | No                   | Reveal policy     |
-| Official doc links      | Yes                      | Yes                  | Yes               |
-| Evidence checklist      | Yes                      | No                   | Expected answers  |
-
 ## Expected Evidence by Phase
 
 | Phase     | Expected Student Evidence                                                                    |
@@ -44,15 +30,15 @@ Students investigate an OpenLDAP directory server on the internal network. They 
 | ----- | ---------------------- | ---------------------------------------------------------------------------------------- |
 | 1     | Student asks for help  | Think about what it means when a service responds to requests without requiring identity |
 | 2     | Student stuck > 10 min | Look for the access control configuration in the directory's cn=config database          |
-| 3     | Student stuck > 20 min | The OpenLDAP Administrator's Guide has a section on ACLs — check olcAccess syntax        |
+| 3     | Student stuck > 20 min | The OpenLDAP Administrator's Guide has a section on ACLs - check olcAccess syntax        |
 
 ## Common Mistakes
 
--   Student sets ACL to deny all access including authenticated users — How to address: Remind them authenticated users still need read access.
--   Student configures TLS but forgets to add both certificate and key attributes — How to address: Ask what a TLS handshake requires from the server.
--   Student restarts the container instead of just slapd — How to address: Either approach works; container restart is valid but slower.
--   Student modifies slapd.conf instead of cn=config — How to address: Explain that this installation uses the OLC (cn=config) runtime configuration backend.
--   Student generates new certificates but doesn't update permissions — How to address: Check file ownership with `ls -la /etc/ldap/tls/`.
+-   Student sets ACL to deny all access including authenticated users - How to address: Remind them authenticated users still need read access.
+-   Student configures TLS but forgets to add both certificate and key attributes - How to address: Ask what a TLS handshake requires from the server.
+-   Student restarts the container instead of just slapd - How to address: Either approach works; container restart is valid but slower.
+-   Student modifies slapd.conf instead of cn=config - How to address: Explain that this installation uses the OLC (cn=config) runtime configuration backend.
+-   Student generates new certificates but doesn't update permissions - How to address: Check file ownership with `ls -la /etc/ldap/tls/`.
 
 ## Checker States
 
@@ -71,9 +57,9 @@ How to use combined feedback form responses for this lab:
 
 ## Teaching Notes
 
--   Emphasize that LDAP is the backbone of enterprise identity — Active Directory, OpenLDAP, and 389 Directory Server all use it
+-   Emphasize that LDAP is the backbone of enterprise identity - Active Directory, OpenLDAP, and 389 Directory Server all use it
 -   Connect to Kaspereit et al. (USENIX Security 2024): 82,129 LDAP servers on the public Internet, 14.83% leak personal data, 2.21% leak passwords
--   Discuss that anonymous bind is part of the LDAP RFC (4513) — administrators must explicitly disable it
+-   Discuss that anonymous bind is part of the LDAP RFC (4513) - administrators must explicitly disable it
 -   Connect to MITRE ATT&CK T1087 (Account Discovery) and T1018 (Remote System Discovery)
 -   Discuss defense in depth: ACLs + TLS + monitoring + network segmentation
 -   Duration: ~60-90 minutes

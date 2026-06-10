@@ -1,4 +1,4 @@
-# Patch Me If You Can — Instructor Guide
+# Unpatched Service with Known Vulnerability - Instructor Guide
 
 ## Lab Overview
 
@@ -16,20 +16,6 @@ remove the `ScriptAlias`) to block the attack path.
 | 3   | Demonstrate exploitation in a controlled environment        | Student successfully reads `/etc/passwd` via crafted URL                       |
 | 4   | Apply a compensating control when patching is not immediate | Student disables `mod_cgi` and removes the `ScriptAlias`, then restarts Apache |
 | 5   | Verify service continuity after remediation                 | Student confirms the home page still serves correctly                          |
-
-## Reveal Boundary
-
-| Content                  | Student Guide            | Solution Notes       | This Guide        |
-| ------------------------ | ------------------------ | -------------------- | ----------------- |
-| Mission/role             | Yes                      | No                   | Summary           |
-| Diagnostic commands      | Yes (investigation only) | Yes (full)           | Reference         |
-| Impact demonstration     | Yes (what to observe)    | Yes (exact commands) | Expected evidence |
-| Remediation objective    | Yes (goal + constraints) | Yes (exact commands) | Rubric            |
-| Solution password/config | NEVER                    | Yes                  | Reference         |
-| Restart sequence         | NEVER                    | Yes                  | Reference         |
-| Hint ladder              | Yes (3 levels)           | No                   | Reveal policy     |
-| Official doc links       | Yes                      | Yes                  | Yes               |
-| Evidence checklist       | Yes                      | No                   | Expected answers  |
 
 ## Expected Evidence by Phase
 
@@ -50,9 +36,9 @@ remove the `ScriptAlias`) to block the attack path.
 
 ## Common Mistakes
 
--   Students try to upgrade the software instead of applying a configuration workaround — How to address: Remind them that in this scenario the goal is an immediate protective fix; upgrading requires a maintenance window and testing.
--   Students break the web server itself while trying to remove the alias — How to address: Ask which specific directive controls the alias that maps URLs to file paths.
--   Students edit the config but forget to restart Apache — How to address: Ask what happens when a service reads its configuration file on startup.
+-   Students try to upgrade the software instead of applying a configuration workaround - How to address: Remind them that in this scenario the goal is an immediate protective fix; upgrading requires a maintenance window and testing.
+-   Students break the web server itself while trying to remove the alias - How to address: Ask which specific directive controls the alias that maps URLs to file paths.
+-   Students edit the config but forget to restart Apache - How to address: Ask what happens when a service reads its configuration file on startup.
 
 ## Checker States
 
@@ -71,7 +57,7 @@ How to use combined feedback form responses for this lab:
 
 ## Teaching Notes
 
--   Emphasize that "still works" does not mean "still secure" — the Equifax breach is a prime example of deferred patching.
+-   Emphasize that "still works" does not mean "still secure" - the Equifax breach is a prime example of deferred patching.
 -   Contrast immediate patching vs. virtual patching / compensating controls.
 -   Real-world reference: Deng et al. (2025) found 53.54% of affected HTTP services running end-of-life versions.
 -   Duration: ~60–75 minutes

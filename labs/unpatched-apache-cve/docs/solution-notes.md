@@ -1,4 +1,4 @@
-# Solution Notes: Patch Me If You Can
+# Solution Notes: Unpatched Service with Known Vulnerability
 
 ## Root Cause
 
@@ -61,8 +61,8 @@ sudo /usr/local/apache2/bin/httpd -f /usr/local/apache2/conf/httpd.conf -DFOREGR
 
 ```bash verifier
 # 1. Comment out the Alias directive and remove the cgi-bin Directory block
-#    (config file is owned by apacheadmin — no sudo needed for sed)
-#    restart-apache doesn't work via SSH (process orphaning), so use labctl instead
+#    (config file is owned by apacheadmin - no sudo needed for sed)
+# restart-apache doesn't work via SSH (process orphaning), so use labctl instead
 ssh -o StrictHostKeyChecking=no -o BatchMode=yes apacheadmin@apache-host << 'ENDSSH'
 sed -i 's/^Alias \/cgi-bin/#Alias \/cgi-bin/' /usr/local/apache2/conf/httpd.conf
 sed -i '/<Directory "\/usr\/local\/apache2\/cgi-bin">/,/<\/Directory>/d' /usr/local/apache2/conf/httpd.conf

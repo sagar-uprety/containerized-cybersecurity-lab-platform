@@ -11,9 +11,10 @@ echo "svc-user:demo-ssh-pass" | chpasswd
 mkdir -p /tmp/demo-attacker-key
 ssh-keygen -t ed25519 -f /tmp/demo-attacker-key/id_ed25519 -N "" -q
 
-# Plant unauthorized keys in root and lab-user authorized_keys
+# Plant unauthorized keys (clear first for idempotency)
 for user_home in /root /home/lab-user; do
     mkdir -p "${user_home}/.ssh"
+    true > "${user_home}/.ssh/authorized_keys"
     cat /tmp/demo-attacker-key/id_ed25519.pub >> "${user_home}/.ssh/authorized_keys"
     chmod 600 "${user_home}/.ssh/authorized_keys"
     chown -R "$(basename "${user_home}")" "${user_home}/.ssh" 2>/dev/null || true

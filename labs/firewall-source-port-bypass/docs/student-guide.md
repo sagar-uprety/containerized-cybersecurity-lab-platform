@@ -1,4 +1,4 @@
-# The Return Path
+# Firewall Rule Misconfiguration - Source-Port Bypass
 
 The organization's perimeter firewall was configured by a previous administrator
 to allow outbound web and DNS traffic. Management wants you to verify that
@@ -14,6 +14,20 @@ By the end of this lab you should be able to:
 -   Demonstrate the impact using only the lab environment
 -   Apply an appropriate fix
 -   Verify your fix using the portal checker
+
+## Prerequisites
+
+Before starting this lab, you should be familiar with:
+
+-   Basic TCP/IP networking (IP addresses, ports, source vs. destination, and the OSI/TCP layers)
+-   What a firewall is and the difference between stateful and stateless packet filtering
+-   Basic Linux networking tools (`ping`, `curl`, `ncat`, and `nmap` concepts)
+
+If you need to review these topics, see:
+
+-   iptables/netfilter concepts (stateful connection tracking): <https://wiki.debian.org/iptables>
+-   TCP/IP networking basics: <https://datatracker.ietf.org/doc/html/rfc1180>
+-   Firewall fundamentals: <https://csrc.nist.gov/glossary/term/firewall>
 
 ## Getting Started
 
@@ -47,7 +61,7 @@ firewall's iptables rules.
 
 **Proving impact:** Once you've identified the issue, demonstrate that the
 firewall's rules allow traffic that should be blocked. Use only what the lab
-environment provides — do not introduce real credentials or external resources.
+environment provides - do not introduce real credentials or external resources.
 
 ## Remediate
 
@@ -67,7 +81,7 @@ and DNS resolution must continue to work after your changes.
 
 **Need a hint?**
 
--   Think about what "stateful" means — can a firewall track whether a connection was initiated from inside?
+-   Think about what "stateful" means - can a firewall track whether a connection was initiated from inside?
 -   Look at the `conntrack` match module in the iptables extensions documentation.
 -   The `iptables-restore` man page explains the rules file format used in `/etc/iptables/`.
 
@@ -75,9 +89,9 @@ and DNS resolution must continue to work after your changes.
 
 After applying your fix, confirm:
 
-1.  The source-port bypass no longer works
-2.  Outbound web browsing and DNS still function
-3.  Both IPv4 and IPv6 are protected
+1. The source-port bypass no longer works
+2. Outbound web browsing and DNS still function
+3. Both IPv4 and IPv6 are protected
 
 Use the same tools from your investigation to re-test. When satisfied, click
 **Run Check** in the portal.
@@ -85,5 +99,5 @@ Use the same tools from your investigation to re-test. When satisfied, click
 ---
 
 _When you're done, end the lab through the portal and complete the feedback
-form. Take a moment to reflect on what you learned — what surprised you, what
+form. Take a moment to reflect on what you learned - what surprised you, what
 you'd do differently, and how this applies beyond this specific scenario._

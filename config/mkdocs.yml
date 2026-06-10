@@ -15,11 +15,12 @@ markdown_extensions:
       check_paths: true
 plugins:
   - search
+
 nav:
   - Home: index.md
   - Labs:
-      - The Exposed Cache: labs/redis-exposed.md
-      - Open Door Policy: labs/ssh-weak-config.md
-      - Open Directory: labs/ldap-anonymous-bind.md
-      - Patch Me If You Can: labs/unpatched-apache-cve.md
-      - The Return Path: labs/firewall-source-port-bypass.md
+      - labs/redis-exposed.md
+      - labs/ssh-weak-config.md
+      - labs/firewall-source-port-bypass.md
+      - labs/ldap-anonymous-bind.md
+      - labs/unpatched-apache-cve.md

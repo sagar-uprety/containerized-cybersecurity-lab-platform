@@ -1,4 +1,4 @@
-# <Lab Title> — Instructor Guide
+# <Lab Title> - Instructor Guide
 
 ## Lab Overview
 
@@ -10,20 +10,6 @@ Brief description of the scenario and what students will do.
 | --- | ----------- | ------------------- |
 | 1   | <objective> | <how to assess>     |
 | 2   | <objective> | <how to assess>     |
-
-## Reveal Boundary
-
-| Content                  | Student Guide            | Solution Notes       | This Guide        |
-| ------------------------ | ------------------------ | -------------------- | ----------------- |
-| Mission/role             | Yes                      | No                   | Summary           |
-| Diagnostic commands      | Yes (investigation only) | Yes (full)           | Reference         |
-| Impact demonstration     | Yes (what to observe)    | Yes (exact commands) | Expected evidence |
-| Remediation objective    | Yes (goal + constraints) | Yes (exact commands) | Rubric            |
-| Solution password/config | NEVER                    | Yes                  | Reference         |
-| Restart sequence         | NEVER                    | Yes                  | Reference         |
-| Hint ladder              | Yes (3 levels)           | No                   | Reveal policy     |
-| Official doc links       | Yes                      | Yes                  | Yes               |
-| Evidence checklist       | Yes                      | No                   | Expected answers  |
 
 ## Expected Evidence by Phase
 
@@ -44,8 +30,8 @@ Brief description of the scenario and what students will do.
 
 ## Common Mistakes
 
--   Mistake 1: <description> — How to address: <guidance>
--   Mistake 2: <description> — How to address: <guidance>
+-   Mistake 1: <description> - How to address: <guidance>
+-   Mistake 2: <description> - How to address: <guidance>
 
 ## Checker States
 

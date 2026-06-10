@@ -42,6 +42,9 @@ export default function LabDetail({ user, labId, onLogout }) {
     const stored = localStorage.getItem("lab-left-pane");
     if (stored) shell.style.setProperty("--left-pane", stored);
 
+    let dragging = false;
+    let overlay = null;
+
     function setPane(clientX) {
       const rect = shell.getBoundingClientRect();
       const pct = Math.min(68, Math.max(32, ((clientX - rect.left) / rect.width) * 100));
@@ -50,16 +53,36 @@ export default function LabDetail({ user, labId, onLogout }) {
       localStorage.setItem("lab-left-pane", val);
     }
 
+    function createOverlay() {
+      if (overlay) return;
+      overlay = document.createElement("div");
+      overlay.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;cursor:col-resize;";
+      document.body.appendChild(overlay);
+    }
+    function removeOverlay() {
+      if (overlay) {
+        overlay.remove();
+        overlay = null;
+      }
+    }
+
     function onPointerDown(e) {
-      handle.setPointerCapture(e.pointerId);
+      e.preventDefault();
+      dragging = true;
       handle.classList.add("active");
+      createOverlay();
       setPane(e.clientX);
     }
     function onPointerMove(e) {
-      if (handle.hasPointerCapture(e.pointerId)) setPane(e.clientX);
+      if (!dragging) return;
+      e.preventDefault();
+      setPane(e.clientX);
     }
-    function onPointerUp() {
+    function onPointerUp(e) {
+      if (!dragging) return;
+      dragging = false;
       handle.classList.remove("active");
+      removeOverlay();
     }
     function onKeyDown(e) {
       if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
@@ -72,14 +95,15 @@ export default function LabDetail({ user, labId, onLogout }) {
     }
 
     handle.addEventListener("pointerdown", onPointerDown);
-    handle.addEventListener("pointermove", onPointerMove);
-    handle.addEventListener("pointerup", onPointerUp);
+    window.addEventListener("pointermove", onPointerMove);
+    window.addEventListener("pointerup", onPointerUp);
     handle.addEventListener("keydown", onKeyDown);
     return () => {
       handle.removeEventListener("pointerdown", onPointerDown);
-      handle.removeEventListener("pointermove", onPointerMove);
-      handle.removeEventListener("pointerup", onPointerUp);
+      window.removeEventListener("pointermove", onPointerMove);
+      window.removeEventListener("pointerup", onPointerUp);
       handle.removeEventListener("keydown", onKeyDown);
+      removeOverlay();
     };
   }, []);
 
@@ -221,7 +245,7 @@ export default function LabDetail({ user, labId, onLogout }) {
               )}
             </div>
 
-            <CheckResult result={checkResult} visible={hasChecked} />
+            <CheckResult result={checkResult} visible={hasChecked} checkerChecks={scenario.checker?.checks} />
 
             <div className="panel">
               <div className="panel-header">

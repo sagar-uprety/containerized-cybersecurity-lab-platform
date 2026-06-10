@@ -1,4 +1,4 @@
-# Solution Notes: Patch Me If You Can
+# Solution Notes: Unpatched Service with Known Vulnerability
 
 ## Root Cause
 

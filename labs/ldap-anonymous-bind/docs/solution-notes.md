@@ -1,4 +1,4 @@
-# Solution Notes: Open Directory
+# Solution Notes: LDAP Directory Exposure with Anonymous Bind
 
 ## Root Cause
 
@@ -40,7 +40,7 @@ olcAccess: to * by users read by anonymous auth
 EOF
 ```
 
-This allows anonymous users only the `auth` permission (bind) — they can
+This allows anonymous users only the `auth` permission (bind) - they can
 authenticate but cannot search or read entries.
 
 ### 2. Enable TLS

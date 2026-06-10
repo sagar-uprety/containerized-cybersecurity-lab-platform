@@ -1,4 +1,4 @@
-# Open Door Policy — Instructor Guide
+# Weak SSH Configuration and Brute-Force Vulnerability - Instructor Guide
 
 ## Lab Overview
 
@@ -14,20 +14,6 @@ Students investigate an SSH server flagged for suspicious login activity. They d
 | 4   | Harden SSH daemon configuration                | Student edits sshd_config to disable password auth, restrict root, set limits |
 | 5   | Remove attacker persistence                    | Student removes unauthorized keys from root and user authorized_keys          |
 | 6   | Configure fail2ban for rate limiting           | Student enables fail2ban sshd jail and verifies it is active                  |
-
-## Reveal Boundary
-
-| Content                 | Student Guide            | Solution Notes       | This Guide        |
-| ----------------------- | ------------------------ | -------------------- | ----------------- |
-| Mission/role            | Yes                      | No                   | Summary           |
-| Diagnostic commands     | Yes (investigation only) | Yes (full)           | Reference         |
-| Impact demonstration    | Yes (what to observe)    | Yes (exact commands) | Expected evidence |
-| Remediation objective   | Yes (goal + constraints) | Yes (exact commands) | Rubric            |
-| Solution passwords/keys | NEVER                    | Yes                  | Reference         |
-| Restart sequence        | NEVER                    | Yes                  | Reference         |
-| Hint ladder             | Yes (3 levels)           | No                   | Reveal policy     |
-| Official doc links      | Yes                      | Yes                  | Yes               |
-| Evidence checklist      | Yes                      | No                   | Expected answers  |
 
 ## Expected Evidence by Phase
 
@@ -48,11 +34,11 @@ Students investigate an SSH server flagged for suspicious login activity. They d
 
 ## Common Mistakes
 
--   Students disable PasswordAuthentication before setting up key-based auth — How to address: Remind them to verify key auth works before closing the password path.
--   Students remove ALL authorized_keys entries including the legitimate one — How to address: Ask them to back up the file first and check which keys are legitimate.
--   Students forget to restart sshd after config changes — How to address: Ask what happens when a daemon reads its config.
--   Students enable fail2ban but forget to start the service — How to address: Ask what `enabled = true` does without `systemctl start`.
--   Students change sshd_config but the entrypoint overwrites it on restart — How to address: Explain the volume-backed config pattern.
+-   Students disable PasswordAuthentication before setting up key-based auth - How to address: Remind them to verify key auth works before closing the password path.
+-   Students remove ALL authorized_keys entries including the legitimate one - How to address: Ask them to back up the file first and check which keys are legitimate.
+-   Students forget to restart sshd after config changes - How to address: Ask what happens when a daemon reads its config.
+-   Students enable fail2ban but forget to start the service - How to address: Ask what `enabled = true` does without `systemctl start`.
+-   Students change sshd_config but the entrypoint overwrites it on restart - How to address: Explain the volume-backed config pattern.
 
 ## Checker States
 
@@ -71,7 +57,7 @@ How to use combined feedback form responses for this lab:
 
 ## Teaching Notes
 
--   Emphasize that SSH is only as secure as its configuration — the protocol itself is not the weakness
+-   Emphasize that SSH is only as secure as its configuration - the protocol itself is not the weakness
 -   Connect to Munteanu et al. (2025): 21,700 compromised SSH hosts found via attacker-installed keys
 -   Connect to Verizon DBIR 2025: credential abuse is the #1 initial-access vector (~22%)
 -   Discuss defense in depth: password auth + fail2ban + key rotation + monitoring

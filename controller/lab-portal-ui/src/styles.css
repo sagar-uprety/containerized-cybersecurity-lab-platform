@@ -260,7 +260,7 @@ p { margin-bottom: 0.75rem; }
 /* Lab Shell (split pane) */
 .lab-shell {
   display: grid;
-  grid-template-columns: minmax(340px, var(--left-pane, 48%)) 1px minmax(400px, 1fr);
+  grid-template-columns: minmax(340px, var(--left-pane, 48%)) 8px minmax(400px, 1fr);
   height: calc(100vh - 56px - 3rem);
   border: 1px solid var(--border-light);
   border-radius: var(--radius);
@@ -282,6 +282,11 @@ p { margin-bottom: 0.75rem; }
   cursor: col-resize;
   position: relative;
   transition: background 0.12s;
+  touch-action: none;
+  user-select: none;
+  width: 100%;
+  height: 100%;
+  z-index: 5;
 }
 
 .split-handle:hover,

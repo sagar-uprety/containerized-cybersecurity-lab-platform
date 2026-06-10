@@ -1,10 +1,10 @@
-# Solution Notes: The Return Path
+# Solution Notes: Firewall Rule Misconfiguration - Source-Port Bypass
 
 ## Root Cause
 
 The firewall uses stateless rules that match on source port numbers. The rules
 intended to allow return HTTP and DNS traffic (`--sport 80`, `--sport 53`)
-actually permit any inbound connection that originates from those source ports —
+actually permit any inbound connection that originates from those source ports -
 not just replies to outbound requests. Additionally, the IPv6 firewall
 (ip6tables) has no rules at all, leaving the dual-stack completely unprotected.
 
@@ -14,13 +14,13 @@ not just replies to outbound requests. Additionally, the IPv6 firewall
 # Get the firewall's internal IP
 FW_IP=$(cat /lab/config/fw_internal_ip.txt)
 
-# Direct connection from random high port — blocked by default DROP policy
+# Direct connection from random high port - blocked by default DROP policy
 curl -s -o /dev/null -w '%{http_code}' --connect-timeout 3 http://$FW_IP:8080/
 
-# Connection from source port 80 — bypasses the firewall!
+# Connection from source port 80  - bypasses the firewall!
 curl --local-port 80 -s -o /dev/null -w '%{http_code}' --connect-timeout 5 http://$FW_IP:8080/
 
-# IPv6 — completely open, no firewall rules at all
+# IPv6  - completely open, no firewall rules at all
 curl -6 -s -o /dev/null -w '%{http_code}' --connect-timeout 5 http://[::1]:8080/ 2>&1 || true
 ```
 
@@ -30,7 +30,7 @@ rules are actually open-door policies for any attacker who spoofs source port 80
 
 ## POC Fix
 
-### 1. Fix IPv4 rules — replace stateless with stateful
+### 1. Fix IPv4 rules - replace stateless with stateful
 
 The student must write proper iptables-restore rules using conntrack:
 
@@ -64,7 +64,7 @@ Key changes:
 -   The `--sport` rules are removed entirely
 -   Default policy stays DROP
 
-### 2. Fix IPv6 rules — write from scratch
+### 2. Fix IPv6 rules - write from scratch
 
 The student must create equivalent IPv6 rules (currently there are none):
 
@@ -121,7 +121,7 @@ sudo iptables -L FORWARD -n
 
 Both curl commands to the internal server should fail (connection refused or
 timeout). Outbound HTTP should still return 200. The iptables listing should
-show conntrack + dport rules only — no sport rules.
+show conntrack + dport rules only - no sport rules.
 
 ## Final-Lab Improvement
 

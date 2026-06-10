@@ -1,15 +1,15 @@
-# Solution Notes: The Exposed Cache
+# Solution Notes: Unauthenticated NoSQL Database Exposure
 
 ## Root Cause
 
 Two independent failures combined:
 
-1.  Redis is bound to `0.0.0.0` (all network interfaces) instead of the
-    specific internal interface, making it reachable from any container on the
-    lab network.
-2.  Redis has no authentication configured — anyone who can reach the port can
-    run arbitrary commands, including reading all stored data and writing new
-    values.
+1. Redis is bound to `0.0.0.0` (all network interfaces) instead of the
+   specific internal interface, making it reachable from any container on the
+   lab network.
+2. Redis has no authentication configured - anyone who can reach the port can
+   run arbitrary commands, including reading all stored data and writing new
+   values.
 
 ## Investigation
 
@@ -24,7 +24,7 @@ redis-cli -h redis-host SET feature_flag:admin_mode "true"
 
 The `PING` returns `PONG` without authentication. `KEYS *` reveals customer
 records, session tokens, order data, rate-limit configuration, and an internal
-database connection string — all readable without any credentials. Write
+database connection string - all readable without any credentials. Write
 operations also succeed, allowing an attacker to modify application state.
 
 ## Remediation
@@ -48,10 +48,10 @@ user app on >app-demo-password ~* +@read +@connection +ping
 ACLEOF
 ```
 
--   `user default off` — disables the implicit default user that requires no
+-   `user default off` - disables the implicit default user that requires no
     authentication.
--   `admin` — full access to all keys and commands, used by the administrator.
--   `app` — **least privilege**: can only read keys (`+@read`) and run
+-   `admin` - full access to all keys and commands, used by the administrator.
+-   `app` - **least privilege**: can only read keys (`+@read`) and run
     connection/health commands (`+@connection +ping`). Cannot write, delete,
     flush, or modify configuration.
 
@@ -120,12 +120,12 @@ curl -s http://demo-app:8080/health
 
 This remediation teaches three layered security controls:
 
-1.  **Network segmentation** (bind address) — reduce attack surface by limiting
-    which interfaces the service listens on. Network isolation alone is not
-    enough: any container on the same network could still reach the service.
-2.  **Authentication** (ACL users) — require credentials before accepting
-    commands. Even inside the network, clients must prove their identity.
-3.  **Least privilege** (ACL permissions) — the application user gets only the
-    commands it needs (`read`, `ping`, connection commands). It cannot write,
-    delete data, or reconfigure the server. This limits blast radius if the
-    application credentials are compromised.
+1. **Network segmentation** (bind address) - reduce attack surface by limiting
+   which interfaces the service listens on. Network isolation alone is not
+   enough: any container on the same network could still reach the service.
+2. **Authentication** (ACL users) - require credentials before accepting
+   commands. Even inside the network, clients must prove their identity.
+3. **Least privilege** (ACL permissions) - the application user gets only the
+   commands it needs (`read`, `ping`, connection commands). It cannot write,
+   delete data, or reconfigure the server. This limits blast radius if the
+   application credentials are compromised.

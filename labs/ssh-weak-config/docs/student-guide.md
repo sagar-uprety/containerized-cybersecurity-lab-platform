@@ -1,4 +1,4 @@
-# Open Door Policy
+# Weak SSH Configuration and Brute-Force Vulnerability
 
 You've been called in as an incident responder. A server was flagged after
 suspicious SSH login activity appeared in the authentication logs. The previous
@@ -14,6 +14,20 @@ By the end of this lab you should be able to:
 -   Demonstrate the impact using only the lab environment
 -   Apply an appropriate fix
 -   Verify your fix using the portal checker
+
+## Prerequisites
+
+Before starting this lab, you should be familiar with:
+
+-   Basic SSH concepts (what an SSH server does, the difference between password and key-based authentication)
+-   Linux file permissions and basic configuration editing (using a text editor like `nano` or `vim`)
+-   What brute-force and dictionary attacks are and why weak passwords are risky
+
+If you need to review these topics, see:
+
+-   OpenSSH official documentation: <https://www.openssh.com/manual.html>
+-   SSH key-based authentication basics: <https://man.openbsd.org/ssh.1> (see AUTHENTICATION section)
+-   Password security and brute-force concepts: <https://csrc.nist.gov/glossary/term/brute-force_attack>
 
 ## Getting Started
 
@@ -52,7 +66,7 @@ utilities to explore the environment.
 
 **Proving impact:** Once you've identified the issues, demonstrate that an
 attacker could gain unauthorized access. Use only what the lab environment
-provides — do not introduce real credentials or external resources.
+provides - do not introduce real credentials or external resources.
 
 ## Remediate
 
@@ -68,20 +82,22 @@ your changes. Changes must survive a service restart.
 
 -   Official documentation: <https://man.openbsd.org/sshd_config>
 -   Local: `man sshd_config`, `sshd -T | grep -i <setting>`
+-   Brute-force protection: `man fail2ban`, `man jail.local`
 
 **Need a hint?**
 
 -   What principle requires verifying identity before granting access to a system?
 -   Look for the authentication-related settings in the SSH daemon configuration file.
--   The `sshd_config` man page has a section on authentication — check the default values and what they allow.
+-   The `sshd_config` man page has a section on authentication - check the default values and what they allow.
+-   The server has an intrusion-prevention framework installed. Look for a service that monitors authentication logs and can temporarily block sources of repeated failed login attempts.
 
 ## Verify
 
 After applying your fix, confirm that:
 
-1.  The vulnerability is no longer exploitable
-2.  Your legitimate access still works
-3.  Brute-force protection is active
+1. The vulnerability is no longer exploitable
+2. Your legitimate access still works
+3. Brute-force protection is active
 
 Use the same tools from your investigation to re-check. When satisfied,
 click **Run Check** in the portal.
@@ -89,5 +105,5 @@ click **Run Check** in the portal.
 ---
 
 _When you're done, end the lab through the portal and complete the feedback
-form. Take a moment to reflect on what you learned — what surprised you,
+form. Take a moment to reflect on what you learned - what surprised you,
 what you'd do differently, and how this applies beyond this specific scenario._

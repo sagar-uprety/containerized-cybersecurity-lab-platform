@@ -1,4 +1,4 @@
-# The Return Path — Instructor Guide
+# Firewall Rule Misconfiguration - Source-Port Bypass - Instructor Guide
 
 ## Lab Overview
 
@@ -15,20 +15,6 @@ Students investigate a stateless firewall that protects an internal web server. 
 | 5   | Apply equivalent rules to both IPv4 and IPv6    | Student writes matching ip6tables rules from scratch                                |
 | 6   | Test firewall configuration systematically      | Student verifies bypass blocked, outbound works, and both protocols protected       |
 
-## Reveal Boundary
-
-| Content                 | Student Guide            | Solution Notes       | This Guide        |
-| ----------------------- | ------------------------ | -------------------- | ----------------- |
-| Mission/role            | Yes                      | No                   | Summary           |
-| Diagnostic commands     | Yes (investigation only) | Yes (full)           | Reference         |
-| Impact demonstration    | Yes (what to observe)    | Yes (exact commands) | Expected evidence |
-| Remediation objective   | Yes (goal + constraints) | Yes (exact commands) | Rubric            |
-| Solution iptables rules | NEVER                    | Yes                  | Reference         |
-| Reload command          | NEVER                    | Yes                  | Reference         |
-| Hint ladder             | Yes (3 levels)           | No                   | Reveal policy     |
-| Official doc links      | Yes                      | Yes                  | Yes               |
-| Evidence checklist      | Yes                      | No                   | Expected answers  |
-
 ## Expected Evidence by Phase
 
 | Phase     | Expected Student Evidence                                                                                                |
@@ -44,17 +30,17 @@ Students investigate a stateless firewall that protects an internal web server. 
 | Level | When to Reveal         | Content                                                                                                   |
 | ----- | ---------------------- | --------------------------------------------------------------------------------------------------------- |
 | 1     | Student asks for help  | Think about the difference between allowing return traffic and allowing any traffic from a specific port. |
-| 2     | Student stuck > 10 min | Look at the iptables `conntrack` module — it can track connection state instead of matching ports.        |
+| 2     | Student stuck > 10 min | Look at the iptables `conntrack` module - it can track connection state instead of matching ports.        |
 | 3     | Student stuck > 20 min | See `man iptables-extensions` (conntrack section) and the iptables-restore(8) man page.                   |
 
 ## Common Mistakes
 
--   Students add conntrack rule but forget to remove the `--sport` rules — How to address: Ask what happens when both rules exist — the sport rule still matches first.
--   Students put conntrack rule after the dport rules — How to address: Explain iptables rule ordering — first match wins.
--   Students fix IPv4 but forget IPv6 — How to address: Ask "what about the other IP version?"
--   Students write ip6tables rules with wrong syntax — How to address: Suggest testing with `ip6tables -L -n` after loading.
--   Students forget to set default policy to DROP — How to address: Ask what happens to traffic that doesn't match any rule.
--   Students break outbound connectivity by being too restrictive — How to address: Remind them to test `curl example.com` after changes.
+-   Students add conntrack rule but forget to remove the `--sport` rules - How to address: Ask what happens when both rules exist - the sport rule still matches first.
+-   Students put conntrack rule after the dport rules - How to address: Explain iptables rule ordering - first match wins.
+-   Students fix IPv4 but forget IPv6 - How to address: Ask "what about the other IP version?"
+-   Students write ip6tables rules with wrong syntax - How to address: Suggest testing with `ip6tables -L -n` after loading.
+-   Students forget to set default policy to DROP - How to address: Ask what happens to traffic that doesn't match any rule.
+-   Students break outbound connectivity by being too restrictive - How to address: Remind them to test `curl example.com` after changes.
 
 ## Checker States
 
@@ -73,7 +59,7 @@ How to use combined feedback form responses for this lab:
 
 ## Teaching Notes
 
--   Emphasize that "allowing return traffic by source port" is a common real-world mistake — Deng et al. (2025) found 2.4M services behind this exact misconfiguration
+-   Emphasize that "allowing return traffic by source port" is a common real-world mistake - Deng et al. (2025) found 2.4M services behind this exact misconfiguration
 -   The dual-stack lesson is pedagogically valuable: administrators who configure iptables for IPv4 frequently leave ip6tables empty
 -   Connect to Dietrich (2018): faulty firewall rules are among the top self-reported misconfiguration types
 -   Duration: ~60-90 minutes

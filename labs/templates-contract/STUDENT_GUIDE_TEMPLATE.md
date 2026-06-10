@@ -1,6 +1,6 @@
 # <Lab Title>
 
-<2-3 sentence narrative setting the scene: the student's role, what's been observed, and what they need to do. Write naturally — do not name the vulnerability or use bold labels. Let the situation unfold like a real work assignment.>
+<2-3 sentence narrative setting the scene: the student's role, what's been observed, and what they need to do. Write naturally - do not name the vulnerability or use bold labels. Let the situation unfold like a real work assignment.>
 
 ## Objectives
 
@@ -10,6 +10,20 @@ By the end of this lab you should be able to:
 -   Demonstrate the impact using only the lab environment
 -   Apply an appropriate fix
 -   Verify your fix using the portal checker
+
+## Prerequisites
+
+Before starting this lab, you should be familiar with:
+
+-   <Concept 1: a concrete topic the student needs to reason about the vulnerability>
+-   <Concept 2: another relevant background topic>
+-   <Concept 3: if applicable - a specific tool or protocol concept>
+
+If you need to review these topics, see:
+
+-   <Official resource 1: link to authoritative learning material>
+-   <Official resource 2: link to official documentation overview or getting-started guide>
+-   <Official resource 3: link to security concept reference if applicable>
 
 ## Getting Started
 
@@ -32,13 +46,13 @@ Before fixing anything, understand the environment and confirm the problem is re
 
 Use standard Linux and service-administration tools to explore the environment. <Describe tool families available in this specific lab.>
 
-**Proving impact:** Once you've identified the issue, demonstrate that it has real consequences. Use only what the lab environment provides — do not introduce real credentials or external resources.
+**Proving impact:** Once you've identified the issue, demonstrate that it has real consequences. Use only what the lab environment provides - do not introduce real credentials or external resources.
 
 ## Remediate
 
 Now fix the issue.
 
-**Goal:** <what to achieve — stated as an outcome, not a command>
+**Goal:** <what to achieve - stated as an outcome, not a command>
 
 **Constraints:** Changes must survive a service restart.
 
@@ -57,14 +71,14 @@ Now fix the issue.
 
 After applying your fix, confirm:
 
-1.  The vulnerability is no longer exploitable
-2.  The service is functioning correctly
+1. The vulnerability is no longer exploitable
+2. The service is functioning correctly
 
 When satisfied, click **Run Check** in the portal.
 
 ---
 
-_When you're done, end the lab through the portal and complete the feedback form. Take a moment to reflect on what you learned — what surprised you, what you'd do differently, and how this applies beyond this specific scenario._
+_When you're done, end the lab through the portal and complete the feedback form. Take a moment to reflect on what you learned - what surprised you, what you'd do differently, and how this applies beyond this specific scenario._
 
 ---
 

@@ -1,4 +1,4 @@
-# Solution Notes: Open Door Policy
+# Solution Notes: Weak SSH Configuration and Brute-Force Vulnerability
 
 ## Root Cause
 
@@ -41,7 +41,7 @@ Change these lines:
 
 ### 2. Remove unauthorized keys
 
-Inspect the authorized_keys file — you'll see two keys. The first is an
+Inspect the authorized_keys file - you'll see two keys. The first is an
 attacker-installed key, the second is your legitimate lab key. Remove the
 attacker key and clear root's authorized_keys:
 

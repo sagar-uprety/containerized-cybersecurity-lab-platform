@@ -1,8 +1,8 @@
-# The Exposed Cache
+# Unauthenticated NoSQL Database Exposure
 
 You've been assigned as the junior administrator for a small order-processing
 application. Monitoring has flagged unusual direct connections to the
-application's cache service — connections that do not appear to come from the
+application's cache service - connections that do not appear to come from the
 application itself. The cache holds customer data, order state, session tokens,
 and internal configuration. The order application still works, but the cache
 may be exposed on the internal network.
@@ -21,6 +21,20 @@ By the end of this lab you should be able to:
     dependent services
 -   Verify your fix using the portal checker
 
+## Prerequisites
+
+Before starting this lab, you should be familiar with:
+
+-   Basic TCP/IP networking concepts (ports, interfaces, binding, and local vs. remote addresses)
+-   What an in-memory key-value cache is and why applications use one
+-   The difference between network access and authentication (being able to reach a service vs. being authorized to use it)
+
+If you need to review these topics, see:
+
+-   Redis documentation overview: <https://redis.io/docs/latest/> (what Redis is and common use cases)
+-   Networking basics - ports and addresses: `man ip`, `man ss`, or your system's networking guide
+-   Authentication vs. authorization: <https://csrc.nist.gov/glossary/term/authentication> and <https://csrc.nist.gov/glossary/term/authorization>
+
 ## Getting Started
 
 Read the incident brief to understand your mission:
@@ -36,7 +50,7 @@ order application on an isolated lab network. Use the portal to **Start Lab**,
 ## Investigation
 
 Before fixing anything, understand the environment and confirm the problem is
-real — and worse than it might first appear.
+real - and worse than it might first appear.
 
 **Guiding questions:**
 
@@ -55,21 +69,21 @@ standard Linux utilities to explore the environment. Stay inside the lab
 network and use only the seeded demo data.
 
 **Proving impact:** Once you've identified the issue, demonstrate that this is
-more than an "open port" — it is a data breach waiting to happen. Show that the
+more than an "open port" - it is a data breach waiting to happen. Show that the
 exposed service reveals sensitive information and that write access allows
 modification of application state. Use only what the lab environment provides.
 
 ## Remediate
 
-Now fix the issue with layered controls — one layer alone is not enough.
+Now fix the issue with layered controls - one layer alone is not enough.
 
-**Goal:** Restrict network exposure, require authentication, and enforce
-least-privilege access so that the application can still read data but an
-unauthenticated attacker cannot do anything.
+**Goal:** Restrict network exposure, require authentication with the Redis ACL
+system, and enforce least-privilege access so that the application can still
+read data but an unauthenticated attacker cannot do anything.
 
 **Constraints:** Changes must survive a service restart. The order application
 depends on the cache, so your fix must not break normal application behavior.
-The application should only have the minimum permissions it needs — not full
+The application should only have the minimum permissions it needs - not full
 administrative access.
 
 **References:**
@@ -84,7 +98,7 @@ administrative access.
     authorization. Think about what an attacker on the same network segment
     could still reach, and what controls would stop them at the network level.
 -   Redis supports two authentication mechanisms. The newer one lets you create
-    named users with different permission sets — including read-only users for
+    named users with different permission sets - including read-only users for
     applications. Look for how to define and load user permissions.
 -   Check the ACL documentation for how to disable the default unauthenticated
     user, create a restricted application user, and point the server at the ACL
@@ -95,9 +109,9 @@ administrative access.
 
 After applying your fixes, confirm:
 
-1.  Unauthenticated access is blocked
-2.  The application user can still read data but cannot write
-3.  The order application still works as expected
+1. Unauthenticated access is blocked
+2. The application user can still read data but cannot write
+3. The order application still works as expected
 
 Use the same tools from your investigation to re-check each layer. When
 satisfied, click **Run Check** in the portal.
@@ -105,5 +119,5 @@ satisfied, click **Run Check** in the portal.
 ---
 
 _When you're done, end the lab through the portal and complete the feedback
-form. Take a moment to reflect on what you learned — what surprised you, what
+form. Take a moment to reflect on what you learned - what surprised you, what
 you'd do differently, and how this applies beyond this specific scenario._

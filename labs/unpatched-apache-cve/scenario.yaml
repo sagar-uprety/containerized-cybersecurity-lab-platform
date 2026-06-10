@@ -1,5 +1,5 @@
 id: unpatched-apache-cve
-title: Patch Me If You Can
+title: Unpatched Service with Known Vulnerability
 difficulty: intermediate
 duration_minutes: 75
 
@@ -32,6 +32,7 @@ checker:
     - fixed
   checks:
     - name: apache_exploit
+      label: "Path-traversal vulnerability is patched"
       exec_in: workstation
       run: >
         OUT=$(curl --path-as-is -s http://apache-host/cgi-bin/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd 2>/dev/null);
@@ -44,6 +45,7 @@ checker:
         vulnerable: "output_eq: EXPLOITABLE"
         fixed: "output_eq: SAFE"
     - name: apache_home
+      label: "Apache web server is reachable"
       exec_in: workstation
       run: "if curl -s -o /dev/null -w '' --connect-timeout 5 http://apache-host/ 2>/dev/null; then echo 200; else echo DOWN; fi"
       states:

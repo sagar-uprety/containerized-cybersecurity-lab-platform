@@ -1,5 +1,5 @@
 id: redis-exposed
-title: The Exposed Cache
+title: Unauthenticated NoSQL Database Exposure
 difficulty: beginner
 duration_minutes: 90
 
@@ -32,18 +32,21 @@ checker:
     - fixed
   checks:
     - name: redis_unauth_blocked
+      label: "Unauthorized Redis access is blocked"
       exec_in: workstation
       run: "redis-cli -h redis-host ping 2>&1"
       states:
         vulnerable: "output_contains: PONG"
         fixed: "output_contains: NOAUTH"
     - name: redis_acl_enforced
+      label: "Redis access controls are enforced"
       exec_in: workstation
       run: "redis-cli -h redis-host --user app --pass app-demo-password SET lab-test checker-value 2>&1"
       states:
         vulnerable: "output_contains: OK"
         fixed: "output_contains: NOPERM"
     - name: demo_app_healthy
+      label: "Demo application is reachable"
       exec_in: workstation
       run: "curl -s -o /dev/null -w '%{http_code}' http://demo-app:8080/health"
       states:

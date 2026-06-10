@@ -1,4 +1,4 @@
-# Patch Me If You Can
+# Unpatched Service with Known Vulnerability
 
 You've been assigned as a security assessor for a small research lab. During a
 routine asset inventory, a legacy web server was discovered still running on the
@@ -15,6 +15,20 @@ By the end of this lab you should be able to:
 -   Demonstrate the impact using only the lab environment
 -   Apply an appropriate fix
 -   Verify your fix using the portal checker
+
+## Prerequisites
+
+Before starting this lab, you should be familiar with:
+
+-   Basic HTTP and web server concepts (what a web server does, URL paths, and how requests are handled)
+-   What a CVE (Common Vulnerabilities and Exposures) entry is and how to read a security advisory
+-   Basic Linux file editing and service management (editing configuration files and restarting services)
+
+If you need to review these topics, see:
+
+-   Apache HTTP Server documentation: <https://httpd.apache.org/docs/2.4/> (Getting Started and URL Mapping sections)
+-   CVE program overview: <https://www.cve.org/About/Overview>
+-   HTTP basics: <https://developer.mozilla.org/en-US/docs/Web/HTTP/Overview>
 
 ## Getting Started
 
@@ -42,7 +56,7 @@ real.
 Use standard Linux networking tools and HTTP clients to explore the environment.
 
 **Proving impact:** Once you've identified the issue, demonstrate that it
-has real consequences. Use only what the lab environment provides — do not
+has real consequences. Use only what the lab environment provides - do not
 introduce real credentials or external resources.
 
 ## Remediate
@@ -58,6 +72,7 @@ allows the path traversal to succeed.
 
 -   Official documentation: <https://httpd.apache.org/docs/2.4/mod/mod_alias.html>
 -   Local: `man httpd.conf`, `/usr/local/apache2/bin/httpd -V`
+-   Restart: `sudo /usr/local/sbin/restart-apache` (reload the server after configuration changes)
 
 **If you're stuck, here are hints to help without giving away the answer:**
 
@@ -75,7 +90,7 @@ click **Run Check** in the portal.
 
 ---
 
-_When you're done, end the lab through the portal and complete the feedback form. Take a moment to reflect on what you learned — what surprised you, what you'd do differently, and how this applies beyond this specific scenario._
+_When you're done, end the lab through the portal and complete the feedback form. Take a moment to reflect on what you learned - what surprised you, what you'd do differently, and how this applies beyond this specific scenario._
 
 ---
 

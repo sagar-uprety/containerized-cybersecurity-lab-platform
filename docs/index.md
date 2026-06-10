@@ -2,9 +2,9 @@
 
 This MkDocs site is the canonical student learning path for the thesis lab platform.
 
-Use the portal for authenticated lifecycle actions, terminal access, endpoints, and checker results. Use these guides for your scenario walkthrough and reflection prompts.
+Use the lab portal for authenticated lifecycle actions, terminal access, endpoints, and checker results. Use these guides for the lab walkthrough and hints.
 
-Start in the portal, open your assigned lab, then keep the guide next to the browser terminal. Each lab follows the same learning flow: orient, discover, demonstrate impact, remediate, verify, and reflect.
+Start in the portal, open your assigned lab, then keep the guide next to the browser terminal.
 
 ## Labs
 

@@ -39,7 +39,7 @@ export default function InstructorSessionDetail({ user, labId, studentId, onLogo
     );
   }
 
-  const { status, duration_seconds, commands, latest_check, lifecycle_events } = data;
+  const { status, duration_seconds, commands, latest_check, lifecycle_events, scenario } = data;
 
   return (
     <>
@@ -63,7 +63,7 @@ export default function InstructorSessionDetail({ user, labId, studentId, onLogo
         )}
 
         {latest_check && (
-          <CheckResult result={latest_check} visible={true} />
+          <CheckResult result={latest_check} visible={true} checkerChecks={scenario?.checker?.checks} />
         )}
 
         <div className="panel">
