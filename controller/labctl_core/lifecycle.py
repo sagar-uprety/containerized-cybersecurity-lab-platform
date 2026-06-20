@@ -21,6 +21,7 @@ from labctl_core.scenario import (
     evaluate_condition,
     load_scenario,
     load_student_record,
+    read_injected_lab_password,
     service_images,
     student_number_from_id,
 )
@@ -35,13 +36,28 @@ class LabRuntime:
         self.paths = RuntimePaths()
         self.paths.ensure_state_dirs()
 
-    def _load_context(self, lab_id: str, student_id: str) -> tuple[dict, dict, str, dict]:
-        scenario = load_scenario(self.paths, lab_id)
+    def _resolve_student(self, student_id: str) -> tuple[str, int, dict]:
+        """Resolve (password, number, record) for provisioning.
+
+        Decision B: a password injected by the portal at start-time wins and
+        needs no on-disk registry (number is derived from the student id). Only
+        when nothing is injected do we fall back to the static students.yml.
+        """
+        injected = read_injected_lab_password()
+        if injected:
+            number = student_number_from_id(student_id)
+            return injected, number, {"id": student_id, "number": number, "password": injected}
+
         student = load_student_record(self.paths, student_id)
         number = int(student.get("number") or student_number_from_id(student_id))
         password = str(student.get("password") or "")
         if not password:
             raise LabctlError(f"Student password missing for {student_id}")
+        return password, number, student
+
+    def _load_context(self, lab_id: str, student_id: str) -> tuple[dict, dict, str, dict]:
+        scenario = load_scenario(self.paths, lab_id)
+        password, number, student = self._resolve_student(student_id)
 
         runtime_project = f"{lab_id}_{student_id}"
         ports = endpoint_ports(scenario, number)

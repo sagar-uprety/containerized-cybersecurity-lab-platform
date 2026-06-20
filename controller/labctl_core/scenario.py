@@ -1,5 +1,7 @@
 import json
+import os
 import re
+import sys
 from pathlib import Path
 
 import yaml
@@ -10,6 +12,27 @@ from labctl_core.config import RuntimePaths
 
 class ScenarioError(Exception):
     pass
+
+
+def read_injected_lab_password():
+    """Return a lab password supplied by the portal at start-time (Decision B).
+
+    The portal passes the password on the labctl process's stdin (forwarded
+    through ssh -> restricted wrapper -> sudo). Env var LAB_STUDENT_PASSWORD is
+    also honored as an alternate transport. Never read from argv, which the SSH
+    wrapper logs and rejects. Returns None when nothing was injected (e.g. an
+    interactive/manual invocation), so callers fall back to the static
+    /etc/thesis-labs/students.yml registry.
+    """
+    env_pw = os.environ.get("LAB_STUDENT_PASSWORD")
+    if env_pw and env_pw.strip():
+        return env_pw.strip()
+    # Only consume stdin when it is piped (ssh sets a non-tty stdin); a tty means
+    # a human is running labctl directly, so do not block waiting for input.
+    if sys.stdin is None or sys.stdin.isatty():
+        return None
+    line = sys.stdin.readline()
+    return line.strip() or None
 
 
 def normalize_key(value: str) -> str:

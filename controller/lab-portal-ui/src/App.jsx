@@ -6,7 +6,9 @@ import Feedback from "./pages/Feedback.jsx";
 import InstructorOverview from "./pages/InstructorOverview.jsx";
 import InstructorLabDetail from "./pages/InstructorLabDetail.jsx";
 import InstructorSessionDetail from "./pages/InstructorSessionDetail.jsx";
+import InstructorManage from "./pages/InstructorManage.jsx";
 import StudentSearch from "./pages/StudentSearch.jsx";
+import PasswordChange from "./pages/PasswordChange.jsx";
 import { getMe, logout } from "./api.js";
 
 function parseRoute() {
@@ -24,6 +26,9 @@ function parseRoute() {
 
   const instructorSearchMatch = path.match(/^\/instructor\/search\/?$/);
   if (instructorSearchMatch) return { page: "instructor-search" };
+
+  const instructorManageMatch = path.match(/^\/instructor\/manage\/?$/);
+  if (instructorManageMatch) return { page: "instructor-manage" };
 
   const instructorMatch = path.match(/^\/instructor\/?$/);
   if (instructorMatch) return { page: "instructor" };
@@ -84,6 +89,18 @@ export default function App() {
     return <LoginPage onLogin={handleLogin} />;
   }
 
+  if (user.must_change_password) {
+    return (
+      <PasswordChange
+        onChanged={() => setUser({ ...user, must_change_password: false })}
+        onLogout={handleLogout}
+      />
+    );
+  }
+
+  if (route.page === "instructor-manage") {
+    return <InstructorManage user={user} onLogout={handleLogout} />;
+  }
   if (route.page === "instructor") {
     return <InstructorOverview user={user} onLogout={handleLogout} />;
   }

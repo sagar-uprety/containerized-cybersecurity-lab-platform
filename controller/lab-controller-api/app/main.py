@@ -4,7 +4,6 @@ import hmac
 import json
 import logging
 import re
-import secrets
 import threading
 import time
 from pathlib import Path
@@ -19,8 +18,16 @@ from fastapi.responses import (
 )
 from fastapi.staticfiles import StaticFiles
 
-from app.auth import get_student_users, get_user_registry
+from app import repository as repo
+from app.auth import (
+    authenticate_credentials,
+    change_password,
+    get_student_users,
+    get_visible_lab_ids,
+    lookup_user,
+)
 from app.config import settings
+from app.db import SessionLocal, init_db
 from app.events import record_event
 from app.feedback import (
     build_evidence_export,
@@ -54,6 +61,7 @@ from app.scenarios import (
     user_student_id,
     validate_lab_id,
 )
+from app.seed import seed_if_empty
 from app.ssh_client import run_labctl
 
 logger = logging.getLogger(__name__)
@@ -72,9 +80,15 @@ app.mount(
 
 SPA_INDEX = Path(__file__).resolve().parent / "static" / "dist" / "index.html"
 
-SESSION_SECRET = settings.PORTAL_USERS_FILE.encode() + b"thesis-lab-portal-session"
+SESSION_SECRET = settings.PORTAL_DB_PATH.encode() + b"thesis-lab-portal-session"
 SESSION_COOKIE = "portal_session"
 SESSION_MAX_AGE = 86400
+
+
+@app.on_event("startup")
+def _startup_init_db() -> None:
+    init_db()
+    seed_if_empty()
 
 
 def _sign_session_token(username: str) -> str:
@@ -107,15 +121,9 @@ def get_authenticated_user(request: Request) -> dict:
     if cookie_token:
         username = _verify_session_token(cookie_token)
         if username:
-            user_dict = get_user_registry().get(username)
+            user_dict = lookup_user(username)
             if user_dict:
-                return {
-                    "username": user_dict["username"],
-                    "password": user_dict["password"],
-                    "role": user_dict["role"],
-                    "student_id": user_dict["student_id"],
-                    "number": user_dict.get("number"),
-                }
+                return user_dict
     auth_header = request.headers.get("authorization", "")
     if auth_header.startswith("Basic "):
         try:
@@ -125,22 +133,12 @@ def get_authenticated_user(request: Request) -> dict:
             raise HTTPException(
                 status_code=401, detail="Invalid credentials", headers={"WWW-Authenticate": "Basic"}
             ) from None
-        user_dict = get_user_registry().get(username)
+        user_dict = authenticate_credentials(username, password)
         if not user_dict:
             raise HTTPException(
                 status_code=401, detail="Invalid credentials", headers={"WWW-Authenticate": "Basic"}
             )
-        if not secrets.compare_digest(password.encode(), user_dict["password"].encode()):
-            raise HTTPException(
-                status_code=401, detail="Invalid credentials", headers={"WWW-Authenticate": "Basic"}
-            )
-        return {
-            "username": user_dict["username"],
-            "password": user_dict["password"],
-            "role": user_dict["role"],
-            "student_id": user_dict["student_id"],
-            "number": user_dict.get("number"),
-        }
+        return user_dict
     raise HTTPException(status_code=401, detail="Not authenticated")
 
 
@@ -185,8 +183,11 @@ def get_lab_status_details(lab_id: str, student_id: str) -> tuple[str, list[dict
 def run_action(verb: str, lab_id: str, user: dict) -> tuple[bool, str, str, float]:
     validate_lab_id(lab_id)
     student_id = user_student_id(user)
+    # Provisioning verbs need the student's lab password injected on stdin so
+    # labctl can set the workstation account / terminal credential (Decision B).
+    lab_password = user.get("lab_password") if verb in ("start", "reset") else None
     started = time.monotonic()
-    success, stdout, stderr = run_labctl(verb, lab_id, student_id)
+    success, stdout, stderr = run_labctl(verb, lab_id, student_id, lab_password=lab_password)
     duration = time.monotonic() - started
     record_event(
         action="end" if verb == "destroy" else verb,
@@ -223,6 +224,17 @@ def scenario_idle_timeout(scenario: dict):
 def require_student(user: dict) -> None:
     if user["role"] != "student":
         raise HTTPException(status_code=403, detail="Student access required")
+    # password is changed. /api/me, /api/password, /api/logout do not call this.
+    if user.get("must_change_password"):
+        raise HTTPException(status_code=403, detail="password_change_required")
+
+
+def require_lab_visible(user: dict, lab_id: str) -> None:
+    """Reject (403) a student acting on a lab not assigned to one of their
+    if user["role"] != "student":
+        return
+    if lab_id not in get_visible_lab_ids(user["username"]):
+        raise HTTPException(status_code=403, detail="Lab not assigned")
 
 
 async def _parse_action_body(request: Request) -> dict:
@@ -263,15 +275,18 @@ def _build_endpoints(scenario: dict, student_id: str, user: dict) -> dict:
 def api_me(user: dict = Depends(get_authenticated_user)):
     return {
         "username": user["username"],
+        "email": user.get("email") or user["username"],
         "role": user["role"],
         "student_id": user.get("student_id") or user["username"],
+        "must_change_password": user.get("must_change_password", False),
     }
 
 
 @app.get("/api/labs")
 def api_labs(user: dict = Depends(get_authenticated_user)):
     require_student(user)
-    labs = list_scenarios()
+    visible = get_visible_lab_ids(user["username"])
+    labs = [lab for lab in list_scenarios() if lab["id"] in visible]
     student_id = user_student_id(user)
     result = []
     for lab in labs:
@@ -292,6 +307,8 @@ def api_labs(user: dict = Depends(get_authenticated_user)):
 def api_lab_detail(lab_id: str, _request: Request, user: dict = Depends(get_authenticated_user)):
     require_student(user)
     validate_lab_id(lab_id)
+    if lab_id not in get_visible_lab_ids(user["username"]):
+        raise HTTPException(status_code=404, detail="Lab not found")
     scenario = load_scenario_metadata(lab_id)
     if not scenario:
         raise HTTPException(status_code=404, detail="Lab not found")
@@ -317,6 +334,7 @@ def api_lab_detail(lab_id: str, _request: Request, user: dict = Depends(get_auth
 @app.get("/api/labs/{lab_id}/feedback")
 def api_lab_feedback(lab_id: str, user: dict = Depends(get_authenticated_user)):
     require_student(user)
+    require_lab_visible(user, lab_id)
     validate_lab_id(lab_id)
     student_id = user_student_id(user)
     runtime_state = runtime_state_for(lab_id, student_id)
@@ -345,18 +363,17 @@ async def api_login(request: Request):
     password = body.get("password", "")
     if not username or not password:
         raise HTTPException(status_code=400, detail="Username and password required")
-    user_dict = get_user_registry().get(username)
+    user_dict = authenticate_credentials(username, password)
     if not user_dict:
         raise HTTPException(status_code=401, detail="Invalid username or password")
-    if not secrets.compare_digest(password.encode(), user_dict["password"].encode()):
-        raise HTTPException(status_code=401, detail="Invalid username or password")
-    token = _sign_session_token(username)
+    token = _sign_session_token(user_dict["username"])
     response = JSONResponse(
         {
             "user": {
                 "username": user_dict["username"],
                 "role": user_dict["role"],
                 "student_id": user_dict.get("student_id") or user_dict["username"],
+                "must_change_password": user_dict.get("must_change_password", False),
             }
         }
     )
@@ -378,6 +395,27 @@ def api_logout():
     return response
 
 
+@app.post("/api/password")
+async def api_change_password(request: Request, user: dict = Depends(get_authenticated_user)):
+
+    Deliberately does not call require_student so a student with
+    must_change_password set can still reach it (require_student would block).
+    """
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body") from None
+    current = body.get("current_password", "")
+    new = body.get("new_password", "")
+    if not current or not new:
+        raise HTTPException(status_code=400, detail="Current and new password required")
+    if len(new) < 8:
+        raise HTTPException(status_code=400, detail="New password must be at least 8 characters")
+    if not change_password(user["username"], current, new):
+        raise HTTPException(status_code=401, detail="Current password is incorrect")
+    return {"ok": True}
+
+
 # ---------------------------------------------------------------------------
 # Existing POST endpoints (JSON response for fetch, redirect otherwise)
 # ---------------------------------------------------------------------------
@@ -390,6 +428,7 @@ async def start_lab(
     user: dict = Depends(get_authenticated_user),
 ):
     require_student(user)
+    require_lab_visible(user, lab_id)
     body = await _parse_action_body(request)
     validate_token(body["csrf_token"], user)
     scenario = load_scenario_metadata(lab_id)
@@ -443,6 +482,7 @@ async def stop_lab(
     user: dict = Depends(get_authenticated_user),
 ):
     require_student(user)
+    require_lab_visible(user, lab_id)
     body = await _parse_action_body(request)
     validate_token(body["csrf_token"], user)
     success, _stdout, stderr, _duration = run_action("stop", lab_id, user)
@@ -468,6 +508,7 @@ async def reset_lab(
     user: dict = Depends(get_authenticated_user),
 ):
     require_student(user)
+    require_lab_visible(user, lab_id)
     body = await _parse_action_body(request)
     validate_token(body["csrf_token"], user)
     success, _stdout, stderr, _duration = run_action("reset", lab_id, user)
@@ -495,6 +536,7 @@ async def end_lab(
     user: dict = Depends(get_authenticated_user),
 ):
     require_student(user)
+    require_lab_visible(user, lab_id)
     body = await _parse_action_body(request)
     validate_token(body["csrf_token"], user)
     success, _stdout, stderr, _duration = run_action("destroy", lab_id, user)
@@ -515,6 +557,7 @@ async def check_lab(
     user: dict = Depends(get_authenticated_user),
 ):
     require_student(user)
+    require_lab_visible(user, lab_id)
     body = await _parse_action_body(request)
     validate_token(body["csrf_token"], user)
     success, stdout, stderr, duration = run_action("check", lab_id, user)
@@ -558,6 +601,7 @@ async def submit_feedback(
     user: dict = Depends(get_authenticated_user),
 ):
     require_student(user)
+    require_lab_visible(user, lab_id)
     body = await _parse_action_body(request)
     validate_token(body["csrf_token"], user)
     validate_lab_id(lab_id)
@@ -578,6 +622,7 @@ async def submit_feedback(
 @app.post("/api/heartbeat/{lab_id}")
 def heartbeat(lab_id: str, user: dict = Depends(get_authenticated_user)):
     require_student(user)
+    require_lab_visible(user, lab_id)
     validate_lab_id(lab_id)
     student_id = user_student_id(user)
     touch_runtime_state(lab_id, student_id)
@@ -814,10 +859,21 @@ def api_instructor_session_detail(
 @app.get("/api/instructor/students")
 def api_instructor_students(user: dict = Depends(get_authenticated_user)):
     require_instructor(user)
-    return [
-        {"student_id": s["student_id"], "username": s["username"]}
-        for s in get_student_users().values()
-    ]
+    with SessionLocal() as session:
+        students = repo.list_users(session, role="student")
+        return [
+            {
+                # student_id/username kept for backward compatibility with the UI
+                "student_id": s.internal_id or s.email,
+                "username": s.email,
+                "email": s.email,
+                "number": s.number,
+                "must_change_password": bool(s.must_change_password),
+                "active": bool(s.active),
+                "groups": [m.group.name for m in s.memberships],
+            }
+            for s in students
+        ]
 
 
 @app.get("/api/instructor/students/{student_id}")
@@ -894,6 +950,220 @@ def api_download_export(export_id: str, user: dict = Depends(get_authenticated_u
 
 
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+
+
+def _require_instructor_csrf(request: Request, user: dict, body: Optional[dict] = None) -> None:
+    """Validate a form token from the JSON body (POST) or X-CSRF-Token header
+    (DELETE). State-changing instructor actions are CSRF-protected like the
+    student lifecycle actions."""
+    token = ""
+    if isinstance(body, dict):
+        token = body.get("csrf_token", "")
+    if not token:
+        token = request.headers.get("x-csrf-token", "")
+    validate_token(token, user)
+
+
+def _destroy_student_labs(student_id: str) -> None:
+    """Best-effort teardown of a student's lab instances before removal, so the
+    freed student number/ports are safe to reuse (see repository.next_free_number)."""
+    for scenario in list_scenarios():
+        try:
+            run_labctl("destroy", scenario["id"], student_id)
+        except Exception:
+            logger.warning("Teardown failed for %s/%s", scenario["id"], student_id)
+
+
+@app.get("/api/instructor/csrf")
+def api_instructor_csrf(user: dict = Depends(get_authenticated_user)):
+    require_instructor(user)
+    return {"csrf_token": generate_token(user)}
+
+
+@app.post("/api/instructor/students")
+async def api_create_student(request: Request, user: dict = Depends(get_authenticated_user)):
+    require_instructor(user)
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body") from None
+    _require_instructor_csrf(request, user, body)
+    email = body.get("email", "").strip()
+    if not email:
+        raise HTTPException(status_code=400, detail="email is required")
+    with SessionLocal() as session:
+        try:
+            student, initial_password = repo.create_student(session, email)
+            session.commit()
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return {
+            "student_id": student.internal_id,
+            "email": student.email,
+            "number": student.number,
+            # Shown to the instructor exactly once; only the hash is stored.
+            "initial_password": initial_password,
+        }
+
+
+@app.delete("/api/instructor/students/{student_id}")
+def api_delete_student(
+    student_id: str, request: Request, user: dict = Depends(get_authenticated_user)
+):
+    require_instructor(user)
+    _require_instructor_csrf(request, user)
+    with SessionLocal() as session:
+        target = repo.get_user_by_internal_id(session, student_id)
+        if target is None or target.role != "student":
+            raise HTTPException(status_code=404, detail="Student not found")
+        user_id = target.id
+    # Tear down running labs before deleting (releases ports for number reuse).
+    _destroy_student_labs(student_id)
+    with SessionLocal() as session:
+        repo.remove_user(session, user_id)
+        session.commit()
+    return {"ok": True}
+
+
+def _group_to_dict(group) -> dict:
+    return {
+        "id": group.id,
+        "name": group.name,
+        "members": [
+            {"student_id": m.user.internal_id or m.user.email, "email": m.user.email}
+            for m in group.members
+        ],
+        "labs": [gl.lab_id for gl in group.labs],
+    }
+
+
+@app.get("/api/instructor/groups")
+def api_list_groups(user: dict = Depends(get_authenticated_user)):
+    require_instructor(user)
+    with SessionLocal() as session:
+        return [_group_to_dict(g) for g in repo.list_groups(session)]
+
+
+@app.post("/api/instructor/groups")
+async def api_create_group(request: Request, user: dict = Depends(get_authenticated_user)):
+    require_instructor(user)
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body") from None
+    _require_instructor_csrf(request, user, body)
+    name = body.get("name", "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    with SessionLocal() as session:
+        try:
+            group = repo.create_group(session, name)
+            session.commit()
+            return _group_to_dict(group)
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.delete("/api/instructor/groups/{group_id}")
+def api_delete_group(group_id: int, request: Request, user: dict = Depends(get_authenticated_user)):
+    require_instructor(user)
+    _require_instructor_csrf(request, user)
+    with SessionLocal() as session:
+        if not repo.delete_group(session, group_id):
+            raise HTTPException(status_code=404, detail="Group not found")
+        session.commit()
+    return {"ok": True}
+
+
+@app.post("/api/instructor/groups/{group_id}/members")
+async def api_add_member(
+    group_id: int, request: Request, user: dict = Depends(get_authenticated_user)
+):
+    require_instructor(user)
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body") from None
+    _require_instructor_csrf(request, user, body)
+    student_id = body.get("student_id", "").strip()
+    if not student_id:
+        raise HTTPException(status_code=400, detail="student_id is required")
+    with SessionLocal() as session:
+        target = repo.get_user_by_internal_id(session, student_id)
+        if target is None or target.role != "student":
+            raise HTTPException(status_code=404, detail="Student not found")
+        try:
+            repo.add_member(session, group_id, target.id)
+            session.commit()
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        group = repo.get_group(session, group_id)
+        return _group_to_dict(group)
+
+
+@app.delete("/api/instructor/groups/{group_id}/members/{student_id}")
+def api_remove_member(
+    group_id: int,
+    student_id: str,
+    request: Request,
+    user: dict = Depends(get_authenticated_user),
+):
+    require_instructor(user)
+    _require_instructor_csrf(request, user)
+    with SessionLocal() as session:
+        target = repo.get_user_by_internal_id(session, student_id)
+        if target is None:
+            raise HTTPException(status_code=404, detail="Student not found")
+        if not repo.remove_member(session, group_id, target.id):
+            raise HTTPException(status_code=404, detail="Membership not found")
+        session.commit()
+    return {"ok": True}
+
+
+@app.post("/api/instructor/groups/{group_id}/labs")
+async def api_assign_lab(
+    group_id: int, request: Request, user: dict = Depends(get_authenticated_user)
+):
+    require_instructor(user)
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body") from None
+    _require_instructor_csrf(request, user, body)
+    lab_id = body.get("lab_id", "").strip()
+    if not lab_id:
+        raise HTTPException(status_code=400, detail="lab_id is required")
+    validate_lab_id(lab_id)
+    if load_scenario_metadata(lab_id) is None:
+        raise HTTPException(status_code=404, detail="Lab not found")
+    with SessionLocal() as session:
+        try:
+            repo.assign_lab(session, group_id, lab_id)
+            session.commit()
+        except ValueError as exc:
+            raise HTTPException(status_code=404, detail=str(exc)) from exc
+        group = repo.get_group(session, group_id)
+        return _group_to_dict(group)
+
+
+@app.delete("/api/instructor/groups/{group_id}/labs/{lab_id}")
+def api_unassign_lab(
+    group_id: int,
+    lab_id: str,
+    request: Request,
+    user: dict = Depends(get_authenticated_user),
+):
+    require_instructor(user)
+    _require_instructor_csrf(request, user)
+    with SessionLocal() as session:
+        if not repo.unassign_lab(session, group_id, lab_id):
+            raise HTTPException(status_code=404, detail="Assignment not found")
+        session.commit()
+    return {"ok": True}
+
+
+# ---------------------------------------------------------------------------
 # React SPA serving (student + instructor portal)
 # ---------------------------------------------------------------------------
 
@@ -937,6 +1207,11 @@ def instructor_spa():
 
 @app.get("/instructor/search", response_class=HTMLResponse)
 def instructor_search_spa():
+    return _serve_spa()
+
+
+@app.get("/instructor/manage", response_class=HTMLResponse)
+def instructor_manage_spa():
     return _serve_spa()
 
 

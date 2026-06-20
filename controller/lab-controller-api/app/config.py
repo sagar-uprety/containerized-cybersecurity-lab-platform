@@ -26,6 +26,7 @@ class Settings:
     SCENARIO_REGISTRY = os.environ.get("SCENARIO_REGISTRY", "/etc/thesis-labs/scenarios.txt")
     STUDENT_REGISTRY = os.environ.get("STUDENT_REGISTRY", "/etc/thesis-labs/students.txt")
     PORTAL_USERS_FILE = os.environ.get("PORTAL_USERS_FILE", "/etc/thesis-labs/portal-users.yml")
+    PORTAL_DB_PATH = os.environ.get("PORTAL_DB_PATH", "/var/lib/thesis-labs/portal.db")
     LABS_DIR = os.environ.get("LABS_DIR", "/opt/thesis-labs/labs")
     RESULTS_DIR = os.environ.get("RESULTS_DIR", "/var/lib/thesis-labs/results")
     RUNTIME_STATE_PATH = os.environ.get(

@@ -22,6 +22,7 @@
       - pyyaml==6.0.1
       - jsonschema==4.23.0
       - markdown==3.9
+      - sqlalchemy==2.0.51
     executable: pip3
   tags:
     - portal
@@ -53,7 +54,7 @@
   tags:
     - nginx
 
-- name: Install portal user registry
+- name: Install portal user registry (seed source for first DB init only)
   ansible.builtin.template:
     src: portal-users.yml.j2
     dest: "{{ thesis_config_root }}/portal-users.yml"
@@ -61,6 +62,34 @@
     group: "{{ thesis_admin_group }}"
     mode: "0640"
   notify: Restart thesis portal
+  tags:
+    - portal
+
+  ansible.builtin.file:
+    path: "{{ thesis_state_root }}"
+    state: directory
+    owner: root
+    group: "{{ thesis_admin_group }}"
+    mode: "0750"
+  tags:
+    - portal
+
+- name: Check for existing portal database
+  ansible.builtin.stat:
+    path: "{{ thesis_state_root }}/portal.db"
+  register: _portal_db_stat
+  tags:
+    - portal
+
+- name: Back up existing portal database before deploy
+  ansible.builtin.copy:
+    src: "{{ thesis_state_root }}/portal.db"
+    dest: "{{ management_backup_root }}/portal.db.{{ ansible_date_time.iso8601_basic_short }}.bak"
+    remote_src: true
+    owner: root
+    group: "{{ thesis_admin_group }}"
+    mode: "0640"
+  when: _portal_db_stat.stat.exists
   tags:
     - portal
 

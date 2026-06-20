@@ -25,6 +25,9 @@ export default function InstructorOverview({ user, onLogout }) {
           <a href="/instructor/search" className="btn btn-primary">
             View Student Results
           </a>
+          <a href="/instructor/manage" className="btn">
+            Manage Students &amp; Groups
+          </a>
         </div>
 
         {error && (

@@ -153,3 +153,71 @@ export function exportEvidence({ csrfToken, evaluationId, anonymize }) {
         headers: { 'Content-Type': 'application/json' },
     });
 }
+
+export function changePassword(currentPassword, newPassword) {
+    return request('/password', {
+        method: 'POST',
+        body: JSON.stringify({
+            current_password: currentPassword,
+            new_password: newPassword,
+        }),
+        headers: { 'Content-Type': 'application/json' },
+    });
+}
+
+export function getInstructorCsrf() {
+    return request('/instructor/csrf');
+}
+
+async function instructorPost(path, body) {
+    const csrf = (await getInstructorCsrf()).csrf_token;
+    return request(path, {
+        method: 'POST',
+        body: JSON.stringify({ ...body, csrf_token: csrf }),
+        headers: { 'Content-Type': 'application/json' },
+    });
+}
+
+async function instructorDelete(path) {
+    const csrf = (await getInstructorCsrf()).csrf_token;
+    return request(path, {
+        method: 'DELETE',
+        headers: { 'X-CSRF-Token': csrf },
+    });
+}
+
+export function createStudent(email) {
+    return instructorPost('/instructor/students', { email });
+}
+
+export function deleteStudent(studentId) {
+    return instructorDelete(`/instructor/students/${studentId}`);
+}
+
+export function getGroups() {
+    return request('/instructor/groups');
+}
+
+export function createGroup(name) {
+    return instructorPost('/instructor/groups', { name });
+}
+
+export function deleteGroup(groupId) {
+    return instructorDelete(`/instructor/groups/${groupId}`);
+}
+
+export function addGroupMember(groupId, studentId) {
+    return instructorPost(`/instructor/groups/${groupId}/members`, { student_id: studentId });
+}
+
+export function removeGroupMember(groupId, studentId) {
+    return instructorDelete(`/instructor/groups/${groupId}/members/${studentId}`);
+}
+
+export function assignGroupLab(groupId, labId) {
+    return instructorPost(`/instructor/groups/${groupId}/labs`, { lab_id: labId });
+}
+
+export function unassignGroupLab(groupId, labId) {
+    return instructorDelete(`/instructor/groups/${groupId}/labs/${labId}`);
+}

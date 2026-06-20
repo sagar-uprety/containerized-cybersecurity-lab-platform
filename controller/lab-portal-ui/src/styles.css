@@ -790,3 +790,25 @@ select {
     transition-duration: 0.01ms !important;
   }
 }
+
+.data-table {
+  border-collapse: collapse;
+  font-size: 0.9rem;
+}
+
+.data-table th,
+.data-table td {
+  text-align: left;
+  padding: 0.5rem 0.75rem;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.data-table th {
+  color: var(--ink-secondary);
+  font-weight: 600;
+  border-bottom: 2px solid var(--border);
+}
+
+.data-table tbody tr:hover {
+  background: var(--surface-2);
+}

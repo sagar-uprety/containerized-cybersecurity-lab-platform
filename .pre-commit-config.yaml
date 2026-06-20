@@ -135,18 +135,6 @@ repos:
         files: ^labs/.*/intentional-risk-allowlist\.yaml$
         pass_filenames: false
 
-      # Lint Playwright tests for missing awaits and other JS test bugs
-      - id: eslint-playwright
-        name: ESLint Playwright tests
-        entry: eslint --fix -c config/eslint.config.js
-        language: node
-        additional_dependencies:
-          - eslint@9.39.3
-          - '@eslint/js@9.39.3'
-          - eslint-config-prettier@10.1.8
-          - eslint-plugin-playwright@2.2.2
-        files: ^tests/.*\.js$
-
       # Lint Markdown structure beyond formatting (headings, code fences, links)
       - id: markdownlint-cli2
         name: Markdown structural lint

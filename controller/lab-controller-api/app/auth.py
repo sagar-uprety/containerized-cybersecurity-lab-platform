@@ -1,84 +1,98 @@
-import secrets
-from pathlib import Path
 
-import yaml
-from fastapi import Depends, HTTPException, status
-from fastapi.security import HTTPBasic, HTTPBasicCredentials
+Login identity is the user's email; the returned dict keeps the historical
+shape so the rest of the portal is unchanged:
+  username    -> email (the login id, also the session-cookie subject)
+  student_id  -> internal `studentNN` id (for labctl/ports); email for instructors
+  number      -> deterministic port number (None for instructors)
+  lab_password-> lab/SSH password injected into the workstation (Decision B)
+  role, must_change_password, active
 
-from app.config import settings
+Passwords are verified with bcrypt. The old plaintext YAML registry is gone;
+"""
 
-security = HTTPBasic()
+from typing import Optional
+
+from app import repository as repo
+from app.db import SessionLocal
+from app.models import User
 
 
-def _load_user_entries():
-    try:
-        with Path(settings.PORTAL_USERS_FILE).open(encoding="utf-8") as handle:
-            data = yaml.safe_load(handle) or {}
-    except FileNotFoundError:
-        data = {"users": []}
+def _user_to_dict(user: User) -> dict:
+    return {
+        "username": user.email,
+        "email": user.email,
+        "role": user.role,
+        "student_id": user.internal_id or user.email,
+        "number": user.number,
+        "lab_password": user.lab_password,
+        "must_change_password": bool(user.must_change_password),
+        "active": bool(user.active),
+    }
 
-    entries = {}
-    for entry in data.get("users", []):
-        username = str(entry.get("username", "")).strip()
-        password = str(entry.get("password", ""))
-        role = str(entry.get("role", "student")).strip()
-        if not username or not password or role not in {"student", "instructor"}:
-            continue
 
-        student_id = str(entry.get("student_id") or username).strip()
-        number = entry.get("number")
-        if number is None and student_id.startswith("student"):
-            try:
-                number = int(student_id.replace("student", "", 1))
-            except ValueError:
-                number = None
+def authenticate_credentials(username: str, password: str) -> Optional[dict]:
+    """Return the user dict if email+password is valid and the user is active."""
+    if not username or not password:
+        return None
+    with SessionLocal() as session:
+        user = repo.get_user_by_email(session, username)
+        if user is None or not user.active:
+            return None
+        if not repo.verify_password(password, user.password_hash):
+            return None
+        return _user_to_dict(user)
 
-        entries[username] = {
-            "username": username,
-            "password": password,
-            "role": role,
-            "student_id": student_id,
-            "number": number,
+
+def lookup_user(username: str) -> Optional[dict]:
+    """Resolve a user dict by login id (email) without checking a password.
+
+    Used by the session-cookie path, where the signature already proves
+    identity.
+    """
+    if not username:
+        return None
+    with SessionLocal() as session:
+        user = repo.get_user_by_email(session, username)
+        if user is None or not user.active:
+            return None
+        return _user_to_dict(user)
+
+
+def get_student_users() -> dict:
+    """All active students keyed by login id (email)."""
+    with SessionLocal() as session:
+        return {
+            user.email: _user_to_dict(user)
+            for user in repo.list_users(session, role="student")
+            if user.active
         }
-    return entries
 
 
-def get_user_registry():
-    return _load_user_entries()
+def change_password(username: str, current_password: str, new_password: str) -> bool:
+    """Verify the current password and set a new one, clearing must_change.
+
+    Returns False if the user is missing/inactive or the current password is
+    wrong; the caller maps that to 401.
+    """
+    with SessionLocal() as session:
+        user = repo.get_user_by_email(session, username)
+        if user is None or not user.active:
+            return False
+        if not repo.verify_password(current_password, user.password_hash):
+            return False
+        repo.set_password(session, user, new_password)
+        session.commit()
+        return True
 
 
-def get_student_users():
-    return {
-        username: user
-        for username, user in get_user_registry().items()
-        if user["role"] == "student"
-    }
+def get_visible_lab_ids(username: str) -> set:
+    """Lab ids a student may see/run (union across their groups).
 
-
-def get_current_user(credentials: HTTPBasicCredentials = Depends(security)):
-    user_dict = get_user_registry().get(credentials.username)
-    if not user_dict:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Basic"},
-        )
-
-    is_correct_password = secrets.compare_digest(
-        credentials.password.encode("utf8"), user_dict["password"].encode("utf8")
-    )
-
-    if not is_correct_password:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-            headers={"WWW-Authenticate": "Basic"},
-        )
-
-    return {
-        "username": credentials.username,
-        "password": user_dict["password"],
-        "role": user_dict["role"],
-        "student_id": user_dict["student_id"],
-        "number": user_dict.get("number"),
-    }
+    Instructors are not gated here; returns an empty set for them since callers
+    only consult this for students.
+    """
+    with SessionLocal() as session:
+        user = repo.get_user_by_email(session, username)
+        if user is None or user.role != "student":
+            return set()
+        return repo.visible_labs(session, user)

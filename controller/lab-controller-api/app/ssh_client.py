@@ -1,14 +1,19 @@
 import logging
 import subprocess
+from typing import Optional
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 
-def run_labctl(verb: str, lab_id: str, student_id: str):
+def run_labctl(verb: str, lab_id: str, student_id: str, lab_password: Optional[str] = None):
     """
     Executes: ssh labadmin@x01 labctl <verb> <lab_id> <student_id>
+
+    When `lab_password` is given (start/reset), it is written to the ssh process
+    stdin — never argv — so the restricted wrapper (which logs argv and forbids
+    special characters) cannot expose it. labctl reads it on stdin (Decision B).
     """
     cmd = [
         "ssh",
@@ -31,9 +36,13 @@ def run_labctl(verb: str, lab_id: str, student_id: str):
 
     logger.info("Executing labctl verb=%s lab=%s student=%s", verb, lab_id, student_id)
 
+    # Pass the password on stdin (newline-terminated) only when provided.
+    stdin_input = f"{lab_password}\n" if lab_password else None
+
     try:
         result = subprocess.run(
             cmd,
+            input=stdin_input,
             capture_output=True,
             text=True,
             timeout=settings.SSH_COMMAND_TIMEOUT_SECONDS,
