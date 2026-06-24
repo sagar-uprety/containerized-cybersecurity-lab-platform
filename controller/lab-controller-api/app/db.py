@@ -4,9 +4,11 @@ The portal owns this database (users, groups, lab assignments). It lives on the
 management host (x02) next to the FastAPI process — SQLite is embedded, so the
 """
 
+import contextlib
 from collections.abc import Iterator
 from pathlib import Path
 
+import sqlalchemy
 from sqlalchemy import create_engine, event
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
@@ -38,10 +40,27 @@ def _set_sqlite_pragmas(dbapi_connection, _connection_record) -> None:
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False, future=True)
 
 
+def _migrate_columns() -> None:
+    """Add columns introduced after initial schema without a full migration tool."""
+    migrations = [
+        ("users", "semester", "TEXT"),
+        ("users", "study_program", "TEXT"),
+        ("group_members", "status", "TEXT NOT NULL DEFAULT 'approved'"),
+        ("group_members", "requested_at", "TEXT NOT NULL DEFAULT '2025-01-01T00:00:00+00:00'"),
+        ("group_labs", "deadline", "TEXT"),
+    ]
+    with engine.connect() as conn:
+        for table, column, col_type in migrations:
+            with contextlib.suppress(Exception):
+                conn.execute(sqlalchemy.text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+        conn.commit()
+
+
 def init_db() -> None:
     """Create the database file and all tables if they do not exist."""
     _DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     Base.metadata.create_all(bind=engine)
+    _migrate_columns()
 
 
 def get_session() -> Iterator[Session]:

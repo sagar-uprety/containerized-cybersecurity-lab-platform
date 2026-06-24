@@ -1,18 +1,29 @@
 import { useState, useEffect, useCallback } from "react";
 import LoginPage from "./pages/LoginPage.jsx";
+import SignupPage from "./pages/SignupPage.jsx";
 import Overview from "./pages/Overview.jsx";
 import LabDetail from "./pages/LabDetail.jsx";
 import Feedback from "./pages/Feedback.jsx";
 import InstructorOverview from "./pages/InstructorOverview.jsx";
 import InstructorLabDetail from "./pages/InstructorLabDetail.jsx";
-import InstructorSessionDetail from "./pages/InstructorSessionDetail.jsx";
-import InstructorManage from "./pages/InstructorManage.jsx";
-import StudentSearch from "./pages/StudentSearch.jsx";
+import InstructorGroupDetail from "./pages/InstructorGroupDetail.jsx";
+import InstructorGroupStudentDetail from "./pages/InstructorGroupStudentDetail.jsx";
+import InstructorGroupSessionDetail from "./pages/InstructorGroupSessionDetail.jsx";
 import PasswordChange from "./pages/PasswordChange.jsx";
 import { getMe, logout } from "./api.js";
 
 function parseRoute() {
   const path = window.location.pathname;
+
+  const groupSessionMatch = path.match(/^\/instructor\/groups\/(\d+)\/students\/([^/]+)\/labs\/([^/]+)\/?$/);
+  if (groupSessionMatch) {
+    return { page: "instructor-group-session", groupId: parseInt(groupSessionMatch[1], 10), studentId: groupSessionMatch[2], labId: groupSessionMatch[3] };
+  }
+
+  const groupStudentMatch = path.match(/^\/instructor\/groups\/(\d+)\/students\/([^/]+)\/?$/);
+  if (groupStudentMatch) {
+    return { page: "instructor-group-student", groupId: parseInt(groupStudentMatch[1], 10), studentId: groupStudentMatch[2] };
+  }
 
   const instructorSessionMatch = path.match(/^\/instructor\/labs\/([^/]+)\/([^/]+)\/?$/);
   if (instructorSessionMatch) {
@@ -24,14 +35,19 @@ function parseRoute() {
     return { page: "instructor-lab", labId: instructorLabMatch[1] };
   }
 
-  const instructorSearchMatch = path.match(/^\/instructor\/search\/?$/);
-  if (instructorSearchMatch) return { page: "instructor-search" };
+  const instructorGroupMatch = path.match(/^\/instructor\/groups\/(\d+)\/?$/);
+  if (instructorGroupMatch) {
+    return { page: "instructor-group-detail", groupId: parseInt(instructorGroupMatch[1], 10) };
+  }
 
-  const instructorManageMatch = path.match(/^\/instructor\/manage\/?$/);
-  if (instructorManageMatch) return { page: "instructor-manage" };
+  // Legacy routes redirect to dashboard
+  if (/^\/instructor\/(manage|search)\/?$/.test(path)) return { page: "instructor" };
 
   const instructorMatch = path.match(/^\/instructor\/?$/);
   if (instructorMatch) return { page: "instructor" };
+
+  const signupMatch = path.match(/^\/signup\/?$/);
+  if (signupMatch) return { page: "signup" };
 
   const feedbackMatch = path.match(/^\/labs\/([^/]+)\/feedback\/?$/);
   if (feedbackMatch) return { page: "feedback", labId: feedbackMatch[1] };
@@ -48,9 +64,7 @@ export default function App() {
   const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    function onPopState() {
-      setRoute(parseRoute());
-    }
+    function onPopState() { setRoute(parseRoute()); }
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, []);
@@ -62,6 +76,11 @@ export default function App() {
       .finally(() => setChecking(false));
   }, []);
 
+  const navigate = useCallback((path) => {
+    window.history.pushState({}, "", path);
+    setRoute(parseRoute());
+  }, []);
+
   const handleLogin = useCallback((loggedInUser) => {
     setUser(loggedInUser);
     window.history.pushState({}, "", "/");
@@ -69,9 +88,7 @@ export default function App() {
   }, []);
 
   const handleLogout = useCallback(async () => {
-    try {
-      await logout();
-    } catch {}
+    try { await logout(); } catch {}
     setUser(null);
     window.history.pushState({}, "", "/");
     setRoute({ page: "overview" });
@@ -85,21 +102,26 @@ export default function App() {
     );
   }
 
+  if (route.page === "signup" && !user) {
+    return <SignupPage onSignup={handleLogin} onSwitchToLogin={() => navigate("/")} />;
+  }
+
   if (!user) {
-    return <LoginPage onLogin={handleLogin} />;
+    return <LoginPage onLogin={handleLogin} onSwitchToSignup={() => navigate("/signup")} />;
   }
 
   if (user.must_change_password) {
-    return (
-      <PasswordChange
-        onChanged={() => setUser({ ...user, must_change_password: false })}
-        onLogout={handleLogout}
-      />
-    );
+    return <PasswordChange onChanged={() => setUser({ ...user, must_change_password: false })} onLogout={handleLogout} />;
   }
 
-  if (route.page === "instructor-manage") {
-    return <InstructorManage user={user} onLogout={handleLogout} />;
+  if (route.page === "instructor-group-session") {
+    return <InstructorGroupSessionDetail user={user} groupId={route.groupId} studentId={route.studentId} labId={route.labId} onLogout={handleLogout} />;
+  }
+  if (route.page === "instructor-group-student") {
+    return <InstructorGroupStudentDetail user={user} groupId={route.groupId} studentId={route.studentId} onLogout={handleLogout} />;
+  }
+  if (route.page === "instructor-group-detail") {
+    return <InstructorGroupDetail user={user} groupId={route.groupId} onLogout={handleLogout} />;
   }
   if (route.page === "instructor") {
     return <InstructorOverview user={user} onLogout={handleLogout} />;
@@ -108,10 +130,7 @@ export default function App() {
     return <InstructorLabDetail user={user} labId={route.labId} onLogout={handleLogout} />;
   }
   if (route.page === "instructor-session") {
-    return <InstructorSessionDetail user={user} labId={route.labId} studentId={route.studentId} onLogout={handleLogout} />;
-  }
-  if (route.page === "instructor-search") {
-    return <StudentSearch user={user} onLogout={handleLogout} />;
+    return <InstructorGroupSessionDetail user={user} groupId={0} studentId={route.studentId} labId={route.labId} onLogout={handleLogout} />;
   }
   if (route.page === "feedback") {
     return <Feedback user={user} labId={route.labId} onLogout={handleLogout} />;
@@ -119,7 +138,6 @@ export default function App() {
   if (route.page === "detail") {
     return <LabDetail user={user} labId={route.labId} onLogout={handleLogout} />;
   }
-  // Redirect instructors from root to instructor dashboard
   if (user.role === "instructor" && route.page === "overview") {
     window.history.replaceState({}, "", "/instructor");
     return <InstructorOverview user={user} onLogout={handleLogout} />;

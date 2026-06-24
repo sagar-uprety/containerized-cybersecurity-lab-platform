@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-export default function LoginPage({ onLogin }) {
+export default function LoginPage({ onLogin, onSwitchToSignup }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
@@ -72,6 +72,20 @@ export default function LoginPage({ onLogin }) {
             {loading ? "Signing in..." : "Sign in"}
           </button>
         </form>
+
+        <div style={{ textAlign: "center", marginTop: "1rem", fontSize: "0.85rem" }}>
+          Don't have an account?{" "}
+          <a
+            href="/signup"
+            onClick={(e) => {
+              e.preventDefault();
+              onSwitchToSignup();
+            }}
+            style={{ color: "var(--tum-blue, #3070b3)" }}
+          >
+            Sign up
+          </a>
+        </div>
       </div>
     </div>
   );

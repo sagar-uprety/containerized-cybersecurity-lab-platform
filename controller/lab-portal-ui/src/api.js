@@ -218,6 +218,67 @@ export function assignGroupLab(groupId, labId) {
     return instructorPost(`/instructor/groups/${groupId}/labs`, { lab_id: labId });
 }
 
+export function assignGroupLabWithDeadline(groupId, labId, deadline) {
+    return instructorPost(`/instructor/groups/${groupId}/labs`, {
+        lab_id: labId,
+        deadline: deadline || null,
+    });
+}
+
 export function unassignGroupLab(groupId, labId) {
     return instructorDelete(`/instructor/groups/${groupId}/labs/${labId}`);
+}
+
+// Student self-registration
+export function register(email, password, semester, studyProgram) {
+    return request('/register', {
+        method: 'POST',
+        body: JSON.stringify({
+            email,
+            password,
+            semester,
+            study_program: studyProgram,
+        }),
+        headers: { 'Content-Type': 'application/json' },
+    });
+}
+
+// Student enrollment
+export function getEnrollmentOptions() {
+    return request('/enrollment-options');
+}
+
+export function requestEnrollment(groupId) {
+    return request(`/enroll/${groupId}`, { method: 'POST' });
+}
+
+// Instructor group detail & actions
+export function getGroupDetail(groupId) {
+    return request(`/instructor/groups/${groupId}`);
+}
+
+export function approveMembers(groupId, userIds, csrfToken) {
+    return request(`/instructor/groups/${groupId}/approve`, {
+        method: 'POST',
+        body: JSON.stringify({ user_ids: userIds, csrf_token: csrfToken }),
+        headers: { 'Content-Type': 'application/json' },
+    });
+}
+
+export function rejectMembers(groupId, userIds, csrfToken) {
+    return request(`/instructor/groups/${groupId}/reject`, {
+        method: 'POST',
+        body: JSON.stringify({ user_ids: userIds, csrf_token: csrfToken }),
+        headers: { 'Content-Type': 'application/json' },
+    });
+}
+
+// Instructor dashboard stats
+export function getDashboardStats() {
+    return request('/instructor/dashboard');
+}
+
+// Group progress (student × lab completion matrix)
+export function getGroupProgress(groupId) {
+    return request(`/instructor/groups/${groupId}/progress`);
 }

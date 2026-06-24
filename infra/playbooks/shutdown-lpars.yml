@@ -1,0 +1,9 @@
+---
+- name: Shut down all thesis LPARs
+  hosts: platform
+  become: true
+  tasks:
+    - name: Gracefully shut down LPAR
+      ansible.builtin.command: shutdown -h +0
+      async: 10
+      poll: 0

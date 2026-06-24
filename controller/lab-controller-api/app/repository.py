@@ -11,7 +11,9 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import re
 import secrets
+from datetime import datetime, timezone
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -58,6 +60,21 @@ def generate_password(length: int = 12) -> str:
 def internal_id_from_number(number: int) -> str:
     # Zero-pad to 2 digits minimum so it always matches student([0-9]{2,4}).
     return f"student{number:02d}"
+
+
+def validate_registration_password(password: str) -> list[str]:
+    errors = []
+    if len(password) < 8:
+        errors.append("Password must be at least 8 characters")
+    if not re.search(r"[A-Z]", password):
+        errors.append("Password must contain at least one uppercase letter")
+    if not re.search(r"[a-z]", password):
+        errors.append("Password must contain at least one lowercase letter")
+    if not re.search(r"[0-9]", password):
+        errors.append("Password must contain at least one digit")
+    if not re.search(r"[^A-Za-z0-9]", password):
+        errors.append("Password must contain at least one special character")
+    return errors
 
 
 # --------------------------------------------------------------------------- #
@@ -133,6 +150,41 @@ def create_student(
     session.add(user)
     session.flush()
     return user, initial_password
+
+
+def register_student(
+    session: Session,
+    email: str,
+    password: str,
+    semester: str | None = None,
+    study_program: str | None = None,
+) -> User:
+    """Self-registration: student picks their own password."""
+    email = (email or "").strip().lower()
+    if not email:
+        raise ValueError("email is required")
+    if get_user_by_email(session, email) is not None:
+        raise ValueError("An account with this email already exists")
+    errors = validate_registration_password(password)
+    if errors:
+        raise ValueError("; ".join(errors))
+
+    number = next_free_number(session)
+    user = User(
+        email=email,
+        password_hash=hash_password(password),
+        role="student",
+        internal_id=internal_id_from_number(number),
+        number=number,
+        lab_password=generate_password(),
+        semester=semester,
+        study_program=study_program,
+        must_change_password=False,
+        active=True,
+    )
+    session.add(user)
+    session.flush()
+    return user
 
 
 def create_instructor(session: Session, email: str, *, portal_password: str) -> User:
@@ -214,10 +266,74 @@ def add_member(session: Session, group_id: int, user_id: int) -> GroupMember:
     ).scalar_one_or_none()
     if existing is not None:
         return existing
-    member = GroupMember(group_id=group_id, user_id=user_id)
+    member = GroupMember(group_id=group_id, user_id=user_id, status="approved")
     session.add(member)
     session.flush()
     return member
+
+
+def request_membership(session: Session, group_id: int, user_id: int) -> GroupMember:
+    if session.get(Group, group_id) is None:
+        raise ValueError("group not found")
+    if session.get(User, user_id) is None:
+        raise ValueError("user not found")
+    existing = session.execute(
+        select(GroupMember).where(GroupMember.group_id == group_id, GroupMember.user_id == user_id)
+    ).scalar_one_or_none()
+    if existing is not None:
+        return existing
+    member = GroupMember(group_id=group_id, user_id=user_id, status="pending")
+    session.add(member)
+    session.flush()
+    return member
+
+
+def approve_members(session: Session, group_id: int, user_ids: list[int]) -> int:
+    if session.get(Group, group_id) is None:
+        raise ValueError("group not found")
+    count = 0
+    for uid in user_ids:
+        member = session.execute(
+            select(GroupMember).where(
+                GroupMember.group_id == group_id,
+                GroupMember.user_id == uid,
+                GroupMember.status == "pending",
+            )
+        ).scalar_one_or_none()
+        if member is not None:
+            member.status = "approved"
+            count += 1
+    session.flush()
+    return count
+
+
+def reject_members(session: Session, group_id: int, user_ids: list[int]) -> int:
+    if session.get(Group, group_id) is None:
+        raise ValueError("group not found")
+    count = 0
+    for uid in user_ids:
+        member = session.execute(
+            select(GroupMember).where(
+                GroupMember.group_id == group_id,
+                GroupMember.user_id == uid,
+                GroupMember.status == "pending",
+            )
+        ).scalar_one_or_none()
+        if member is not None:
+            session.delete(member)
+            count += 1
+    session.flush()
+    return count
+
+
+def pending_members(session: Session, group_id: int) -> list[GroupMember]:
+    return list(
+        session.execute(
+            select(GroupMember)
+            .where(GroupMember.group_id == group_id, GroupMember.status == "pending")
+            .order_by(GroupMember.requested_at)
+        ).scalars()
+    )
 
 
 def remove_member(session: Session, group_id: int, user_id: int) -> bool:
@@ -234,7 +350,12 @@ def remove_member(session: Session, group_id: int, user_id: int) -> bool:
 # --------------------------------------------------------------------------- #
 # Lab assignment (groups only)
 # --------------------------------------------------------------------------- #
-def assign_lab(session: Session, group_id: int, lab_id: str) -> GroupLab:
+def assign_lab(
+    session: Session,
+    group_id: int,
+    lab_id: str,
+    deadline: datetime | None = None,
+) -> GroupLab:
     if session.get(Group, group_id) is None:
         raise ValueError("group not found")
     lab_id = (lab_id or "").strip()
@@ -244,8 +365,10 @@ def assign_lab(session: Session, group_id: int, lab_id: str) -> GroupLab:
         select(GroupLab).where(GroupLab.group_id == group_id, GroupLab.lab_id == lab_id)
     ).scalar_one_or_none()
     if existing is not None:
+        existing.deadline = deadline
+        session.flush()
         return existing
-    assignment = GroupLab(group_id=group_id, lab_id=lab_id)
+    assignment = GroupLab(group_id=group_id, lab_id=lab_id, deadline=deadline)
     session.add(assignment)
     session.flush()
     return assignment
@@ -263,13 +386,37 @@ def unassign_lab(session: Session, group_id: int, lab_id: str) -> bool:
 
 
 def visible_labs(session: Session, user: User) -> set[str]:
-    """Lab ids a student may see/run = union of assignments across their groups.
-
-    Instructors are not gated here (they get the full catalog elsewhere).
+    """Lab ids a student may see/run = union of assignments across their
+    approved groups, excluding labs past their deadline.
     """
+    return set(visible_labs_with_deadlines(session, user).keys())
+
+
+def visible_labs_with_deadlines(session: Session, user: User) -> dict[str, str | None]:
+    """Lab id → earliest deadline (ISO string) or None if no deadline.
+
+    When a lab is assigned to multiple groups, the latest deadline wins
+    (gives the student the most time).
+    """
+    now = datetime.now(timezone.utc)
     rows = session.execute(
-        select(GroupLab.lab_id)
+        select(GroupLab.lab_id, GroupLab.deadline)
         .join(GroupMember, GroupMember.group_id == GroupLab.group_id)
-        .where(GroupMember.user_id == user.id)
-    ).scalars()
-    return set(rows)
+        .where(
+            GroupMember.user_id == user.id,
+            GroupMember.status == "approved",
+            (GroupLab.deadline.is_(None)) | (GroupLab.deadline >= now),
+        )
+    ).all()
+    result: dict[str, str | None] = {}
+    for lab_id, deadline in rows:
+        if lab_id not in result:
+            result[lab_id] = deadline.isoformat() if deadline else None
+        elif deadline is None:
+            result[lab_id] = None
+        elif result[lab_id] is not None:
+            existing = result[lab_id]
+            candidate = deadline.isoformat()
+            if candidate > existing:
+                result[lab_id] = candidate
+    return result

@@ -86,13 +86,18 @@ def change_password(username: str, current_password: str, new_password: str) -> 
 
 
 def get_visible_lab_ids(username: str) -> set:
-    """Lab ids a student may see/run (union across their groups).
-
-    Instructors are not gated here; returns an empty set for them since callers
-    only consult this for students.
-    """
+    """Lab ids a student may see/run (union across their groups)."""
     with SessionLocal() as session:
         user = repo.get_user_by_email(session, username)
         if user is None or user.role != "student":
             return set()
         return repo.visible_labs(session, user)
+
+
+def get_visible_labs_with_deadlines(username: str) -> dict:
+    """Lab id → deadline ISO string or None."""
+    with SessionLocal() as session:
+        user = repo.get_user_by_email(session, username)
+        if user is None or user.role != "student":
+            return {}
+        return repo.visible_labs_with_deadlines(session, user)

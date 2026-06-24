@@ -174,9 +174,13 @@ export default function LabDetail({ user, labId, onLogout }) {
     );
   }
 
-  const { scenario, status, endpoints, csrf_token } = data;
+  const { scenario, status, endpoints, csrf_token, deadline } = data;
   const isRunning = status === "running";
   const canStart = status === "not_created" || status === "stopped" || status === "error";
+
+  const deadlineDate = deadline ? new Date(deadline) : null;
+  const hoursLeft = deadlineDate ? (deadlineDate - new Date()) / 3600000 : null;
+  const deadlineUrgent = hoursLeft !== null && hoursLeft < 24 && hoursLeft > 0;
 
   return (
     <>
@@ -192,6 +196,24 @@ export default function LabDetail({ user, labId, onLogout }) {
               <span className="status-label">State</span>
               <StatusBadge status={status} />
             </div>
+
+            {deadlineDate && (
+              <div
+                className="duration-warning"
+                style={deadlineUrgent ? {
+                  color: "var(--red)",
+                  background: "var(--red-bg)",
+                  borderColor: "var(--red-border)",
+                } : {}}
+              >
+                Deadline: {deadlineDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} at {deadlineDate.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+                {hoursLeft !== null && hoursLeft < 48 && (
+                  <span style={{ marginLeft: "0.5rem", fontWeight: 700 }}>
+                    ({hoursLeft < 1 ? "< 1 hour left" : `${Math.ceil(hoursLeft)} hours left`})
+                  </span>
+                )}
+              </div>
+            )}
 
             {error && (
               <div className="panel" style={{ borderColor: "var(--red-muted)", color: "var(--red)", fontSize: "0.85rem" }}>

@@ -1,146 +1,31 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import Header from "../components/Header.jsx";
-import StatusBadge from "../components/StatusBadge.jsx";
 import { getInstructorLabDetail } from "../api.js";
 
-function SessionList({ title, sessions, emptyMessage, onClickStudent }) {
-  if (!sessions || sessions.length === 0) {
-    return (
-      <div className="panel">
-        <h3 style={{ fontSize: "0.95rem", marginBottom: "0.75rem", color: "var(--ink-secondary)" }}>{title}</h3>
-        <p style={{ color: "var(--muted)", fontSize: "0.85rem" }}>{emptyMessage}</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="panel">
-      <h3 style={{ fontSize: "0.95rem", marginBottom: "0.75rem", color: "var(--ink-secondary)" }}>
-        {title} <span className="badge">{sessions.length}</span>
-      </h3>
-      <div className="session-list">
-        {sessions.map((session) => (
-          <div
-            key={session.student_id}
-            className="session-row"
-            onClick={() => onClickStudent && onClickStudent(session.student_id)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === "Enter" && onClickStudent && onClickStudent(session.student_id)}
-          >
-            <div className="session-info">
-              <span className="session-student">{session.student_id}</span>
-              <StatusBadge status={session.status} />
-              {session.feedback_submitted && (
-                <span className="badge" style={{ background: "var(--green-bg)", color: "var(--green)", border: "1px solid var(--green-border)" }}>
-                  Feedback
-                </span>
-              )}
-            </div>
-            <div className="session-meta">
-              {session.started_at && (
-                <span>Started {new Date(session.started_at * 1000).toLocaleString()}</span>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function CompletedSessionList({ sessions, onClickStudent }) {
-  if (!sessions || sessions.length === 0) {
-    return (
-      <div className="panel">
-        <h3 style={{ fontSize: "0.95rem", marginBottom: "0.75rem", color: "var(--ink-secondary)" }}>
-          Completed Sessions
-        </h3>
-        <p style={{ color: "var(--muted)", fontSize: "0.85rem" }}>No completed sessions yet.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="panel">
-      <h3 style={{ fontSize: "0.95rem", marginBottom: "0.75rem", color: "var(--ink-secondary)" }}>
-        Completed Sessions <span className="badge">{sessions.length}</span>
-      </h3>
-      <div className="session-list">
-        {sessions.map((session) => (
-          <div
-            key={session.student_id}
-            className="session-row"
-            onClick={() => onClickStudent && onClickStudent(session.student_id)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => e.key === "Enter" && onClickStudent && onClickStudent(session.student_id)}
-          >
-            <div className="session-info">
-              <span className="session-student">{session.student_id}</span>
-              <StatusBadge status={session.status} />
-              {session.check_result && (
-                <span
-                  className="badge"
-                  style={{
-                    background: session.check_result.status === "fixed" ? "var(--green-bg)" : "var(--red-bg)",
-                    color: session.check_result.status === "fixed" ? "var(--green)" : "var(--red)",
-                    border: `1px solid ${session.check_result.status === "fixed" ? "var(--green-border)" : "var(--red-border)"}`,
-                  }}
-                >
-                  {session.check_result.status?.toUpperCase() || "UNKNOWN"}
-                </span>
-              )}
-              {session.duration_seconds !== null && (
-                <span className="badge">{Math.round(session.duration_seconds / 60)} min</span>
-              )}
-              {session.feedback_submitted && (
-                <span className="badge" style={{ background: "var(--green-bg)", color: "var(--green)", border: "1px solid var(--green-border)" }}>
-                  Feedback
-                </span>
-              )}
-            </div>
-            <div className="session-meta">
-              {session.commands && session.commands.length > 0 && (
-                <span>{session.commands.length} commands</span>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+function nav(path) {
+  window.history.pushState({}, "", path);
+  window.dispatchEvent(new PopStateEvent("popstate"));
 }
 
 export default function InstructorLabDetail({ user, labId, onLogout }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
 
-  const fetchDetail = useCallback(() => {
+  useEffect(() => {
     getInstructorLabDetail(labId)
       .then(setData)
       .catch((err) => setError(err.message));
   }, [labId]);
-
-  useEffect(() => {
-    fetchDetail();
-    const interval = setInterval(fetchDetail, 15000);
-    return () => clearInterval(interval);
-  }, [fetchDetail]);
-
-  const handleClickStudent = (studentId) => {
-    window.location.href = `/instructor/labs/${labId}/${studentId}`;
-  };
 
   if (error && !data) {
     return (
       <>
         <Header user={user} onLogout={onLogout} />
         <div className="container">
-          <a href="/instructor" className="back-link">&larr; Back to instructor dashboard</a>
-          <div className="panel" style={{ borderColor: "var(--red-border)", color: "var(--red)" }}>
-            {error}
-          </div>
+          <a href="/instructor" className="back-link" onClick={(e) => { e.preventDefault(); nav("/instructor"); }}>
+            &larr; Back to Dashboard
+          </a>
+          <div className="panel" style={{ borderColor: "var(--red-border)", color: "var(--red)" }}>{error}</div>
         </div>
       </>
     );
@@ -152,47 +37,69 @@ export default function InstructorLabDetail({ user, labId, onLogout }) {
         <Header user={user} onLogout={onLogout} />
         <div className="container">
           <div className="skeleton" style={{ height: 28, width: 200, marginBottom: 16 }} />
-          <div className="skeleton" style={{ height: 400 }} />
+          <div className="skeleton" style={{ height: 200 }} />
         </div>
       </>
     );
   }
 
-  const { scenario, active_sessions, completed_sessions, feedback_count } = data;
+  const { scenario, feedback_count } = data;
+  const docs = scenario.documentation || {};
 
   return (
     <>
       <Header user={user} onLogout={onLogout} />
       <div className="container">
-        <a href="/instructor" className="back-link">&larr; Back to instructor dashboard</a>
-        <h1>{scenario.title}</h1>
+        <a href="/instructor" className="back-link" onClick={(e) => { e.preventDefault(); window.history.back(); }}>
+          &larr; Back
+        </a>
 
-        <div className="toolbar" style={{ marginBottom: "1rem" }}>
-          <a href={scenario.documentation?.student_guide_url} target="_blank" rel="noreferrer" className="btn btn-sm">
-            Lab Guide
-          </a>
-          <a href={scenario.documentation?.solution_guide_url} target="_blank" rel="noreferrer" className="btn btn-sm">
-            Solution Guide
-          </a>
-          <a href={scenario.documentation?.instructor_guide_url} target="_blank" rel="noreferrer" className="btn btn-sm">
-            Instructor Guide
-          </a>
-          <a href={`/api/instructor/feedback/${labId}`} target="_blank" rel="noreferrer" className="btn btn-sm">
-            Feedback ({feedback_count})
-          </a>
+        <h1>{scenario.title}</h1>
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1.5rem" }}>
+          {scenario.difficulty && <span className="badge">{scenario.difficulty}</span>}
         </div>
 
-        <SessionList
-          title="Active Sessions"
-          sessions={active_sessions}
-          emptyMessage="No active sessions."
-          onClickStudent={handleClickStudent}
-        />
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          {docs.student_guide_url && (
+            <a href={docs.student_guide_url} target="_blank" rel="noreferrer" className="panel" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 0, textDecoration: "none", color: "var(--ink)" }}>
+              <div>
+                <div style={{ fontWeight: 600 }}>Lab Guide</div>
+                <div style={{ fontSize: "0.82rem", color: "var(--muted)" }}>Student-facing guide with discovery steps and hints</div>
+              </div>
+              <span style={{ color: "var(--tum-blue)", fontSize: "0.85rem" }}>Open &rarr;</span>
+            </a>
+          )}
 
-        <CompletedSessionList
-          sessions={completed_sessions}
-          onClickStudent={handleClickStudent}
-        />
+          {docs.solution_guide_url && (
+            <a href={docs.solution_guide_url} target="_blank" rel="noreferrer" className="panel" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 0, textDecoration: "none", color: "var(--ink)" }}>
+              <div>
+                <div style={{ fontWeight: 600 }}>Solution Guide</div>
+                <div style={{ fontSize: "0.82rem", color: "var(--muted)" }}>Full remediation steps (instructor only)</div>
+              </div>
+              <span style={{ color: "var(--tum-blue)", fontSize: "0.85rem" }}>Open &rarr;</span>
+            </a>
+          )}
+
+          {docs.instructor_guide_url && (
+            <a href={docs.instructor_guide_url} target="_blank" rel="noreferrer" className="panel" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 0, textDecoration: "none", color: "var(--ink)" }}>
+              <div>
+                <div style={{ fontWeight: 600 }}>Instructor Guide</div>
+                <div style={{ fontSize: "0.82rem", color: "var(--muted)" }}>Teaching notes, common mistakes, hint policy</div>
+              </div>
+              <span style={{ color: "var(--tum-blue)", fontSize: "0.85rem" }}>Open &rarr;</span>
+            </a>
+          )}
+
+          {feedback_count > 0 && (
+            <a href={`/api/instructor/feedback/${labId}`} target="_blank" rel="noreferrer" className="panel" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 0, textDecoration: "none", color: "var(--ink)" }}>
+              <div>
+                <div style={{ fontWeight: 600 }}>Student Feedback</div>
+                <div style={{ fontSize: "0.82rem", color: "var(--muted)" }}>{feedback_count} response{feedback_count !== 1 ? "s" : ""} submitted</div>
+              </div>
+              <span style={{ color: "var(--tum-blue)", fontSize: "0.85rem" }}>View &rarr;</span>
+            </a>
+          )}
+        </div>
       </div>
     </>
   );

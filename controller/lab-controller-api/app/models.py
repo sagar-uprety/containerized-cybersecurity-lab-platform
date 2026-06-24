@@ -46,6 +46,8 @@ class User(Base):
     # labctl at start-time (Decision B). Plaintext by necessity — the container
     # needs the literal value. NULL for instructors. Lives on x02 (higher trust).
     lab_password: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    semester: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    study_program: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     must_change_password: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
@@ -81,6 +83,8 @@ class GroupMember(Base):
     user_id: Mapped[int] = mapped_column(
         ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
     )
+    status: Mapped[str] = mapped_column(String, nullable=False, default="pending")
+    requested_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
 
     group: Mapped["Group"] = relationship(back_populates="members")
     user: Mapped["User"] = relationship(back_populates="memberships")
@@ -95,5 +99,6 @@ class GroupLab(Base):
         ForeignKey("groups.id", ondelete="CASCADE"), nullable=False, index=True
     )
     lab_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    deadline: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
 
     group: Mapped["Group"] = relationship(back_populates="labs")
