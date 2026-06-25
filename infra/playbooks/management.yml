@@ -3,6 +3,8 @@
   hosts: management
   become: true
   roles:
-    - common
-    - podman
+    - role: common
+      tags: [common, bootstrap]
+    - role: podman
+      tags: [podman, bootstrap]
     - management-services

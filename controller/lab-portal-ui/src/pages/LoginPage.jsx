@@ -1,10 +1,12 @@
 import { useState } from "react";
 
-export default function LoginPage({ onLogin, onSwitchToSignup }) {
+export default function LoginPage({ mode = "student", onLogin, onSwitchToSignup, onSwitchToInstructor, onSwitchToLogin }) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+
+  const isInstructor = mode === "instructor";
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -36,7 +38,9 @@ export default function LoginPage({ onLogin, onSwitchToSignup }) {
     <div className="login-page">
       <div className="login-card">
         <div className="login-logo">
-          <div className="login-logo-title">Thesis Lab Portal</div>
+          <div className="login-logo-title">
+            {isInstructor ? "Instructor Login" : "Thesis Lab Portal"}
+          </div>
           <div className="login-logo-sub">Cybersecurity Lab Platform</div>
         </div>
 
@@ -74,17 +78,46 @@ export default function LoginPage({ onLogin, onSwitchToSignup }) {
         </form>
 
         <div style={{ textAlign: "center", marginTop: "1rem", fontSize: "0.85rem" }}>
-          Don't have an account?{" "}
-          <a
-            href="/signup"
-            onClick={(e) => {
-              e.preventDefault();
-              onSwitchToSignup();
-            }}
-            style={{ color: "var(--tum-blue, #3070b3)" }}
-          >
-            Sign up
-          </a>
+          {isInstructor ? (
+            <a
+              href="/"
+              onClick={(e) => {
+                e.preventDefault();
+                onSwitchToLogin();
+              }}
+              style={{ color: "var(--tum-blue, #3070b3)" }}
+            >
+              &larr; Back to student login
+            </a>
+          ) : (
+            <>
+              <div>
+                Don't have an account?{" "}
+                <a
+                  href="/signup"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onSwitchToSignup();
+                  }}
+                  style={{ color: "var(--tum-blue, #3070b3)" }}
+                >
+                  Sign up
+                </a>
+              </div>
+              <div style={{ marginTop: "0.5rem" }}>
+                <a
+                  href="/instructor/login"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onSwitchToInstructor();
+                  }}
+                  style={{ color: "var(--tum-blue, #3070b3)" }}
+                >
+                  Are you an instructor?
+                </a>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

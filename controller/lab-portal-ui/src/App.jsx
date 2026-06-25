@@ -40,6 +40,9 @@ function parseRoute() {
     return { page: "instructor-group-detail", groupId: parseInt(instructorGroupMatch[1], 10) };
   }
 
+  const instructorLoginMatch = path.match(/^\/instructor\/login\/?$/);
+  if (instructorLoginMatch) return { page: "instructor-login" };
+
   // Legacy routes redirect to dashboard
   if (/^\/instructor\/(manage|search)\/?$/.test(path)) return { page: "instructor" };
 
@@ -83,16 +86,19 @@ export default function App() {
 
   const handleLogin = useCallback((loggedInUser) => {
     setUser(loggedInUser);
-    window.history.pushState({}, "", "/");
-    setRoute({ page: "overview" });
+    const dest = loggedInUser.role === "instructor" ? "/instructor" : "/";
+    window.history.pushState({}, "", dest);
+    setRoute(parseRoute());
   }, []);
 
   const handleLogout = useCallback(async () => {
+    const wasInstructor = user?.role === "instructor";
     try { await logout(); } catch {}
     setUser(null);
-    window.history.pushState({}, "", "/");
-    setRoute({ page: "overview" });
-  }, []);
+    const dest = wasInstructor ? "/instructor/login" : "/";
+    window.history.pushState({}, "", dest);
+    setRoute(parseRoute());
+  }, [user]);
 
   if (checking) {
     return (
@@ -106,8 +112,12 @@ export default function App() {
     return <SignupPage onSignup={handleLogin} onSwitchToLogin={() => navigate("/")} />;
   }
 
+  if (route.page === "instructor-login" && !user) {
+    return <LoginPage mode="instructor" onLogin={handleLogin} onSwitchToLogin={() => navigate("/")} />;
+  }
+
   if (!user) {
-    return <LoginPage onLogin={handleLogin} onSwitchToSignup={() => navigate("/signup")} />;
+    return <LoginPage mode="student" onLogin={handleLogin} onSwitchToSignup={() => navigate("/signup")} onSwitchToInstructor={() => navigate("/instructor/login")} />;
   }
 
   if (user.must_change_password) {

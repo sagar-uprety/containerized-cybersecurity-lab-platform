@@ -1644,6 +1644,11 @@ def feedback_spa(lab_id: str):
     return _serve_spa()
 
 
+@app.get("/instructor/login", response_class=HTMLResponse)
+def instructor_login_spa():
+    return _serve_spa()
+
+
 @app.get("/instructor", response_class=HTMLResponse)
 def instructor_spa():
     return _serve_spa()

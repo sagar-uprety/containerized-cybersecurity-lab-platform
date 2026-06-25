@@ -112,14 +112,37 @@
     - portal
     - portal-ui
 
+- name: Check local package-lock checksum
+  ansible.builtin.stat:
+    path: "{{ playbook_dir }}/../../controller/lab-portal-ui/package-lock.json"
+    checksum_algorithm: sha256
+  delegate_to: localhost
+  become: false
+  register: _lockfile_stat
+  tags:
+    - portal
+    - portal-ui
+
+- name: Check if node_modules exists
+  ansible.builtin.stat:
+    path: "{{ playbook_dir }}/../../controller/lab-portal-ui/node_modules/.package-lock.json"
+  delegate_to: localhost
+  become: false
+  register: _node_modules_stat
+  tags:
+    - portal
+    - portal-ui
+
 - name: Install portal UI dependencies
   ansible.builtin.command:
     argv: [npm, ci]
     chdir: "{{ playbook_dir }}/../../controller/lab-portal-ui"
   delegate_to: localhost
   become: false
-  changed_when: false
-  when: _npm_version.rc == 0
+  changed_when: true
+  when:
+    - _npm_version.rc == 0
+    - not _node_modules_stat.stat.exists
   tags:
     - portal
     - portal-ui
