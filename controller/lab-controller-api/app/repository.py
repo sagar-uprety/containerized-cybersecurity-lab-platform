@@ -236,6 +236,23 @@ def create_group(session: Session, name: str) -> Group:
     return group
 
 
+def rename_group(session: Session, group_id: int, new_name: str) -> Group | None:
+    new_name = (new_name or "").strip()
+    if not new_name:
+        raise ValueError("group name is required")
+    group = session.get(Group, group_id)
+    if group is None:
+        return None
+    existing = session.execute(
+        select(Group).where(Group.name == new_name, Group.id != group_id)
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise ValueError(f"group {new_name} already exists")
+    group.name = new_name
+    session.flush()
+    return group
+
+
 def delete_group(session: Session, group_id: int) -> bool:
     group = session.get(Group, group_id)
     if group is None:

@@ -783,6 +783,97 @@ select {
   color: var(--muted);
 }
 
+/* Toast animation */
+@keyframes toast-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Dialog */
+dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  margin: 0;
+  animation: dialog-in 0.15s ease-out;
+}
+
+dialog::backdrop {
+  background: rgba(0, 0, 0, 0.4);
+}
+
+@keyframes dialog-in {
+  from { opacity: 0; transform: translate(-50%, -50%) scale(0.96); }
+  to { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+}
+
+/* Date picker overrides */
+.datepicker-input {
+  font-size: 0.85rem !important;
+  padding: 0.35rem 0.5rem !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  background: var(--surface) !important;
+  font-family: var(--font-body) !important;
+  width: 180px !important;
+  cursor: pointer;
+}
+
+.datepicker-compact {
+  width: 130px !important;
+  font-size: 0.8rem !important;
+  padding: 0.25rem 0.4rem !important;
+  height: 26px !important;
+}
+
+.datepicker-input:focus {
+  border-color: var(--tum-blue) !important;
+  box-shadow: 0 0 0 3px rgba(0, 101, 189, 0.12) !important;
+  outline: none;
+}
+
+.react-datepicker {
+  font-family: var(--font-body) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+}
+
+.react-datepicker__header {
+  background: var(--tum-light-blue) !important;
+  border-bottom: 1px solid var(--border-light) !important;
+}
+
+.react-datepicker__current-month,
+.react-datepicker-time__header {
+  color: var(--tum-blue-dark) !important;
+  font-weight: 600 !important;
+}
+
+.react-datepicker__day--selected,
+.react-datepicker__day--keyboard-selected {
+  background: var(--tum-blue) !important;
+  color: #fff !important;
+}
+
+.react-datepicker__day:hover {
+  background: var(--tum-light-blue) !important;
+}
+
+.react-datepicker__time-container .react-datepicker__time .react-datepicker__time-box ul.react-datepicker__time-list li.react-datepicker__time-list-item--selected {
+  background: var(--tum-blue) !important;
+}
+
+.react-datepicker__close-icon::after {
+  background: var(--muted) !important;
+  font-size: 14px !important;
+}
+
+.react-datepicker__navigation-icon::before {
+  border-color: var(--tum-blue-dark) !important;
+}
+
 /* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {

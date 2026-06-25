@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
+import DatePicker from "react-datepicker";
+import "react-datepicker/dist/react-datepicker.css";
 import Header from "../components/Header.jsx";
+import ConfirmModal from "../components/ConfirmModal.jsx";
+import { showToast } from "../components/Toast.jsx";
 import {
   getGroupDetail,
   getInstructorLabs,
@@ -8,24 +12,22 @@ import {
   rejectMembers,
   assignGroupLabWithDeadline,
   unassignGroupLab,
+  deleteGroup,
+  renameGroup,
+  getGroupExportCsvUrl,
 } from "../api.js";
-
-function toLocalInput(iso) {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (isNaN(d.getTime())) return "";
-  const pad = (n) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-}
-
-function localInputToISO(val) {
-  if (!val) return null;
-  return new Date(val).toISOString().replace("Z", "+00:00");
-}
 
 function nav(path) {
   window.history.pushState({}, "", path);
   window.dispatchEvent(new PopStateEvent("popstate"));
+}
+
+function fmtTime(seconds) {
+  if (!seconds || seconds <= 0) return "—";
+  const m = Math.round(seconds / 60);
+  if (m < 60) return `${m} min`;
+  const h = Math.floor(m / 60);
+  return `${h}h ${m % 60}m`;
 }
 
 export default function InstructorGroupDetail({ user, groupId, onLogout }) {
@@ -36,6 +38,13 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }) {
   const [selected, setSelected] = useState(new Set());
   const [actionLoading, setActionLoading] = useState(false);
   const [busy, setBusy] = useState(null);
+  const [removeConfirm, setRemoveConfirm] = useState(null);
+  const [bulkAssigning, setBulkAssigning] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [renameOpen, setRenameOpen] = useState(false);
+  const [renameInput, setRenameInput] = useState("");
+  const [renaming, setRenaming] = useState(false);
 
   const refresh = useCallback(async () => {
     try {
@@ -81,7 +90,6 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }) {
 
   async function handleReject() {
     if (!group || selected.size === 0) return;
-    if (!window.confirm(`Reject ${selected.size} student(s)?`)) return;
     setActionLoading(true);
     setError(null);
     try {
@@ -101,18 +109,36 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }) {
     finally { setBusy(null); }
   }
 
+  async function handleBulkAssign() {
+    const assignedLabIds = new Set((group?.labs || []).map((l) => l.lab_id));
+    const toAssign = labs.filter((l) => !assignedLabIds.has(l.id));
+    if (toAssign.length === 0) return;
+    setBulkAssigning(true);
+    setError(null);
+    try {
+      for (const l of toAssign) {
+        await assignGroupLabWithDeadline(groupId, l.id, null);
+      }
+      await refresh();
+      showToast(`Assigned ${toAssign.length} lab${toAssign.length !== 1 ? "s" : ""}`);
+    } catch (err) { setError(err.message); }
+    finally { setBulkAssigning(false); }
+  }
+
   async function handleUpdateDeadline(labId, deadline) {
     setBusy(`deadline-${labId}`);
     setError(null);
     try {
       await assignGroupLabWithDeadline(groupId, labId, deadline || null);
       await refresh();
+      showToast("Deadline saved");
     } catch (err) { setError(err.message); }
     finally { setBusy(null); }
   }
 
   async function handleUnassignLab(labId) {
     setBusy(`remove-${labId}`);
+    setRemoveConfirm(null);
     setError(null);
     try {
       await unassignGroupLab(groupId, labId);
@@ -121,12 +147,38 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }) {
     finally { setBusy(null); }
   }
 
+  async function handleDelete() {
+    setDeleting(true);
+    setDeleteConfirm(false);
+    try {
+      await deleteGroup(groupId);
+      nav("/instructor");
+    } catch (err) { setError(err.message); }
+    finally { setDeleting(false); }
+  }
+
+  async function handleRename() {
+    if (!renameInput.trim() || renameInput.trim() === group?.name) {
+      setRenameOpen(false);
+      return;
+    }
+    setRenaming(true);
+    try {
+      await renameGroup(groupId, renameInput.trim());
+      setRenameOpen(false);
+      await refresh();
+      showToast("Group renamed");
+    } catch (err) { setError(err.message); }
+    finally { setRenaming(false); }
+  }
+
   if (!group && !error) {
     return (
       <>
         <Header user={user} onLogout={onLogout} />
         <div className="container">
-          <div className="empty-state">Loading group...</div>
+          <div className="skeleton" style={{ height: 28, width: 200, marginBottom: 16 }} />
+          <div className="skeleton" style={{ height: 300 }} />
         </div>
       </>
     );
@@ -146,9 +198,25 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }) {
           &larr; Back to Dashboard
         </a>
 
-        <h1>{group?.name || "Group"}</h1>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginBottom: "1rem" }}>
+          <h1 style={{ margin: 0 }}>{group?.name || "Group"}</h1>
+          <button
+            className="btn btn-sm"
+            style={{ fontSize: "0.78rem", height: 28 }}
+            onClick={() => { setRenameInput(group?.name || ""); setRenameOpen(true); }}
+          >
+            Rename
+          </button>
+          <button
+            className="btn btn-sm"
+            style={{ color: "var(--red)", borderColor: "var(--red-border)", fontSize: "0.78rem", height: 28 }}
+            disabled={deleting}
+            onClick={() => setDeleteConfirm(true)}
+          >
+            {deleting ? "Deleting..." : "Delete"}
+          </button>
+        </div>
 
-        {/* ── Group Stats ── */}
         {progress && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.75rem", marginBottom: "2rem" }}>
             <StatCard value={progress.total_students} label="Students" />
@@ -181,7 +249,7 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }) {
                   deadline={gl.deadline}
                   busy={busy}
                   onSaveDeadline={(d) => handleUpdateDeadline(gl.lab_id, d)}
-                  onRemove={() => handleUnassignLab(gl.lab_id)}
+                  onRemove={() => setRemoveConfirm(gl.lab_id)}
                 />
               ))}
             </div>
@@ -200,17 +268,14 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }) {
                         <span style={{ fontWeight: 600, fontSize: "0.9rem" }}>
                           {labs.find((l) => l.id === gl.lab_id)?.title || gl.lab_id}
                         </span>
-                        <span className="badge" style={{ backgroundColor: "var(--border-light)", color: "var(--muted)" }}>
+                        <span className="badge" style={{ backgroundColor: "var(--red-bg)", color: "var(--red)", border: "1px solid var(--red-border)" }}>
                           Ended {new Date(gl.deadline).toLocaleDateString()}
                         </span>
                       </div>
                       <button
                         className="btn btn-sm"
                         disabled={!!busy}
-                        onClick={() => {
-                          if (window.confirm("Remove this past assignment? Student results for this lab will still be visible in their session history."))
-                            handleUnassignLab(gl.lab_id);
-                        }}
+                        onClick={() => setRemoveConfirm(gl.lab_id)}
                         style={{ color: "var(--muted)", borderColor: "var(--border-light)", fontSize: "0.78rem" }}
                       >
                         {busy === `remove-${gl.lab_id}` ? "Removing..." : "Remove"}
@@ -230,25 +295,43 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }) {
 
           {unassignedLabs.length > 0 && (
             <div>
-              <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--ink-secondary)", marginBottom: "0.5rem" }}>
-                Available Labs
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.5rem" }}>
+                <div style={{ fontSize: "0.82rem", fontWeight: 600, color: "var(--ink-secondary)" }}>
+                  Available Labs ({assignedLabIds.size} of {labs.length} assigned)
+                </div>
+                {unassignedLabs.length > 1 && (
+                  <button
+                    className="btn btn-sm"
+                    disabled={bulkAssigning || !!busy}
+                    onClick={handleBulkAssign}
+                    style={{ fontSize: "0.78rem", height: 26 }}
+                  >
+                    {bulkAssigning ? "Assigning..." : `Assign All`}
+                  </button>
+                )}
               </div>
-              <div className="labs-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(260px, 1fr))" }}>
-                {unassignedLabs.map((l) => (
-                  <div key={l.id} className="lab-card" style={{ padding: "1rem" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "0.5rem" }}>
-                      <div>
-                        <div style={{ fontWeight: 600, fontSize: "0.9rem" }}>{l.title}</div>
-                        {l.difficulty && <span className="badge" style={{ marginTop: "0.35rem" }}>{l.difficulty}</span>}
-                      </div>
-                      <button
-                        className="btn btn-primary btn-sm"
-                        disabled={!!busy}
-                        onClick={() => handleAssignLab(l.id)}
-                      >
-                        {busy === `assign-${l.id}` ? "Assigning..." : "Assign"}
-                      </button>
+              <div className="panel" style={{ padding: 0, overflow: "hidden" }}>
+                {unassignedLabs.map((l, i) => (
+                  <div
+                    key={l.id}
+                    style={{
+                      display: "flex", alignItems: "center", justifyContent: "space-between",
+                      padding: "0.5rem 0.75rem",
+                      borderBottom: i < unassignedLabs.length - 1 ? "1px solid var(--border-light)" : "none",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                      <span style={{ fontWeight: 500, fontSize: "0.88rem" }}>{l.title}</span>
+                      {l.difficulty && <span className="badge">{l.difficulty}</span>}
                     </div>
+                    <button
+                      className="btn btn-sm"
+                      disabled={!!busy || bulkAssigning}
+                      onClick={() => handleAssignLab(l.id)}
+                      style={{ fontSize: "0.78rem", height: 26, padding: "0 0.5rem", flexShrink: 0 }}
+                    >
+                      {busy === `assign-${l.id}` ? "..." : "+ Assign"}
+                    </button>
                   </div>
                 ))}
               </div>
@@ -307,7 +390,29 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }) {
 
         {/* ── 3. Student Results ── */}
         <section style={{ marginBottom: "2rem" }}>
-          <h2>Student Results</h2>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.6rem", gap: "0.5rem" }}>
+            <h2 style={{ margin: 0 }}>Student Results</h2>
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              {progress && progress.students.length > 0 && (
+                <>
+                  <a
+                    href={`/instructor/students?group=${groupId}`}
+                    className="btn btn-sm"
+                    onClick={(e) => { e.preventDefault(); nav(`/instructor/students?group=${groupId}`); }}
+                  >
+                    Manage Students
+                  </a>
+                  <a
+                    href={getGroupExportCsvUrl(groupId)}
+                    className="btn btn-sm"
+                    download
+                  >
+                    Export CSV
+                  </a>
+                </>
+              )}
+            </div>
+          </div>
           {!progress && group?.approved_members?.length > 0 && (
             <div className="panel" style={{ textAlign: "center", color: "var(--muted)" }}>Loading results...</div>
           )}
@@ -400,7 +505,7 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }) {
                         </span>
                       </td>
                       <td style={{ textAlign: "center", fontFamily: "var(--font-mono)", fontSize: "0.85rem", color: "var(--muted)" }}>
-                        {l.avg_time_minutes > 0 ? `${l.avg_time_minutes} min` : "—"}
+                        {l.avg_time_minutes > 0 ? fmtTime(l.avg_time_minutes * 60) : "—"}
                       </td>
                     </tr>
                   ))}
@@ -410,16 +515,47 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }) {
           </section>
         )}
       </div>
+
+      <ConfirmModal
+        open={!!removeConfirm}
+        title="Remove lab assignment?"
+        message="Students will lose access to this lab. Their past session data is preserved."
+        confirmLabel="Remove"
+        confirmDanger
+        onConfirm={() => handleUnassignLab(removeConfirm)}
+        onCancel={() => setRemoveConfirm(null)}
+      />
+
+      <ConfirmModal
+        open={deleteConfirm}
+        title={`Delete "${group?.name}"?`}
+        message={`This removes ${group?.approved_members?.length || 0} student${(group?.approved_members?.length || 0) !== 1 ? "s" : ""} and ${group?.labs?.length || 0} lab assignment${(group?.labs?.length || 0) !== 1 ? "s" : ""}. This cannot be undone.`}
+        confirmLabel="Delete Group"
+        confirmDanger
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteConfirm(false)}
+      />
+
+      <ConfirmModal
+        open={renameOpen}
+        title="Rename group"
+        confirmLabel={renaming ? "Renaming..." : "Rename"}
+        onConfirm={handleRename}
+        onCancel={() => setRenameOpen(false)}
+      >
+        <input
+          type="text"
+          value={renameInput}
+          onChange={(e) => setRenameInput(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleRename(); } }}
+          autoFocus
+          placeholder="New group name"
+          style={{ width: "100%", marginBottom: "0.75rem" }}
+        />
+      </ConfirmModal>
+
     </>
   );
-}
-
-function fmtTime(seconds) {
-  if (!seconds || seconds <= 0) return "—";
-  const m = Math.round(seconds / 60);
-  if (m < 60) return `${m} min`;
-  const h = Math.floor(m / 60);
-  return `${h}h ${m % 60}m`;
 }
 
 function LastActiveBadge({ ts }) {
@@ -428,17 +564,19 @@ function LastActiveBadge({ ts }) {
   const diffDays = Math.floor((Date.now() - d.getTime()) / 86400000);
   const color = diffDays > 7 ? "var(--red)" : diffDays > 3 ? "var(--amber)" : "var(--green)";
   const label = diffDays === 0 ? "Today" : diffDays === 1 ? "Yesterday" : `${diffDays}d ago`;
-  return (
-    <span style={{ fontSize: "0.82rem", color, fontWeight: 500 }}>{label}</span>
-  );
+  return <span style={{ fontSize: "0.82rem", color, fontWeight: 500 }}>{label}</span>;
 }
 
 function ProgressBar({ pct }) {
-  const color = pct >= 80 ? "var(--green)" : pct >= 40 ? "var(--amber)" : "var(--red)";
+  const color = pct >= 80 ? "var(--green)" : pct >= 40 ? "var(--amber)" : pct > 0 ? "var(--red)" : "var(--border)";
   return (
     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-      <div style={{ flex: 1, height: 6, borderRadius: 3, background: "var(--border-light)", overflow: "hidden" }}>
-        <div style={{ width: `${pct}%`, height: "100%", borderRadius: 3, background: color, transition: "width 0.3s" }} />
+      <div style={{
+        flex: 1, height: 6, borderRadius: 3, overflow: "hidden",
+        background: "var(--border-light)",
+        border: pct === 0 ? "1px solid var(--border)" : "none",
+      }}>
+        <div style={{ width: `${pct}%`, height: "100%", borderRadius: 3, background: color, transition: "width 0.2s" }} />
       </div>
       <span style={{ fontSize: "0.78rem", fontFamily: "var(--font-mono)", color: "var(--muted)", minWidth: 32 }}>
         {pct}%
@@ -457,57 +595,59 @@ function StatCard({ value, label, color }) {
 }
 
 function LabAssignmentCard({ labId, labTitle, deadline, busy, onSaveDeadline, onRemove }) {
-  const [localDeadline, setLocalDeadline] = useState(toLocalInput(deadline));
-  const hasChanged = localDeadline !== toLocalInput(deadline);
+  const parsed = deadline ? new Date(deadline) : null;
+  const [localDate, setLocalDate] = useState(parsed && !isNaN(parsed.getTime()) ? parsed : null);
+  const origDate = parsed && !isNaN(parsed.getTime()) ? parsed : null;
+  const hasChanged = (localDate?.getTime() || 0) !== (origDate?.getTime() || 0);
   const isSaving = busy === `deadline-${labId}`;
   const isRemoving = busy === `remove-${labId}`;
+  const isOverdue = origDate && origDate < new Date();
+
+  function saveDate() {
+    onSaveDeadline(localDate ? localDate.toISOString().replace("Z", "+00:00") : null);
+  }
 
   return (
-    <div className="panel" style={{ marginBottom: 0, opacity: isRemoving ? 0.5 : 1, transition: "opacity 0.15s" }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <span style={{ fontWeight: 600, fontSize: "0.95rem" }}>{labTitle}</span>
+    <div className="panel" style={{ marginBottom: 0, padding: "0.6rem 0.75rem", opacity: isRemoving ? 0.5 : 1, transition: "opacity 0.15s" }}>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "0.5rem" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", minWidth: 0, flex: 1 }}>
+          <span style={{ fontWeight: 600, fontSize: "0.9rem", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{labTitle}</span>
           <a
             href={`/instructor/labs/${labId}`}
             onClick={(e) => { e.preventDefault(); nav(`/instructor/labs/${labId}`); }}
-            style={{ fontSize: "0.8rem" }}
+            style={{ fontSize: "0.78rem", flexShrink: 0 }}
           >
-            View Lab
+            View
           </a>
         </div>
-        <button
-          className="btn btn-sm"
-          disabled={!!busy}
-          onClick={() => {
-            const msg = "Remove this lab assignment? Students will lose access. Their past session data is preserved.";
-            if (window.confirm(msg)) onRemove();
-          }}
-          style={{ color: "var(--red)", borderColor: "var(--red-border)" }}
-        >
-          {isRemoving ? "Removing..." : "Remove"}
-        </button>
-      </div>
-      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem", marginTop: "0.6rem", flexWrap: "wrap" }}>
-        <label style={{ fontSize: "0.85rem", color: "var(--muted)", fontWeight: 500, whiteSpace: "nowrap" }}>Deadline</label>
-        <input
-          type="datetime-local"
-          value={localDeadline}
-          onChange={(e) => setLocalDeadline(e.target.value)}
-          style={{ fontSize: "0.88rem", padding: "0.4rem 0.6rem", border: "1px solid var(--border)", borderRadius: "var(--radius)", background: "var(--surface)", width: "auto", minWidth: 220 }}
-        />
-        {hasChanged && (
-          <button className="btn btn-primary btn-sm" disabled={!!busy} onClick={() => onSaveDeadline(localInputToISO(localDeadline))}>
-            {isSaving ? "Saving..." : "Save"}
+        <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexShrink: 0 }}>
+          <span style={{ fontSize: "0.78rem", color: isOverdue ? "var(--red)" : "var(--muted)", fontWeight: 500 }}>Due</span>
+          <DatePicker
+            selected={localDate}
+            onChange={setLocalDate}
+            showTimeSelect
+            timeFormat="HH:mm"
+            timeIntervals={15}
+            dateFormat="MMM d, HH:mm"
+            placeholderText="None"
+            isClearable
+            className="datepicker-input datepicker-compact"
+            popperPlacement="bottom-end"
+          />
+          {hasChanged && (
+            <button className="btn btn-primary btn-sm" style={{ height: 26, fontSize: "0.75rem", padding: "0 0.4rem" }} disabled={!!busy} onClick={saveDate}>
+              {isSaving ? "..." : "Save"}
+            </button>
+          )}
+          <button
+            className="btn btn-sm"
+            disabled={!!busy}
+            onClick={onRemove}
+            style={{ color: "var(--red)", borderColor: "var(--red-border)", height: 26, fontSize: "0.75rem", padding: "0 0.4rem" }}
+          >
+            {isRemoving ? "..." : "Remove"}
           </button>
-        )}
-        {localDeadline && !hasChanged && (
-          <button className="btn btn-sm" disabled={!!busy} onClick={() => { setLocalDeadline(""); onSaveDeadline(null); }} style={{ color: "var(--muted)" }}>
-            {isSaving ? "Clearing..." : "Clear"}
-          </button>
-        )}
-        {!localDeadline && !deadline && (
-          <span style={{ fontSize: "0.82rem", color: "var(--muted)", fontStyle: "italic" }}>No deadline</span>
-        )}
+        </div>
       </div>
     </div>
   );

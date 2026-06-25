@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import Header from "../components/Header.jsx";
-import { getDashboardStats, createGroup, deleteGroup, getInstructorStudents } from "../api.js";
+import { getDashboardStats, createGroup, getInstructorStudents } from "../api.js";
 
 function timeAgo(ts) {
   if (!ts) return "";
@@ -26,7 +26,6 @@ export default function InstructorOverview({ user, onLogout }) {
   const [error, setError] = useState(null);
   const [newGroup, setNewGroup] = useState("");
   const [creating, setCreating] = useState(false);
-  const [deleting, setDeleting] = useState(null);
   const [search, setSearch] = useState("");
   const [students, setStudents] = useState(null);
   const [studentSearch, setStudentSearch] = useState("");
@@ -63,20 +62,6 @@ export default function InstructorOverview({ user, onLogout }) {
     }
   }
 
-  async function handleDelete(group) {
-    if (!window.confirm(`Delete group "${group.name}"?`)) return;
-    setDeleting(group.id);
-    setError(null);
-    try {
-      await deleteGroup(group.id);
-      await refresh();
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setDeleting(null);
-    }
-  }
-
   function nav(path) {
     window.history.pushState({}, "", path);
     window.dispatchEvent(new PopStateEvent("popstate"));
@@ -92,13 +77,23 @@ export default function InstructorOverview({ user, onLogout }) {
       <div className="container">
         <h1>Instructor Dashboard</h1>
 
-        {/* Stats */}
         {data && (
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "0.75rem", marginBottom: "2rem" }}>
             <StatCard value={data.total_groups} label="Groups" />
-            <StatCard value={data.total_students} label="Students" />
+            <StatCard
+              value={data.total_students}
+              label="Students"
+              href="/instructor/students"
+              onClick={() => nav("/instructor/students")}
+            />
             <StatCard value={data.total_labs} label="Labs" />
-            <StatCard value={data.total_pending} label="Pending Approvals" highlight={data.total_pending > 0} />
+            <StatCard
+              value={data.total_pending}
+              label="Pending Approvals"
+              highlight={data.total_pending > 0}
+              href={data.total_pending > 0 ? "/instructor/pending" : undefined}
+              onClick={data.total_pending > 0 ? () => nav("/instructor/pending") : undefined}
+            />
           </div>
         )}
 
@@ -108,8 +103,9 @@ export default function InstructorOverview({ user, onLogout }) {
           </div>
         )}
 
-        {/* Student search */}
-        <div style={{ marginBottom: "1.5rem" }}>
+        {/* ── Student Search ── */}
+        <section style={{ marginBottom: "2rem" }}>
+          <h2>Student Search</h2>
           <input
             type="text"
             placeholder="Find a student across all groups..."
@@ -155,135 +151,137 @@ export default function InstructorOverview({ user, onLogout }) {
               </div>
             );
           })()}
-        </div>
+        </section>
 
-        {/* Two-column layout: Groups + Activity */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 340px", gap: "1.5rem", alignItems: "start" }}>
-
-          {/* Left: Groups */}
-          <div>
-            <div style={{ display: "flex", gap: "0.5rem", alignItems: "center", flexWrap: "wrap", marginBottom: "1rem" }}>
+        {/* ── Groups ── */}
+        <section style={{ marginBottom: "2rem" }}>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "1rem", flexWrap: "wrap", gap: "0.75rem" }}>
+            <h2 style={{ margin: 0 }}>Groups</h2>
+            <form onSubmit={handleCreate} style={{ display: "flex", gap: "0.35rem", alignItems: "center" }}>
               <input
                 type="text"
-                placeholder="Search groups..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                style={{ maxWidth: 200, flex: "0 0 auto" }}
+                placeholder="New group..."
+                value={newGroup}
+                onChange={(e) => setNewGroup(e.target.value)}
+                required
+                style={{ width: 140, fontSize: "0.82rem", padding: "0.3rem 0.5rem", height: 30 }}
               />
-              <div style={{ flex: 1 }} />
-              <form onSubmit={handleCreate} style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                <input
-                  type="text"
-                  placeholder="New group name..."
-                  value={newGroup}
-                  onChange={(e) => setNewGroup(e.target.value)}
-                  required
-                  style={{ maxWidth: 260 }}
-                />
-                <button type="submit" className="btn btn-primary btn-sm" disabled={creating}>
-                  {creating ? "Creating..." : "Create"}
-                </button>
-              </form>
+              <button type="submit" className="btn btn-sm" disabled={creating} style={{ height: 30, fontSize: "0.78rem" }}>
+                {creating ? "..." : "+ Create"}
+              </button>
+            </form>
+          </div>
+
+          {filteredGroups.length > 3 && (
+            <input
+              type="text"
+              placeholder="Filter groups..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              style={{ maxWidth: 220, marginBottom: "0.75rem" }}
+            />
+          )}
+
+          {!data && !error && (
+            <div className="labs-grid">
+              {[1, 2].map((i) => (
+                <div key={i} className="lab-card">
+                  <div className="skeleton" style={{ height: 20, width: "60%" }} />
+                  <div className="skeleton" style={{ height: 16, width: "40%", marginTop: 8 }} />
+                </div>
+              ))}
             </div>
+          )}
 
-            {!data && !error && (
-              <div className="labs-grid">
-                {[1, 2].map((i) => (
-                  <div key={i} className="lab-card">
-                    <div className="skeleton" style={{ height: 20, width: "60%" }} />
-                    <div className="skeleton" style={{ height: 16, width: "40%", marginTop: 8 }} />
-                  </div>
-                ))}
-              </div>
-            )}
+          {data && filteredGroups.length === 0 && (
+            <div className="empty-state">
+              {search ? "No groups match your filter." : "No groups yet. Create one to get started."}
+            </div>
+          )}
 
-            {data && filteredGroups.length === 0 && (
-              <div className="empty-state">
-                {search ? "No groups match your search." : "No groups yet. Create one to get started."}
-              </div>
-            )}
-
-            {filteredGroups.length > 0 && (
-              <div className="labs-grid">
-                {filteredGroups.map((g) => (
-                  <article
-                    key={g.id}
-                    className="lab-card"
-                    style={{ cursor: "pointer" }}
-                    onClick={() => nav(`/instructor/groups/${g.id}`)}
-                  >
-                    <div className="lab-card-header">
-                      <span className="lab-card-title">{g.name}</span>
-                      <button
-                        className="btn btn-sm"
-                        style={{ color: "var(--red)", borderColor: "var(--red-border)", flexShrink: 0 }}
-                        disabled={deleting === g.id}
-                        onClick={(e) => { e.stopPropagation(); handleDelete(g); }}
-                      >
-                        {deleting === g.id ? "Deleting..." : "Delete"}
-                      </button>
-                    </div>
-                    <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginTop: "0.25rem" }}>
-                      <span className="badge">{g.member_count} member{g.member_count !== 1 ? "s" : ""}</span>
-                      <span className="badge">{g.lab_count} lab{g.lab_count !== 1 ? "s" : ""}</span>
-                      {g.pending_count > 0 && (
-                        <span className="badge" style={{ backgroundColor: "var(--amber-bg)", color: "var(--amber)", border: "1px solid var(--amber-border)" }}>
-                          {g.pending_count} pending
-                        </span>
-                      )}
-                    </div>
-                    {g.created_at && (
-                      <div style={{ fontSize: "0.8rem", color: "var(--muted)", marginTop: "0.25rem" }}>
-                        Created {new Date(g.created_at).toLocaleDateString()}
-                      </div>
-                    )}
-                  </article>
-                ))}
-              </div>
-            )}
-          </div>
-
-          {/* Right: Recent Activity */}
-          <div>
-            <h2 style={{ fontSize: "0.88rem", fontWeight: 600, color: "var(--ink-secondary)", marginBottom: "0.75rem" }}>
-              Recent Activity
-            </h2>
-            {data?.recent_activity?.length > 0 ? (
-              <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
-                {data.recent_activity.map((ev, i) => (
-                  <div key={i} style={{ padding: "0.5rem 0.65rem", borderRadius: "var(--radius)", background: "var(--surface)", border: "1px solid var(--border-light)", fontSize: "0.82rem" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                      <span>
-                        <strong style={{ fontFamily: "var(--font-mono)", fontSize: "0.78rem" }}>{ev.student_id}</strong>
-                        {" "}{ACTION_LABELS[ev.action] || ev.action}{" "}
-                        <span style={{ color: "var(--ink-secondary)" }}>{ev.lab_title}</span>
+          {filteredGroups.length > 0 && (
+            <div className="labs-grid">
+              {filteredGroups.map((g) => (
+                <article
+                  key={g.id}
+                  className="lab-card"
+                  style={{ cursor: "pointer" }}
+                  onClick={() => nav(`/instructor/groups/${g.id}`)}
+                >
+                  <span className="lab-card-title">{g.name}</span>
+                  <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                    <span className="badge">{g.member_count} member{g.member_count !== 1 ? "s" : ""}</span>
+                    <span className="badge">{g.lab_count} lab{g.lab_count !== 1 ? "s" : ""}</span>
+                    {g.pending_count > 0 && (
+                      <span className="badge" style={{ backgroundColor: "var(--amber-bg)", color: "var(--amber)", border: "1px solid var(--amber-border)" }}>
+                        {g.pending_count} pending
                       </span>
-                    </div>
-                    <div style={{ fontSize: "0.72rem", color: "var(--muted)", marginTop: "0.15rem" }}>
-                      {timeAgo(ev.timestamp)}
-                    </div>
+                    )}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div style={{ padding: "1.5rem", textAlign: "center", color: "var(--muted)", fontSize: "0.85rem", background: "var(--surface)", borderRadius: "var(--radius)", border: "1px solid var(--border-light)" }}>
-                No recent activity.
-              </div>
-            )}
-          </div>
-        </div>
+                  {g.created_at && (
+                    <div style={{ fontSize: "0.8rem", color: "var(--muted)" }}>
+                      Created {new Date(g.created_at).toLocaleDateString()}
+                    </div>
+                  )}
+                </article>
+              ))}
+            </div>
+          )}
+        </section>
+
+        {/* ── Recent Activity ── */}
+        <section>
+          <h2>Recent Activity</h2>
+          {data?.recent_activity?.length > 0 ? (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.35rem" }}>
+              {data.recent_activity.map((ev, i) => (
+                <div key={i} style={{ padding: "0.5rem 0.75rem", borderRadius: "var(--radius)", background: "var(--surface)", border: "1px solid var(--border-light)", fontSize: "0.82rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <span>
+                      <strong style={{ fontFamily: "var(--font-mono)", fontSize: "0.78rem" }}>{ev.student_id}</strong>
+                      {" "}{ACTION_LABELS[ev.action] || ev.action}{" "}
+                      <span style={{ color: "var(--ink-secondary)" }}>{ev.lab_title}</span>
+                    </span>
+                    <span style={{ fontSize: "0.72rem", color: "var(--muted)", flexShrink: 0, marginLeft: "1rem" }}>
+                      {timeAgo(ev.timestamp)}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="panel" style={{ textAlign: "center", color: "var(--muted)", fontSize: "0.85rem" }}>
+              No recent activity.
+            </div>
+          )}
+        </section>
       </div>
     </>
   );
 }
 
-function StatCard({ value, label, highlight }) {
+function StatCard({ value, label, highlight, href, onClick }) {
+  const interactive = !!href;
+  const Tag = interactive ? "a" : "div";
   return (
-    <div className="panel" style={{ textAlign: "center", marginBottom: 0, padding: "1rem" }}>
+    <Tag
+      href={href}
+      onClick={interactive ? (e) => { e.preventDefault(); onClick?.(); } : undefined}
+      className="panel"
+      style={{
+        textAlign: "center",
+        marginBottom: 0,
+        padding: "1rem",
+        textDecoration: "none",
+        color: "inherit",
+        cursor: interactive ? "pointer" : "default",
+        transition: interactive ? "border-color 0.15s" : undefined,
+      }}
+    >
       <div style={{ fontSize: "1.75rem", fontWeight: 700, color: highlight ? "var(--amber)" : "var(--tum-blue)" }}>
         {value}
       </div>
       <div style={{ fontSize: "0.82rem", color: "var(--muted)", marginTop: "0.15rem" }}>{label}</div>
-    </div>
+    </Tag>
   );
 }

@@ -1,7 +1,9 @@
 import base64
 import contextlib
+import csv
 import hashlib
 import hmac
+import io
 import json
 import logging
 import re
@@ -1246,6 +1248,30 @@ def api_delete_group(group_id: int, request: Request, user: dict = Depends(get_a
     return {"ok": True}
 
 
+@app.post("/api/instructor/groups/{group_id}/rename")
+async def api_rename_group(
+    group_id: int, request: Request, user: dict = Depends(get_authenticated_user)
+):
+    require_instructor(user)
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body") from None
+    _require_instructor_csrf(request, user, body)
+    name = body.get("name", "").strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="name is required")
+    with SessionLocal() as session:
+        try:
+            group = repo.rename_group(session, group_id, name)
+            if group is None:
+                raise HTTPException(status_code=404, detail="Group not found")
+            session.commit()
+            return _group_summary(group)
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
 @app.post("/api/instructor/groups/{group_id}/members")
 async def api_add_member(
     group_id: int, request: Request, user: dict = Depends(get_authenticated_user)
@@ -1523,6 +1549,118 @@ def api_group_progress(group_id: int, user: dict = Depends(get_authenticated_use
         }
 
 
+@app.get("/api/instructor/groups/{group_id}/export-csv")
+def api_group_export_csv(group_id: int, user: dict = Depends(get_authenticated_user)):
+    require_instructor(user)
+
+    with SessionLocal() as session:
+        group = repo.get_group(session, group_id)
+        if group is None:
+            raise HTTPException(status_code=404, detail="Group not found")
+        approved = [m for m in group.members if m.status == "approved"]
+        lab_ids = [gl.lab_id for gl in group.labs]
+
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(
+            ["Student", "Email", "Lab", "Passed", "Sessions", "Time Spent (min)", "Last Active"]
+        )
+
+        for m in approved:
+            sid = m.user.internal_id or m.user.email
+            for lid in lab_ids:
+                crs = get_check_results_for_student(lid, sid)
+                lifecycle = get_lifecycle_events_for_student(lid, sid)
+                sessions = _build_session_history(lifecycle)
+                passed = False
+                if crs:
+                    latest = crs[-1].get("check_result", {})
+                    passed = bool(latest.get("passed") or latest.get("status") == "fixed")
+                total_time = sum(s.get("duration_seconds", 0) or 0 for s in sessions)
+                last_active = None
+                for s in sessions:
+                    for ts_key in ("started_at", "ended_at"):
+                        ts = s.get(ts_key)
+                        if ts and (last_active is None or ts > last_active):
+                            last_active = ts
+                sc = load_scenario_metadata(lid)
+                lab_title = sc["title"] if sc else lid
+                writer.writerow(
+                    [
+                        sid,
+                        m.user.email,
+                        lab_title,
+                        "Yes" if passed else "No",
+                        len(sessions),
+                        round(total_time / 60, 1) if total_time else 0,
+                        last_active or "",
+                    ]
+                )
+
+        csv_content = buf.getvalue()
+        return Response(
+            content=csv_content,
+            media_type="text/csv",
+            headers={"Content-Disposition": f'attachment; filename="{group.name}-grades.csv"'},
+        )
+
+
+@app.get("/api/instructor/students-progress")
+def api_instructor_students_progress(user: dict = Depends(get_authenticated_user)):
+    require_instructor(user)
+    all_labs = list_scenarios()
+    with SessionLocal() as session:
+        students = repo.list_users(session, role="student")
+        result = []
+        for s in students:
+            sid = s.internal_id or s.email
+            groups = [
+                {"id": m.group.id, "name": m.group.name}
+                for m in s.memberships
+                if m.status == "approved"
+            ]
+            labs_passed = 0
+            labs_assigned = 0
+            total_sessions = 0
+            total_time = 0.0
+            last_active = None
+            for scenario in all_labs:
+                lid = scenario["id"]
+                crs = get_check_results_for_student(lid, sid)
+                lifecycle = get_lifecycle_events_for_student(lid, sid)
+                sessions = _build_session_history(lifecycle)
+                if not sessions:
+                    continue
+                labs_assigned += 1
+                total_sessions += len(sessions)
+                for sess in sessions:
+                    if sess.get("duration_seconds"):
+                        total_time += sess["duration_seconds"]
+                    for ts_key in ("started_at", "ended_at"):
+                        ts = sess.get(ts_key)
+                        if ts and (last_active is None or ts > last_active):
+                            last_active = ts
+                if crs:
+                    latest = crs[-1].get("check_result", {})
+                    if latest.get("passed") or latest.get("status") == "fixed":
+                        labs_passed += 1
+            result.append(
+                {
+                    "student_id": sid,
+                    "email": s.email,
+                    "semester": s.semester,
+                    "study_program": s.study_program,
+                    "groups": groups,
+                    "labs_passed": labs_passed,
+                    "labs_assigned": labs_assigned,
+                    "total_sessions": total_sessions,
+                    "total_time_seconds": round(total_time, 1),
+                    "last_active": last_active,
+                }
+            )
+        return result
+
+
 @app.get("/api/instructor/dashboard")
 def api_instructor_dashboard(user: dict = Depends(get_authenticated_user)):
     require_instructor(user)
@@ -1651,6 +1789,16 @@ def instructor_login_spa():
 
 @app.get("/instructor", response_class=HTMLResponse)
 def instructor_spa():
+    return _serve_spa()
+
+
+@app.get("/instructor/students", response_class=HTMLResponse)
+def instructor_students_spa():
+    return _serve_spa()
+
+
+@app.get("/instructor/pending", response_class=HTMLResponse)
+def instructor_pending_spa():
     return _serve_spa()
 
 

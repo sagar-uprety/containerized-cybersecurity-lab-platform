@@ -1,7 +1,8 @@
 export default function Header({ user, onLogout }) {
+  const brandHref = user.role === "instructor" ? "/instructor" : "/";
   return (
     <header className="header">
-      <a href="/" className="header-brand">Thesis Lab Portal</a>
+      <a href={brandHref} className="header-brand">Thesis Lab Portal</a>
       <div className="header-user">
         <span>
           <strong>{user.username}</strong>{" "}

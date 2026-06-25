@@ -26,6 +26,7 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
   const [group, setGroup] = useState(null);
   const [student, setStudent] = useState(null);
   const [error, setError] = useState(null);
+  const [hideShort, setHideShort] = useState(false);
 
   useEffect(() => {
     Promise.all([
@@ -61,16 +62,13 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
         </a>
 
         <h1>{memberInfo?.email || studentId}</h1>
-        <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap", marginBottom: "1.5rem" }}>
-          {memberInfo?.semester && (
-            <span className="badge">{memberInfo.semester}</span>
-          )}
-          {memberInfo?.study_program && (
-            <span className="badge">{memberInfo.study_program}</span>
-          )}
+
+        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap", marginBottom: "1.5rem" }}>
+          {memberInfo?.semester && <span className="badge">{memberInfo.semester}</span>}
+          {memberInfo?.study_program && <span className="badge">{memberInfo.study_program}</span>}
+          <span className="badge" style={{ fontFamily: "var(--font-mono)" }}>{studentId}</span>
         </div>
 
-        {/* Quick stats */}
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(120px, 1fr))", gap: "0.75rem", marginBottom: "2rem" }}>
           <div className="panel" style={{ textAlign: "center", marginBottom: 0, padding: "0.75rem" }}>
             <div style={{ fontSize: "1.5rem", fontWeight: 700, color: "var(--tum-blue)" }}>{student?.labs?.length || 0}</div>
@@ -93,66 +91,88 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
         )}
 
         {!student && !error && (
-          <div className="empty-state">Loading...</div>
+          <div className="skeleton" style={{ height: 200 }} />
         )}
 
         {student && student.labs.length === 0 && (
           <div className="empty-state">No lab data for this student in this group.</div>
         )}
 
-        {student && student.labs.map((lab) => (
-          <section key={lab.lab_id} style={{ marginBottom: "1.5rem" }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.6rem" }}>
-              <h2 style={{ margin: 0 }}>{lab.lab_title}</h2>
-              <LabResultBadge check={lab.latest_check} />
-            </div>
+        {student && student.labs.some((l) => l.sessions?.some((s) => s.duration_seconds && s.duration_seconds < 60)) && (
+          <div style={{ marginBottom: "1rem" }}>
+            <label style={{ fontSize: "0.85rem", color: "var(--ink-secondary)", cursor: "pointer", display: "inline-flex", alignItems: "center", gap: "0.4rem" }}>
+              <input
+                type="checkbox"
+                checked={hideShort}
+                onChange={(e) => setHideShort(e.target.checked)}
+              />
+              Hide sessions under 1 minute
+            </label>
+          </div>
+        )}
 
-            {lab.sessions && lab.sessions.length > 0 ? (
-              <div className="panel" style={{ padding: 0, overflow: "hidden", marginBottom: 0 }}>
-                <table className="data-table" style={{ width: "100%", marginBottom: 0 }}>
-                  <thead>
-                    <tr>
-                      <th>Session</th>
-                      <th>Started</th>
-                      <th>Duration</th>
-                      <th>Checks</th>
-                      <th>Outcome</th>
-                      <th />
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {lab.sessions.map((sess, i) => (
-                      <tr key={i}>
-                        <td style={{ fontFamily: "var(--font-mono)", fontSize: "0.82rem", color: "var(--muted)" }}>
-                          #{lab.sessions.length - i}
-                        </td>
-                        <td>{fmtTimestamp(sess.started_at)}</td>
-                        <td>{fmtDuration(sess.duration_seconds)}</td>
-                        <td>{sess.check_count || 0}</td>
-                        <td>
-                          <OutcomeBadge outcome={sess.outcome} />
-                        </td>
-                        <td style={{ textAlign: "right" }}>
-                          <a
-                            href={`/instructor/groups/${groupId}/students/${studentId}/labs/${lab.lab_id}`}
-                            onClick={(e) => { e.preventDefault(); nav(`/instructor/groups/${groupId}/students/${studentId}/labs/${lab.lab_id}`); }}
-                            style={{ fontSize: "0.82rem" }}
-                          >
-                            Details
-                          </a>
-                        </td>
+        {student && student.labs.map((lab) => {
+          const sessions = hideShort
+            ? (lab.sessions || []).filter((s) => !s.duration_seconds || s.duration_seconds >= 60)
+            : (lab.sessions || []);
+
+          return (
+            <section key={lab.lab_id} style={{ marginBottom: "1.5rem" }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.6rem" }}>
+                <h2 style={{ margin: 0 }}>{lab.lab_title}</h2>
+                <LabResultBadge check={lab.latest_check} />
+              </div>
+
+              {sessions.length > 0 ? (
+                <div className="panel" style={{ padding: 0, overflow: "hidden", marginBottom: 0 }}>
+                  <table className="data-table" style={{ width: "100%", marginBottom: 0 }}>
+                    <thead>
+                      <tr>
+                        <th>Session</th>
+                        <th>Started</th>
+                        <th>Duration</th>
+                        <th>Checks</th>
+                        <th>Outcome</th>
+                        <th />
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            ) : (
-              <div className="panel" style={{ textAlign: "center", color: "var(--muted)", marginBottom: 0 }}>
-                No sessions recorded.
-              </div>
-            )}
-          </section>
-        ))}
+                    </thead>
+                    <tbody>
+                      {sessions.map((sess, i) => {
+                        const sessionIndex = (lab.sessions || []).length - (lab.sessions || []).indexOf(sess);
+                        return (
+                          <tr
+                            key={i}
+                            style={{ cursor: "pointer" }}
+                            onClick={() => nav(`/instructor/groups/${groupId}/students/${studentId}/labs/${lab.lab_id}?session=${sessionIndex}`)}
+                          >
+                            <td style={{ fontFamily: "var(--font-mono)", fontSize: "0.82rem", color: "var(--muted)" }}>
+                              #{sessionIndex}
+                            </td>
+                            <td>{fmtTimestamp(sess.started_at)}</td>
+                            <td>{fmtDuration(sess.duration_seconds)}</td>
+                            <td>{sess.check_count || 0}</td>
+                            <td>
+                              <OutcomeBadge outcome={sess.outcome} />
+                            </td>
+                            <td style={{ textAlign: "right" }}>
+                              <span style={{ fontSize: "0.82rem", color: "var(--tum-blue)" }}>
+                                Details &rarr;
+                              </span>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="panel" style={{ textAlign: "center", color: "var(--muted)", marginBottom: 0 }}>
+                  {hideShort ? "All sessions under 1 minute (hidden)." : "No sessions recorded."}
+                </div>
+              )}
+            </section>
+          );
+        })}
       </div>
     </>
   );
@@ -182,7 +202,7 @@ function OutcomeBadge({ outcome }) {
     auto_stop: { label: "Auto-stopped", color: "var(--amber)", bg: "var(--amber-bg)" },
     destroy: { label: "Destroyed", color: "var(--red)", bg: "var(--red-bg)" },
     start: { label: "Running", color: "var(--green)", bg: "var(--green-bg)" },
-    check: { label: "Checked", color: "var(--tum-blue)", bg: "var(--tum-light-blue)" },
+    running: { label: "Running", color: "var(--green)", bg: "var(--green-bg)" },
   };
   const style = map[outcome] || { label: outcome || "—", color: "var(--muted)", bg: "var(--border-light)" };
   return (

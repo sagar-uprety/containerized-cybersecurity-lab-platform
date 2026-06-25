@@ -9,7 +9,10 @@ import InstructorLabDetail from "./pages/InstructorLabDetail.jsx";
 import InstructorGroupDetail from "./pages/InstructorGroupDetail.jsx";
 import InstructorGroupStudentDetail from "./pages/InstructorGroupStudentDetail.jsx";
 import InstructorGroupSessionDetail from "./pages/InstructorGroupSessionDetail.jsx";
+import InstructorStudents from "./pages/InstructorStudents.jsx";
+import InstructorPending from "./pages/InstructorPending.jsx";
 import PasswordChange from "./pages/PasswordChange.jsx";
+import ToastContainer from "./components/Toast.jsx";
 import { getMe, logout } from "./api.js";
 
 function parseRoute() {
@@ -39,6 +42,12 @@ function parseRoute() {
   if (instructorGroupMatch) {
     return { page: "instructor-group-detail", groupId: parseInt(instructorGroupMatch[1], 10) };
   }
+
+  const instructorStudentsMatch = path.match(/^\/instructor\/students\/?$/);
+  if (instructorStudentsMatch) return { page: "instructor-students" };
+
+  const instructorPendingMatch = path.match(/^\/instructor\/pending\/?$/);
+  if (instructorPendingMatch) return { page: "instructor-pending" };
 
   const instructorLoginMatch = path.match(/^\/instructor\/login\/?$/);
   if (instructorLoginMatch) return { page: "instructor-login" };
@@ -125,16 +134,22 @@ export default function App() {
   }
 
   if (route.page === "instructor-group-session") {
-    return <InstructorGroupSessionDetail user={user} groupId={route.groupId} studentId={route.studentId} labId={route.labId} onLogout={handleLogout} />;
+    return <><InstructorGroupSessionDetail user={user} groupId={route.groupId} studentId={route.studentId} labId={route.labId} onLogout={handleLogout} /><ToastContainer /></>;
   }
   if (route.page === "instructor-group-student") {
-    return <InstructorGroupStudentDetail user={user} groupId={route.groupId} studentId={route.studentId} onLogout={handleLogout} />;
+    return <><InstructorGroupStudentDetail user={user} groupId={route.groupId} studentId={route.studentId} onLogout={handleLogout} /><ToastContainer /></>;
   }
   if (route.page === "instructor-group-detail") {
-    return <InstructorGroupDetail user={user} groupId={route.groupId} onLogout={handleLogout} />;
+    return <><InstructorGroupDetail user={user} groupId={route.groupId} onLogout={handleLogout} /><ToastContainer /></>;
+  }
+  if (route.page === "instructor-students") {
+    return <><InstructorStudents user={user} onLogout={handleLogout} /><ToastContainer /></>;
+  }
+  if (route.page === "instructor-pending") {
+    return <><InstructorPending user={user} onLogout={handleLogout} /><ToastContainer /></>;
   }
   if (route.page === "instructor") {
-    return <InstructorOverview user={user} onLogout={handleLogout} />;
+    return <><InstructorOverview user={user} onLogout={handleLogout} /><ToastContainer /></>;
   }
   if (route.page === "instructor-lab") {
     return <InstructorLabDetail user={user} labId={route.labId} onLogout={handleLogout} />;

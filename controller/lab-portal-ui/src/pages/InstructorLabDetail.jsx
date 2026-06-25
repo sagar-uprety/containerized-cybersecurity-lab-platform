@@ -51,7 +51,7 @@ export default function InstructorLabDetail({ user, labId, onLogout }) {
       <Header user={user} onLogout={onLogout} />
       <div className="container">
         <a href="/instructor" className="back-link" onClick={(e) => { e.preventDefault(); window.history.back(); }}>
-          &larr; Back
+          &larr; Back to Group
         </a>
 
         <h1>{scenario.title}</h1>

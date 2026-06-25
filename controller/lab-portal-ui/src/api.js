@@ -282,3 +282,15 @@ export function getDashboardStats() {
 export function getGroupProgress(groupId) {
     return request(`/instructor/groups/${groupId}/progress`);
 }
+
+export function renameGroup(groupId, name) {
+    return instructorPost(`/instructor/groups/${groupId}/rename`, { name });
+}
+
+export function getStudentsProgress() {
+    return request('/instructor/students-progress');
+}
+
+export function getGroupExportCsvUrl(groupId) {
+    return `${API_BASE}/instructor/groups/${groupId}/export-csv`;
+}
