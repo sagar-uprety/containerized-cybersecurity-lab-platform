@@ -183,13 +183,15 @@ function buildStore() {
     }
   }
 
-  // Lab assignments per group — every group gets 2 to (all but one) labs, so
-  // every group's "Available Labs" (unassigned) section always has at least
-  // one entry to test, never fully empty and never fully assigned.
+  // Lab assignments per group — 2 to all 5 labs, so both real states show up:
+  // some groups have labs still available to assign, some have every lab
+  // assigned already ("Available Labs" section absent entirely for those).
+  // Force at least one group of each kind so both are guaranteed reachable,
+  // not left to chance.
   const groupLabs: MockGroupLab[] = [];
   const now = Date.now();
   groups.forEach((g, gi) => {
-    const labCount = randInt(rand, 2, LABS.length - 1);
+    const labCount = gi === 0 ? LABS.length : gi === 1 ? randInt(rand, 2, LABS.length - 1) : randInt(rand, 2, LABS.length);
     const shuffled = [...LABS].sort(() => rand() - 0.5).slice(0, labCount);
     shuffled.forEach((lab, li) => {
       let deadline: string | null = null;
