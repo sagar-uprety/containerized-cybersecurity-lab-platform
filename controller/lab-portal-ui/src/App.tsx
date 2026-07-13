@@ -20,9 +20,7 @@ const InstructorGroupStudentDetail = lazy(() => import("./pages/InstructorGroupS
 const InstructorGroupSessionDetail = lazy(() => import("./pages/InstructorGroupSessionDetail"));
 const InstructorStudents = lazy(() => import("./pages/InstructorStudents"));
 const InstructorPending = lazy(() => import("./pages/InstructorPending"));
-const InstructorSessionDetail = lazy(() => import("./pages/InstructorSessionDetail"));
-const InstructorManage = lazy(() => import("./pages/InstructorManage"));
-const StudentSearch = lazy(() => import("./pages/StudentSearch"));
+const InstructorAccountPassword = lazy(() => import("./pages/InstructorAccountPassword"));
 
 function parseRoute(): Route {
   const path = window.location.pathname;
@@ -54,9 +52,8 @@ function parseRoute(): Route {
 
   if (/^\/instructor\/students\/?$/.test(path)) return { page: "instructor-students" };
   if (/^\/instructor\/pending\/?$/.test(path)) return { page: "instructor-pending" };
+  if (/^\/instructor\/account\/password\/?$/.test(path)) return { page: "instructor-account-password" };
   if (/^\/instructor\/login\/?$/.test(path)) return { page: "instructor-login" };
-  if (/^\/instructor\/(manage)\/?$/.test(path)) return { page: "instructor-manage" };
-  if (/^\/instructor\/(search)\/?$/.test(path)) return { page: "instructor-search" };
   if (/^\/instructor\/?$/.test(path)) return { page: "instructor" };
   if (/^\/signup\/?$/.test(path)) return { page: "signup" };
 
@@ -198,11 +195,13 @@ export default function App() {
     case "instructor-session":
       page = <InstructorGroupSessionDetail user={user} groupId={0} studentId={route.studentId!} labId={route.labId!} onLogout={handleLogout} />;
       break;
-    case "instructor-manage":
-      page = <InstructorManage user={user} onLogout={handleLogout} />;
-      break;
-    case "instructor-search":
-      page = <StudentSearch user={user} onLogout={handleLogout} />;
+    case "instructor-account-password":
+      page = (
+        <InstructorAccountPassword
+          onChanged={() => navigate("/instructor")}
+          onLogout={handleLogout}
+        />
+      );
       break;
     case "feedback":
       page = <Feedback user={user} labId={route.labId!} onLogout={handleLogout} />;

@@ -9,7 +9,7 @@ import logging
 import re
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -1020,6 +1020,15 @@ def api_instructor_student_detail(student_id: str, user: dict = Depends(get_auth
     }
 
 
+def _aware_utc(dt: Optional[datetime]) -> Optional[datetime]:
+    """SQLite drops tzinfo on read even though deadlines are always written as
+    UTC-aware (see the assign-lab endpoint). Re-attach UTC before comparing
+    against datetime.now(timezone.utc), or the comparison raises TypeError."""
+    if dt is None:
+        return None
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+
+
 def _build_session_history(lifecycle):
     """Group lifecycle events into discrete sessions (start→end).
 
@@ -1406,6 +1415,38 @@ def api_group_detail(group_id: int, user: dict = Depends(get_authenticated_user)
             }
             for gl in group.labs
         ]
+
+        member_ids = {m.user.internal_id or m.user.email for m in group.members if m.status == "approved"}
+        recent_activity: list[dict] = []
+        try:
+            lc_path = Path(settings.RESULTS_DIR).parent / "evidence" / "lifecycle-events.jsonl"
+            if lc_path.exists() and member_ids:
+                all_events = []
+                with lc_path.open("r", encoding="utf-8") as fh:
+                    for line in fh:
+                        if not line.strip():
+                            continue
+                        with contextlib.suppress(json.JSONDecodeError):
+                            ev = json.loads(line)
+                            if ev.get("student_id") in member_ids:
+                                all_events.append(ev)
+                all_events.sort(key=lambda e: e.get("timestamp", ""), reverse=True)
+                for ev in all_events[:10]:
+                    lid = ev.get("lab_id", "")
+                    sc = load_scenario_metadata(lid)
+                    recent_activity.append(
+                        {
+                            "timestamp": ev.get("timestamp"),
+                            "action": ev.get("action"),
+                            "student_id": ev.get("student_id"),
+                            "lab_id": lid,
+                            "lab_title": sc["title"] if sc else lid,
+                            "result": ev.get("result"),
+                        }
+                    )
+        except Exception:
+            pass
+
         return {
             "id": group.id,
             "name": group.name,
@@ -1413,6 +1454,7 @@ def api_group_detail(group_id: int, user: dict = Depends(get_authenticated_user)
             "pending_members": pending,
             "approved_members": approved,
             "labs": labs,
+            "recent_activity": recent_activity,
             "csrf_token": generate_token(user),
         }
 
@@ -1472,14 +1514,19 @@ def api_group_progress(group_id: int, user: dict = Depends(get_authenticated_use
         lab_ids = [gl.lab_id for gl in group.labs]
         total_labs = len(lab_ids)
 
+        now = datetime.now(timezone.utc)
+        lab_deadlines = {gl.lab_id: _aware_utc(gl.deadline) for gl in group.labs}
+
         students = []
         total_group_passed = 0
+        total_at_risk = 0
         lab_stats: dict[str, dict] = {
             lid: {"passed": 0, "attempted": 0, "total_time": 0.0} for lid in lab_ids
         }
         for m in approved:
             sid = m.user.internal_id or m.user.email
             passed = 0
+            passed_lab_ids: set[str] = set()
             total_sessions = 0
             last_active = None
             total_time = 0.0
@@ -1506,8 +1553,15 @@ def api_group_progress(group_id: int, user: dict = Depends(get_authenticated_use
                     latest = crs[-1].get("check_result", {})
                     if latest.get("passed") or latest.get("status") == "fixed":
                         passed += 1
+                        passed_lab_ids.add(lid)
                         lab_stats[lid]["passed"] += 1
             total_group_passed += passed
+            at_risk = any(
+                lab_deadlines.get(lid) and lab_deadlines[lid] < now and lid not in passed_lab_ids
+                for lid in lab_ids
+            )
+            if at_risk:
+                total_at_risk += 1
             students.append(
                 {
                     "user_id": m.user.id,
@@ -1520,6 +1574,7 @@ def api_group_progress(group_id: int, user: dict = Depends(get_authenticated_use
                     "total_sessions": total_sessions,
                     "last_active": last_active,
                     "total_time_seconds": round(total_time, 1),
+                    "at_risk": at_risk,
                 }
             )
 
@@ -1544,6 +1599,7 @@ def api_group_progress(group_id: int, user: dict = Depends(get_authenticated_use
             "total_students": len(approved),
             "total_passed": total_group_passed,
             "total_possible": total_labs * len(approved),
+            "total_at_risk": total_at_risk,
             "students": students,
             "labs": lab_summaries,
         }
@@ -1608,30 +1664,39 @@ def api_group_export_csv(group_id: int, user: dict = Depends(get_authenticated_u
 @app.get("/api/instructor/students-progress")
 def api_instructor_students_progress(user: dict = Depends(get_authenticated_user)):
     require_instructor(user)
-    all_labs = list_scenarios()
+    now = datetime.now(timezone.utc)
     with SessionLocal() as session:
         students = repo.list_users(session, role="student")
         result = []
         for s in students:
             sid = s.internal_id or s.email
-            groups = [
-                {"id": m.group.id, "name": m.group.name}
-                for m in s.memberships
-                if m.status == "approved"
-            ]
+            memberships = [m for m in s.memberships if m.status == "approved"]
+            groups = [{"id": m.group.id, "name": m.group.name} for m in memberships]
+
+            # labs_assigned must match what the group-progress page counts: labs
+            # actually assigned to one of the student's approved groups, not
+            # "any lab the student happened to start a session for" (that was
+            # the old behavior and produced a different denominator than the
+            # per-group progress view for the same student).
+            assigned_lab_ids: set[str] = set()
+            lab_deadlines: dict[str, datetime | None] = {}
+            for m in memberships:
+                for gl in m.group.labs:
+                    assigned_lab_ids.add(gl.lab_id)
+                    dl = _aware_utc(gl.deadline)
+                    existing = lab_deadlines.get(gl.lab_id)
+                    if existing is None or (dl and dl > existing):
+                        lab_deadlines[gl.lab_id] = dl
+
             labs_passed = 0
-            labs_assigned = 0
+            passed_lab_ids: set[str] = set()
             total_sessions = 0
             total_time = 0.0
             last_active = None
-            for scenario in all_labs:
-                lid = scenario["id"]
+            for lid in assigned_lab_ids:
                 crs = get_check_results_for_student(lid, sid)
                 lifecycle = get_lifecycle_events_for_student(lid, sid)
                 sessions = _build_session_history(lifecycle)
-                if not sessions:
-                    continue
-                labs_assigned += 1
                 total_sessions += len(sessions)
                 for sess in sessions:
                     if sess.get("duration_seconds"):
@@ -1644,6 +1709,13 @@ def api_instructor_students_progress(user: dict = Depends(get_authenticated_user
                     latest = crs[-1].get("check_result", {})
                     if latest.get("passed") or latest.get("status") == "fixed":
                         labs_passed += 1
+                        passed_lab_ids.add(lid)
+
+            at_risk = any(
+                lab_deadlines.get(lid) and lab_deadlines[lid] < now and lid not in passed_lab_ids
+                for lid in assigned_lab_ids
+            )
+
             result.append(
                 {
                     "student_id": sid,
@@ -1652,10 +1724,11 @@ def api_instructor_students_progress(user: dict = Depends(get_authenticated_user
                     "study_program": s.study_program,
                     "groups": groups,
                     "labs_passed": labs_passed,
-                    "labs_assigned": labs_assigned,
+                    "labs_assigned": len(assigned_lab_ids),
                     "total_sessions": total_sessions,
                     "total_time_seconds": round(total_time, 1),
                     "last_active": last_active,
+                    "at_risk": at_risk,
                 }
             )
         return result
@@ -1669,11 +1742,13 @@ def api_instructor_dashboard(user: dict = Depends(get_authenticated_user)):
         all_students = repo.list_users(session, role="student")
         total_labs = len(list_scenarios())
         total_pending = 0
+        total_possible = 0
         group_summaries = []
         for g in groups:
             approved = sum(1 for m in g.members if m.status == "approved")
             pending = sum(1 for m in g.members if m.status == "pending")
             total_pending += pending
+            total_possible += approved * len(g.labs)
             group_summaries.append(
                 {
                     "id": g.id,
@@ -1684,11 +1759,13 @@ def api_instructor_dashboard(user: dict = Depends(get_authenticated_user)):
                     "created_at": g.created_at.isoformat() if g.created_at else None,
                 }
             )
+
+        now = datetime.now(timezone.utc)
         total_passed = 0
+        latest_checks: dict[tuple[str, str], dict] = {}
         try:
             cr_path = Path(settings.RESULTS_DIR).parent / "evidence" / "check-results.jsonl"
             if cr_path.exists():
-                latest_checks: dict[tuple[str, str], dict] = {}
                 with cr_path.open("r", encoding="utf-8") as fh:
                     for line in fh:
                         if not line.strip():
@@ -1702,7 +1779,30 @@ def api_instructor_dashboard(user: dict = Depends(get_authenticated_user)):
         except Exception:
             pass
 
+        # At-risk: an approved member of a group whose group-assigned lab is
+        # past its deadline and hasn't been passed yet. Reuses latest_checks
+        # (already scanned above) instead of re-walking session history.
+        total_at_risk = 0
+        for g in groups:
+            overdue_labs = [gl for gl in g.labs if _aware_utc(gl.deadline) and _aware_utc(gl.deadline) < now]
+            if not overdue_labs:
+                continue
+            for m in g.members:
+                if m.status != "approved":
+                    continue
+                sid = m.user.internal_id or m.user.email
+                is_at_risk = False
+                for gl in overdue_labs:
+                    cr = latest_checks.get((gl.lab_id, sid), {})
+                    if not (cr.get("passed") or cr.get("status") == "fixed"):
+                        is_at_risk = True
+                        break
+                if is_at_risk:
+                    total_at_risk += 1
+
         recent = []
+        active_student_ids: set[str] = set()
+        week_ago_iso = (now - timedelta(days=7)).isoformat()
         try:
             lc_path = Path(settings.RESULTS_DIR).parent / "evidence" / "lifecycle-events.jsonl"
             if lc_path.exists():
@@ -1714,6 +1814,11 @@ def api_instructor_dashboard(user: dict = Depends(get_authenticated_user)):
                         with contextlib.suppress(json.JSONDecodeError):
                             all_events.append(json.loads(line))
                 all_events.sort(key=lambda e: e.get("timestamp", ""), reverse=True)
+                for ev in all_events:
+                    ts = ev.get("timestamp", "")
+                    sid = ev.get("student_id")
+                    if sid and ts >= week_ago_iso:
+                        active_student_ids.add(sid)
                 for ev in all_events[:15]:
                     lid = ev.get("lab_id", "")
                     sc = load_scenario_metadata(lid)
@@ -1735,6 +1840,10 @@ def api_instructor_dashboard(user: dict = Depends(get_authenticated_user)):
             "total_labs": total_labs,
             "total_students": len(all_students),
             "total_pending": total_pending,
+            "total_passed": total_passed,
+            "total_possible": total_possible,
+            "total_at_risk": total_at_risk,
+            "active_this_week": len(active_student_ids),
             "groups": group_summaries,
             "recent_activity": recent,
         }
@@ -1802,13 +1911,8 @@ def instructor_pending_spa():
     return _serve_spa()
 
 
-@app.get("/instructor/search", response_class=HTMLResponse)
-def instructor_search_spa():
-    return _serve_spa()
-
-
-@app.get("/instructor/manage", response_class=HTMLResponse)
-def instructor_manage_spa():
+@app.get("/instructor/account/password", response_class=HTMLResponse)
+def instructor_account_password_spa():
     return _serve_spa()
 
 

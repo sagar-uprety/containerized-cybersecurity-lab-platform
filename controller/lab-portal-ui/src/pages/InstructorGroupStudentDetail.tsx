@@ -1,11 +1,12 @@
 import { useState, useEffect } from "react";
-import type { User, GroupDetail, StudentDetail, StudentLabDetail, GroupMember, PendingMember } from "../types";
-import Header from "../components/Header";
+import type { User, GroupDetail, StudentDetail, GroupMember, PendingMember } from "../types";
+import InstructorLayout from "../components/InstructorLayout";
 import AlertError from "../components/AlertError";
 import StatCard from "../components/StatCard";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { navigate } from "../utils/navigate";
 import { fmtDuration, fmtTimestamp } from "../utils/time";
+import { outcomeStyle } from "../utils/outcome";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
 import { getGroupDetail, getInstructorStudentDetail } from "../api";
 
@@ -15,21 +16,6 @@ interface InstructorGroupStudentDetailProps {
   studentId: string;
   onLogout: () => void;
 }
-
-interface OutcomeStyle {
-  label: string;
-  color: string;
-  bg: string;
-}
-
-const OUTCOME_MAP: Record<string, OutcomeStyle> = {
-  end: { label: "Ended", color: "var(--muted)", bg: "var(--border-light)" },
-  stop: { label: "Stopped", color: "var(--amber)", bg: "var(--amber-bg)" },
-  auto_stop: { label: "Auto-stopped", color: "var(--amber)", bg: "var(--amber-bg)" },
-  destroy: { label: "Destroyed", color: "var(--red)", bg: "var(--red-bg)" },
-  start: { label: "Running", color: "var(--green)", bg: "var(--green-bg)" },
-  running: { label: "Running", color: "var(--green)", bg: "var(--green-bg)" },
-};
 
 export default function InstructorGroupStudentDetail({ user, groupId, studentId, onLogout }: InstructorGroupStudentDetailProps) {
   const [group, setGroup] = useState<GroupDetail | null>(null);
@@ -62,8 +48,7 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
   }).length || 0;
 
   return (
-    <>
-      <Header user={user} onLogout={onLogout} />
+    <InstructorLayout user={user} onLogout={onLogout}>
       <div className="container">
         <Breadcrumbs items={[
           { label: "Dashboard", href: "/instructor" },
@@ -160,13 +145,8 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
                             <td>{sess.check_count || 0}</td>
                             <td>
                               {(() => {
-                                const style = (sess.outcome && OUTCOME_MAP[sess.outcome])
-                                  || { label: sess.outcome || "—", color: "var(--muted)", bg: "var(--border-light)" };
-                                return (
-                                  <span className="badge" style={{ backgroundColor: style.bg, color: style.color }}>
-                                    {style.label}
-                                  </span>
-                                );
+                                const style = outcomeStyle(sess.outcome);
+                                return <span className={`badge ${style.badgeClass}`}>{style.label}</span>;
                               })()}
                             </td>
                             <td style={{ textAlign: "right" }}>
@@ -189,7 +169,6 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
           );
         })}
       </div>
-    </>
+    </InstructorLayout>
   );
 }
-

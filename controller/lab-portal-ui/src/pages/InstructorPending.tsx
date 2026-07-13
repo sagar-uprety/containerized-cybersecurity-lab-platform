@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
 import type { User, Group, GroupDetail } from "../types";
-import Header from "../components/Header";
+import InstructorLayout from "../components/InstructorLayout";
 import AlertError from "../components/AlertError";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { showToast } from "../components/Toast";
 import { getGroups, getGroupDetail, approveMembers, rejectMembers } from "../api";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
+import { timeAgo } from "../utils/time";
 
 interface Props {
   user: User;
@@ -20,6 +21,10 @@ interface PendingRow {
   requested_at?: string;
   groupId: number;
   groupName: string;
+}
+
+function initials(email: string): string {
+  return (email || "?").charAt(0).toUpperCase();
 }
 
 export default function InstructorPending({ user, onLogout }: Props) {
@@ -104,8 +109,7 @@ export default function InstructorPending({ user, onLogout }: Props) {
   }
 
   return (
-    <>
-      <Header user={user} onLogout={onLogout} pendingCount={totalPending} />
+    <InstructorLayout user={user} onLogout={onLogout} pendingCount={totalPending}>
       <div className="container">
         <Breadcrumbs items={[
           { label: "Dashboard", href: "/instructor" },
@@ -126,62 +130,44 @@ export default function InstructorPending({ user, onLogout }: Props) {
 
         {allPending.length > 0 && (
           <>
-            {selected.size > 0 && (
-              <div className="toolbar" style={{ paddingTop: 0 }}>
-                <button className="btn btn-primary btn-sm" disabled={actionLoading} onClick={() => handleBulkAction("approve")}>
-                  Approve {selected.size} selected
-                </button>
-                <button className="btn btn-sm btn-danger-outline" disabled={actionLoading} onClick={() => handleBulkAction("reject")}>
-                  Reject
-                </button>
-              </div>
-            )}
+            <div className="toolbar" style={{ paddingTop: 0 }}>
+              <button className="btn btn-sm" onClick={() => {
+                const allKeys = allPending.map((m) => `${m.groupId}:${m.user_id}`);
+                const allSelected = allKeys.every((k) => selected.has(k));
+                setSelected(allSelected ? new Set() : new Set(allKeys));
+              }}>
+                {allPending.every((m) => selected.has(`${m.groupId}:${m.user_id}`)) ? "Deselect All" : "Select All"}
+              </button>
+              <button className="btn btn-primary btn-sm" disabled={selected.size === 0 || actionLoading} onClick={() => handleBulkAction("approve")}>
+                Approve {selected.size > 0 ? `(${selected.size})` : ""}
+              </button>
+              <button className="btn btn-sm btn-danger-outline" disabled={selected.size === 0 || actionLoading} onClick={() => handleBulkAction("reject")}>
+                Reject
+              </button>
+            </div>
 
-            <div className="panel mb-0" style={{ padding: 0, overflow: "hidden" }}>
-              <table className="data-table" style={{ width: "100%" }}>
-                <thead>
-                  <tr>
-                    <th className="text-center" style={{ width: 40 }}>
-                      <input
-                        type="checkbox"
-                        checked={allPending.length > 0 && allPending.every((m) => selected.has(`${m.groupId}:${m.user_id}`))}
-                        onChange={() => {
-                          const allKeys = allPending.map((m) => `${m.groupId}:${m.user_id}`);
-                          const allSelected = allKeys.every((k) => selected.has(k));
-                          setSelected(allSelected ? new Set() : new Set(allKeys));
-                        }}
-                      />
-                    </th>
-                    <th>Email</th>
-                    <th>Group</th>
-                    <th>Program</th>
-                    <th>Requested</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {allPending.map((m) => (
-                    <tr key={`${m.groupId}:${m.user_id}`}>
-                      <td className="text-center">
-                        <input
-                          type="checkbox"
-                          checked={selected.has(`${m.groupId}:${m.user_id}`)}
-                          onChange={() => toggleSelect(m.groupId, m.user_id)}
-                        />
-                      </td>
-                      <td style={{ fontWeight: 500 }}>{m.email}</td>
-                      <td><span className="badge">{m.groupName}</span></td>
-                      <td>{m.study_program || "—"}</td>
-                      <td className="text-sm-muted">
-                        {m.requested_at ? new Date(m.requested_at).toLocaleDateString() : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="panel student-row-list" style={{ padding: "0.5rem" }}>
+              {allPending.map((m) => {
+                const key = `${m.groupId}:${m.user_id}`;
+                return (
+                  <div key={key} className="student-row-card" style={{ cursor: "default" }} onClick={() => toggleSelect(m.groupId, m.user_id)}>
+                    <input type="checkbox" checked={selected.has(key)} onChange={() => toggleSelect(m.groupId, m.user_id)} onClick={(e) => e.stopPropagation()} />
+                    <div className="avatar-circle">{initials(m.email)}</div>
+                    <div className="student-row-identity">
+                      <div className="student-row-email">{m.email}</div>
+                      <div className="student-row-meta">{[m.study_program, m.semester].filter(Boolean).join(" · ") || "—"}</div>
+                    </div>
+                    <span className="badge">{m.groupName}</span>
+                    <div className="text-sm-muted" style={{ minWidth: 100, textAlign: "right" }}>
+                      {m.requested_at ? timeAgo(m.requested_at) : ""}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </>
         )}
       </div>
-    </>
+    </InstructorLayout>
   );
 }
