@@ -13,6 +13,8 @@ const SignupPage = lazy(() => import("./pages/SignupPage"));
 const Overview = lazy(() => import("./pages/Overview"));
 const LabDetail = lazy(() => import("./pages/LabDetail"));
 const Feedback = lazy(() => import("./pages/Feedback"));
+const StudentResults = lazy(() => import("./pages/StudentResults"));
+const StudentAccountPassword = lazy(() => import("./pages/StudentAccountPassword"));
 const PasswordChange = lazy(() => import("./pages/PasswordChange"));
 const InstructorOverview = lazy(() => import("./pages/InstructorOverview"));
 const InstructorLabDetail = lazy(() => import("./pages/InstructorLabDetail"));
@@ -63,6 +65,9 @@ function parseRoute(): Route {
 
   const detailMatch = path.match(/^\/labs\/([^/]+)\/?$/);
   if (detailMatch) return { page: "detail", labId: detailMatch[1] };
+
+  if (/^\/results\/?$/.test(path)) return { page: "results" };
+  if (/^\/account\/password\/?$/.test(path)) return { page: "student-account-password" };
 
   if (path === "/" || path === "") return { page: "overview" };
 
@@ -209,6 +214,17 @@ function AppContent() {
       break;
     case "detail":
       page = <LabDetail user={user} labId={route.labId!} onLogout={handleLogout} />;
+      break;
+    case "results":
+      page = <StudentResults user={user} onLogout={handleLogout} />;
+      break;
+    case "student-account-password":
+      page = (
+        <StudentAccountPassword
+          onChanged={() => navigate("/")}
+          onLogout={handleLogout}
+        />
+      );
       break;
     case "overview":
       if (user.role === "instructor") {

@@ -164,6 +164,7 @@ export interface SessionSummary {
   duration_seconds?: number;
   check_count?: number;
   outcome?: string;
+  passed?: boolean | null;
 }
 
 export interface SessionDetail {
@@ -223,4 +224,22 @@ export interface Route {
   labId?: string;
   groupId?: number;
   studentId?: string;
+}
+
+export interface StudentLabResult {
+  lab_id: string;
+  lab_title: string;
+  difficulty?: string;
+  result: "passed" | "failed" | "not_attempted";
+  sessions_attempted: number;
+  total_time_seconds: number;
+  last_active: string | null;
+}
+
+export interface StudentResultsData {
+  labs: StudentLabResult[];
+  total_sessions: number;
+  total_time_seconds: number;
+  total_passed: number;
+  total_labs: number;
 }

@@ -169,7 +169,7 @@ export default function InstructorStudents({ user, onLogout }: Props) {
           value={filterGroupId != null ? String(filterGroupId) : "all"}
           onValueChange={(v) => setFilterGroupId(v === "all" ? null : parseInt(v, 10))}
         >
-          <SelectTrigger className="w-48"><SelectValue placeholder="All groups" /></SelectTrigger>
+          <SelectTrigger className="w-64"><SelectValue placeholder="All groups" /></SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All groups</SelectItem>
             {allGroups.map((g) => (

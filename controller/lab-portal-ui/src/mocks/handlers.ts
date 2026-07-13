@@ -1,5 +1,5 @@
 import { http, HttpResponse } from "msw";
-import { store, LABS, INSTRUCTOR_USER, STUDENT_USER, studentLabState, allocGroupId } from "./data";
+import { store, LABS, INSTRUCTOR_USER, STUDENT_USER, studentLabState, STUDENT_RESULTS, allocGroupId } from "./data";
 import {
   dashboardStats, groupSummary, groupDetail, groupProgress, studentsProgress,
   studentDetail, sessionDetail,
@@ -98,6 +98,14 @@ export const handlers = [
 
   http.get(`${API}/labs/:id/feedback`, () => HttpResponse.json({ csrf_token: "mock-csrf-token", session_id: "mock-session-id", already_submitted: false })),
   http.post(`${API}/labs/:id/feedback`, () => HttpResponse.json({ ok: true })),
+
+  http.get(`${API}/results`, () => {
+    const labs = STUDENT_RESULTS;
+    const total_sessions = labs.reduce((acc, l) => acc + l.sessions_attempted, 0);
+    const total_time_seconds = labs.reduce((acc, l) => acc + l.total_time_seconds, 0);
+    const total_passed = labs.filter((l) => l.result === "passed").length;
+    return HttpResponse.json({ labs, total_sessions, total_time_seconds, total_passed, total_labs: labs.length });
+  }),
 
   http.get(`${API}/instructor/dashboard`, () => HttpResponse.json(dashboardStats())),
 

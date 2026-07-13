@@ -99,6 +99,9 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
         const sessions = hideShort
           ? (lab.sessions || []).filter((s) => !s.duration_seconds || s.duration_seconds >= 60)
           : (lab.sessions || []);
+        // Most recent session first (top row = #1), oldest last — matches the
+        // numbering GroupSessionDetail expects when looking a session back up.
+        const orderedSessions = [...sessions].reverse();
         const passed = lab.latest_check?.passed === true || lab.latest_check?.status === "fixed";
 
         return (
@@ -114,21 +117,22 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
               )}
             </div>
 
-            {sessions.length > 0 ? (
+            {orderedSessions.length > 0 ? (
               <div className="overflow-hidden rounded-lg border border-border">
-                <Table>
+                <Table className="table-fixed">
                   <TableHeader>
                     <TableRow className="hover:bg-transparent">
-                      <TableHead>Session</TableHead>
-                      <TableHead>Started</TableHead>
-                      <TableHead>Duration</TableHead>
-                      <TableHead>Checks</TableHead>
-                      <TableHead>Outcome</TableHead>
-                      <TableHead className="w-20" />
+                      <TableHead className="w-20">Session</TableHead>
+                      <TableHead className="w-40">Started</TableHead>
+                      <TableHead className="w-24">Duration</TableHead>
+                      <TableHead className="w-20">Checks</TableHead>
+                      <TableHead className="w-28">Result</TableHead>
+                      <TableHead className="w-28">Outcome</TableHead>
+                      <TableHead className="w-24" />
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {sessions.map((sess, i) => {
+                    {orderedSessions.map((sess, i) => {
                       const sessionIndex = (lab.sessions || []).length - (lab.sessions || []).indexOf(sess);
                       const rowHref = `/instructor/groups/${groupId}/students/${studentId}/labs/${lab.lab_id}?session=${sessionIndex}`;
                       const style = outcomeStyle(sess.outcome);
@@ -144,6 +148,15 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
                           <TableCell className="text-sm text-foreground">{fmtTimestamp(sess.started_at)}</TableCell>
                           <TableCell className="text-sm text-foreground">{fmtDuration(sess.duration_seconds)}</TableCell>
                           <TableCell className="text-sm text-foreground">{sess.check_count || 0}</TableCell>
+                          <TableCell>
+                            {sess.passed == null ? (
+                              <span className="text-sm text-muted-foreground">—</span>
+                            ) : (
+                              <Badge className={sess.passed ? "border-transparent bg-success-bg text-success" : "border-transparent bg-destructive-bg text-destructive"}>
+                                {sess.passed ? "Passed" : "Failed"}
+                              </Badge>
+                            )}
+                          </TableCell>
                           <TableCell><Badge className={style.badgeClass}>{style.label}</Badge></TableCell>
                           <TableCell className="text-right">
                             <span className="inline-flex items-center gap-1 text-sm text-primary">

@@ -118,8 +118,8 @@ export default function Overview({ user, onLogout }: { user: User; onLogout: () 
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {labs.map((lab) => (
               <Card key={lab.id}>
-                <CardContent className="flex h-full flex-col gap-3">
-                  <div className="flex items-start justify-between gap-2">
+                <CardContent className="flex h-full flex-col items-start gap-3">
+                  <div className="flex w-full items-start justify-between gap-2">
                     <span className="font-medium text-foreground">{lab.title}</span>
                     <StatusBadge status={lab.status} />
                   </div>

@@ -43,10 +43,12 @@ interface AppShellProps {
   brandHref: string;
   navItems: NavItem[];
   accountPasswordHref?: string;
+  /** Opt out of the centered max-width content column — for workspace views (e.g. the lab terminal split-pane) that should use all available width. */
+  fullWidth?: boolean;
   children: ReactNode;
 }
 
-export default function AppShell({ user, onLogout, roleLabel, brandHref, navItems, accountPasswordHref, children }: AppShellProps) {
+export default function AppShell({ user, onLogout, roleLabel, brandHref, navItems, accountPasswordHref, fullWidth, children }: AppShellProps) {
   const path = window.location.pathname;
   const initial = (user.username || "?").charAt(0).toUpperCase();
 
@@ -132,7 +134,9 @@ export default function AppShell({ user, onLogout, roleLabel, brandHref, navItem
             <SidebarTrigger />
             <span className="text-sm font-medium text-foreground md:hidden">Thesis Lab Portal</span>
           </header>
-          <div className="flex-1 overflow-y-auto p-6">{children}</div>
+          <div className="flex-1 overflow-y-auto p-6 lg:p-8">
+            {fullWidth ? children : <div className="mx-auto w-full max-w-[1400px]">{children}</div>}
+          </div>
         </SidebarInset>
       </SidebarProvider>
     </TooltipProvider>

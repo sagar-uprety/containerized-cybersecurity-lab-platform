@@ -433,7 +433,7 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
         )}
         {progress && progress.students.length > 0 && (
           <Card className="gap-0 divide-y divide-border py-0">
-            {progress.students.map((s) => {
+            {[...progress.students].sort((a, b) => (a.email || a.student_id).localeCompare(b.email || b.student_id)).map((s) => {
               const pct = s.labs_assigned > 0 ? Math.round((s.labs_passed / s.labs_assigned) * 100) : 0;
               return (
                 <div

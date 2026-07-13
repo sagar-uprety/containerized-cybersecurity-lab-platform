@@ -1,20 +1,30 @@
-import { BookOpen } from "lucide-react";
+import { BookOpen, BarChart3 } from "lucide-react";
 import type { User } from "../types";
 import AppShell, { type NavItem } from "./AppShell";
 
 interface StudentLayoutProps {
   user: User;
   onLogout: () => void;
+  fullWidth?: boolean;
   children: React.ReactNode;
 }
 
-export default function StudentLayout({ user, onLogout, children }: StudentLayoutProps) {
+export default function StudentLayout({ user, onLogout, fullWidth, children }: StudentLayoutProps) {
   const navItems: NavItem[] = [
     { href: "/", label: "My Labs", icon: BookOpen, match: (p) => p === "/" || p.startsWith("/labs") },
+    { href: "/results", label: "My Results", icon: BarChart3, match: (p) => p.startsWith("/results") },
   ];
 
   return (
-    <AppShell user={user} onLogout={onLogout} roleLabel="Student" brandHref="/" navItems={navItems}>
+    <AppShell
+      user={user}
+      onLogout={onLogout}
+      roleLabel="Student"
+      brandHref="/"
+      navItems={navItems}
+      accountPasswordHref="/account/password"
+      fullWidth={fullWidth}
+    >
       {children}
     </AppShell>
   );

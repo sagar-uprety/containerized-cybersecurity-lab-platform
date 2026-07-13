@@ -303,6 +303,25 @@ export const studentLabState: Record<string, { status: "not_created" | "running"
   [LABS[2].id]: { status: "stopped", deadline: new Date(Date.now() + 5 * 86400 * 1000).toISOString() },
 };
 
+export interface StudentLabResult {
+  lab_id: string;
+  lab_title: string;
+  difficulty: MockLab["difficulty"];
+  result: "passed" | "failed" | "not_attempted";
+  sessions_attempted: number;
+  total_time_seconds: number;
+  last_active: string | null;
+}
+
+// Mock per-lab results for STUDENT_USER's own "My Results" page.
+export const STUDENT_RESULTS: StudentLabResult[] = [
+  { lab_id: LABS[0].id, lab_title: LABS[0].title, difficulty: LABS[0].difficulty, result: "passed", sessions_attempted: 3, total_time_seconds: 82 * 60, last_active: new Date(Date.now() - 6 * 86400 * 1000).toISOString() },
+  { lab_id: LABS[1].id, lab_title: LABS[1].title, difficulty: LABS[1].difficulty, result: "failed", sessions_attempted: 2, total_time_seconds: 41 * 60, last_active: new Date(Date.now() - 3600 * 1000).toISOString() },
+  { lab_id: LABS[2].id, lab_title: LABS[2].title, difficulty: LABS[2].difficulty, result: "failed", sessions_attempted: 4, total_time_seconds: 118 * 60, last_active: new Date(Date.now() - 2 * 86400 * 1000).toISOString() },
+  { lab_id: LABS[3].id, lab_title: LABS[3].title, difficulty: LABS[3].difficulty, result: "not_attempted", sessions_attempted: 0, total_time_seconds: 0, last_active: null },
+  { lab_id: LABS[4].id, lab_title: LABS[4].title, difficulty: LABS[4].difficulty, result: "not_attempted", sessions_attempted: 0, total_time_seconds: 0, last_active: null },
+];
+
 let nextGroupId = Math.max(...store.groups.map((g) => g.id)) + 1;
 export function allocGroupId(): number {
   return nextGroupId++;

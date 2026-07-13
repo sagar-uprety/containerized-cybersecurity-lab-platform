@@ -14,6 +14,7 @@ import type {
   FeedbackInfo,
   InstructorLabInfo,
   InstructorLabDetailData,
+  StudentResultsData,
 } from "./types";
 
 const API_BASE = "/api";
@@ -196,6 +197,10 @@ export function exportEvidence(opts: { csrfToken: string; evaluationId: string; 
     }),
     headers: { "Content-Type": "application/json" },
   });
+}
+
+export function getStudentResults(): Promise<StudentResultsData> {
+  return request("/results");
 }
 
 export function changePassword(currentPassword: string, newPassword: string): Promise<unknown> {

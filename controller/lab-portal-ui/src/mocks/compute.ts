@@ -11,6 +11,7 @@ export interface SessionSpan {
   outcome: string;
   duration_seconds: number | null;
   check_count: number;
+  passed: boolean | null;
 }
 
 export function buildSessionHistory(studentId: string, labId: string): SessionSpan[] {
@@ -34,12 +35,14 @@ export function buildSessionHistory(studentId: string, labId: string): SessionSp
         const t = new Date(c.timestamp);
         return t >= start && t <= end;
       });
+      const lastCheck = checksInWindow[checksInWindow.length - 1];
       sessions.push({
         started_at: current.started_at,
         ended_at: ev.timestamp,
         outcome: ev.action,
         duration_seconds: (end.getTime() - start.getTime()) / 1000,
         check_count: checksInWindow.length,
+        passed: lastCheck ? lastCheck.check_result.passed : null,
       });
       current = null;
     }
@@ -317,7 +320,7 @@ export function studentDetail(studentId: string) {
       lab_title: labTitle(labId),
       total_sessions: sessions.length,
       latest_check: latestCheck(user.internal_id, labId),
-      sessions: sessions.map((s) => ({ started_at: s.started_at, duration_seconds: s.duration_seconds ?? undefined, check_count: s.check_count, outcome: s.outcome })),
+      sessions: sessions.map((s) => ({ started_at: s.started_at, duration_seconds: s.duration_seconds ?? undefined, check_count: s.check_count, outcome: s.outcome, passed: s.passed })),
     };
   });
 

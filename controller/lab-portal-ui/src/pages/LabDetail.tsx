@@ -6,6 +6,7 @@ import StatusBadge from "../components/StatusBadge";
 import CheckResult from "../components/CheckResult";
 import AlertError from "../components/AlertError";
 import PageHeader from "../components/PageHeader";
+import CopyButton from "../components/CopyButton";
 import { getLabDetail, startLab, stopLab, resetLab, endLab, runCheck, sendHeartbeat } from "../api";
 import { navigate } from "../utils/navigate";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
@@ -205,7 +206,7 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
   const deadlineUrgent = hoursLeft !== null && hoursLeft < 24 && hoursLeft > 0;
 
   return (
-    <StudentLayout user={user} onLogout={onLogout}>
+    <StudentLayout user={user} onLogout={onLogout} fullWidth>
       <PageHeader title={scenario.title} breadcrumbs={[{ label: "Labs", href: "/" }, { label: scenario.title }]} />
 
       <div
@@ -311,7 +312,10 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
                 </div>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">SSH fallback</span>
-                  <code className="rounded bg-sidebar px-1.5 py-0.5 font-mono text-xs">{endpoints.ssh}</code>
+                  <div className="flex items-center gap-1">
+                    <code className="rounded bg-sidebar px-1.5 py-0.5 font-mono text-xs">{endpoints.ssh}</code>
+                    <CopyButton value={endpoints.ssh} label="Copy SSH command" />
+                  </div>
                 </div>
                 {endpoints.app && (
                   <div className="flex items-center justify-between text-sm">

@@ -1,16 +1,19 @@
-import type { MouseEvent, ReactNode } from "react";
+import { forwardRef, type MouseEvent, type AnchorHTMLAttributes } from "react";
 import { navigate } from "../utils/navigate";
 
-interface LinkProps {
+interface LinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
   href: string;
-  className?: string;
-  style?: React.CSSProperties;
-  children: ReactNode;
   onClick?: () => void;
-  download?: boolean;
 }
 
-export default function Link({ href, className, style, children, onClick, download }: LinkProps) {
+// forwardRef + prop passthrough so Radix `asChild` composition (SidebarMenuButton,
+// Button, DropdownMenuTrigger...) can clone its data-*/aria-*/ref onto the real <a>
+// instead of having them silently dropped — Radix needs the ref for popper/tooltip
+// positioning, and peer-* CSS selectors need the data attributes to land on the DOM node.
+const Link = forwardRef<HTMLAnchorElement, LinkProps>(function Link(
+  { href, onClick, download, ...rest },
+  ref
+) {
   function handleClick(e: MouseEvent<HTMLAnchorElement>) {
     if (download) return;
     if (e.metaKey || e.ctrlKey || e.shiftKey) return;
@@ -19,8 +22,8 @@ export default function Link({ href, className, style, children, onClick, downlo
     navigate(href);
   }
   return (
-    <a href={href} className={className} style={style} onClick={handleClick} download={download}>
-      {children}
-    </a>
+    <a ref={ref} href={href} onClick={handleClick} download={download} {...rest} />
   );
-}
+});
+
+export default Link;
