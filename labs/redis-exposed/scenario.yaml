@@ -26,12 +26,14 @@ lifecycle:
   retention_after_stop_minutes: 180
 
 checker:
+  version: 1
   states:
     - vulnerable
     - fixed
   checks:
     - name: redis_unauth_blocked
       label: "Unauthorized Redis access is blocked"
+      kind: objective
       exec_in: workstation
       run: "redis-cli -h redis-host ping 2>&1"
       states:
@@ -39,6 +41,7 @@ checker:
         fixed: "output_contains: NOAUTH"
     - name: redis_acl_enforced
       label: "Redis access controls are enforced"
+      kind: objective
       exec_in: workstation
       run: "redis-cli -h redis-host --user app --pass app-demo-password SET lab-test checker-value 2>&1"
       states:
@@ -46,6 +49,7 @@ checker:
         fixed: "output_contains: NOPERM"
     - name: demo_app_healthy
       label: "Demo application is reachable"
+      kind: guardrail
       exec_in: workstation
       run: "curl -s -o /dev/null -w '%{http_code}' http://demo-app:8080/health"
       states:

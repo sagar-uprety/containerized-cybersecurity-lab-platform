@@ -46,6 +46,7 @@ logs/
 !.env.example
 credentials/
 secrets/
+.secrets/
 *.secret
 *.key
 *.pem
@@ -82,3 +83,4 @@ nginx-thesis.conf
 *.tgz
 *.zip
 controller/lab-portal-ui/package-lock.json
+controller/lab-portal-ui/src/mocks/demo-data.json

@@ -26,12 +26,14 @@ lifecycle:
   retention_after_stop_minutes: 180
 
 checker:
+  version: 1
   states:
     - vulnerable
     - fixed
   checks:
     - name: ssh_password_auth
       label: "Password-based SSH authentication is disabled"
+      kind: objective
       exec_in: workstation
       run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key lab-user@ssh-host 'grep -i ^PasswordAuthentication /etc/ssh/sshd_config 2>&1'"
       states:
@@ -39,20 +41,23 @@ checker:
         fixed: "output_contains: PasswordAuthentication no"
     - name: ssh_fail2ban_active
       label: "SSH brute-force protection is active"
+      kind: objective
       exec_in: workstation
       run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key lab-user@ssh-host 'sudo fail2ban-client status sshd 2>&1 || echo FAIL2BAN_NOT_ACTIVE'"
       states:
         vulnerable: "output_contains: FAIL2BAN_NOT_ACTIVE"
         fixed: "output_contains: Status for the jail:"
     - name: ssh_permit_root_login
-      label: "SSH root login is disabled"
+      label: "Direct password-based root login is blocked"
+      kind: objective
       exec_in: workstation
-      run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key lab-user@ssh-host 'grep -i ^PermitRootLogin /etc/ssh/sshd_config 2>&1 | grep -q yes && echo VULN_ROOT || echo ROOT_OK'"
+      run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key lab-user@ssh-host 'sudo sshd -T 2>&1 | grep -q \"^permitrootlogin yes$\" && echo VULN_ROOT || echo ROOT_OK'"
       states:
         vulnerable: "output_contains: VULN_ROOT"
         fixed: "output_contains: ROOT_OK"
     - name: ssh_root_unauthorized_keys
       label: "Root SSH authorized keys are removed"
+      kind: objective
       exec_in: workstation
       run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key lab-user@ssh-host 'sudo sed -n 1p /root/.ssh/authorized_keys 2>/dev/null | grep -q . && echo ROOT_KEYS_PRESENT || echo ROOT_KEYS_EMPTY'"
       states:
@@ -60,6 +65,7 @@ checker:
         fixed: "output_contains: ROOT_KEYS_EMPTY"
     - name: ssh_labuser_unauthorized_keys
       label: "Lab user SSH authorized keys are clean"
+      kind: objective
       exec_in: workstation
       run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key lab-user@ssh-host 'count=$(grep -vE \"^[[:space:]]*$|^#\" ~/.ssh/authorized_keys | wc -l); if [ \"$count\" -eq 1 ]; then echo AUTH_KEYS_CLEAN; else echo AUTH_KEYS_DIRTY; fi'"
       states:
@@ -67,13 +73,15 @@ checker:
         fixed: "output_contains: AUTH_KEYS_CLEAN"
     - name: ssh_max_auth_tries
       label: "Max SSH authentication attempts is limited"
+      kind: objective
       exec_in: workstation
-      run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key lab-user@ssh-host 'grep -i ^MaxAuthTries /etc/ssh/sshd_config | grep -q 6 && echo VULN_TRIES || echo TRIES_OK'"
+      run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key lab-user@ssh-host 'value=$(sudo sshd -T 2>/dev/null | grep \"^maxauthtries \" | cut -d\" \" -f2); if [ -n \"$value\" ] && [ \"$value\" -le 3 ]; then echo TRIES_OK; else echo VULN_TRIES; fi'"
       states:
         vulnerable: "output_contains: VULN_TRIES"
         fixed: "output_contains: TRIES_OK"
     - name: ssh_key_auth
       label: "SSH key authentication works"
+      kind: guardrail
       exec_in: workstation
       run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key lab-user@ssh-host echo KEY_AUTH_OK 2>&1 || true"
       states:

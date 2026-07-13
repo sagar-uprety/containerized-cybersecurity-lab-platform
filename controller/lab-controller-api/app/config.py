@@ -24,15 +24,13 @@ class Settings:
     SSH_COMMAND_TIMEOUT_SECONDS = _int_from_env("SSH_COMMAND_TIMEOUT_SECONDS", 60)
 
     SCENARIO_REGISTRY = os.environ.get("SCENARIO_REGISTRY", "/etc/thesis-labs/scenarios.txt")
-    STUDENT_REGISTRY = os.environ.get("STUDENT_REGISTRY", "/etc/thesis-labs/students.txt")
     PORTAL_USERS_FILE = os.environ.get("PORTAL_USERS_FILE", "/etc/thesis-labs/portal-users.yml")
     PORTAL_DB_PATH = os.environ.get("PORTAL_DB_PATH", "/var/lib/thesis-labs/portal.db")
+    PORTAL_DEMO_DATA_PATH = os.environ.get(
+        "PORTAL_DEMO_DATA_PATH", "/opt/thesis-labs/controller/lab-controller-api/demo-data.json"
+    )
     LABS_DIR = os.environ.get("LABS_DIR", "/opt/thesis-labs/labs")
     RESULTS_DIR = os.environ.get("RESULTS_DIR", "/var/lib/thesis-labs/results")
-    RUNTIME_STATE_PATH = os.environ.get(
-        "RUNTIME_STATE_PATH", "/var/lib/thesis-labs/portal-runtime-state.json"
-    )
-
     MAX_CONCURRENT_STUDENTS = _int_from_env("MAX_CONCURRENT_STUDENTS", 5)
     EVALUATION_MODE = _bool_from_env("EVALUATION_MODE", False)
     ENABLE_SCHEDULER = _bool_from_env("ENABLE_SCHEDULER", True)

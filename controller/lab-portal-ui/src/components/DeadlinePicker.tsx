@@ -48,11 +48,6 @@ export default function DeadlinePicker({ deadline, busy, saving, onSave }: Deadl
     setPendingSave(combined.toISOString());
   }
 
-  function handleClear(e: React.MouseEvent) {
-    e.stopPropagation();
-    setPendingClear(true);
-  }
-
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -69,18 +64,20 @@ export default function DeadlinePicker({ deadline, busy, saving, onSave }: Deadl
         >
           <CalendarIcon className="size-3.5" />
           {saving ? "Saving…" : origDate ? fmtTrigger(origDate) : "Set deadline"}
-          {origDate && !saving && (
-            <span
-              role="button"
-              tabIndex={-1}
-              onClick={handleClear}
-              className="ml-0.5 rounded-full p-0.5 hover:bg-foreground/10"
-            >
-              <X className="size-3" />
-            </span>
-          )}
         </Button>
       </PopoverTrigger>
+      {origDate && !saving && (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon-sm"
+          disabled={busy}
+          aria-label="Remove deadline"
+          onClick={() => setPendingClear(true)}
+        >
+          <X />
+        </Button>
+      )}
       <PopoverContent align="end" className="w-auto">
         <Calendar mode="single" selected={date} onSelect={setDate} autoFocus />
         <div className="flex items-center gap-2 border-t border-border pt-2.5">

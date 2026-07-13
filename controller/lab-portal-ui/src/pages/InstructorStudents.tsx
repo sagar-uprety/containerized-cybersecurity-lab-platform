@@ -201,7 +201,7 @@ export default function InstructorStudents({ user, onLogout }: Props) {
                 <TableHead>Student</TableHead>
                 <SortHead col="passed">Passed</SortHead>
                 <SortHead col="sessions">Sessions</SortHead>
-                <SortHead col="time">Time</SortHead>
+                <SortHead col="time">Recorded runtime</SortHead>
                 <SortHead col="last_active">Last active</SortHead>
                 <TableHead className="w-10" />
               </TableRow>

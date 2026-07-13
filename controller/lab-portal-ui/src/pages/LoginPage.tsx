@@ -56,9 +56,9 @@ export default function LoginPage({
           <div className="mb-3 flex size-11 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <ShieldCheck className="size-5.5" />
           </div>
-          <div className="text-lg font-semibold tracking-tight text-foreground">
+          <h1 className="text-lg font-semibold tracking-tight text-foreground">
             {isInstructor ? "Instructor login" : "Thesis Lab Portal"}
-          </div>
+          </h1>
           <div className="mt-0.5 text-sm text-muted-foreground">Cybersecurity Lab Platform</div>
         </div>
 
@@ -84,7 +84,7 @@ export default function LoginPage({
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="password">Password</Label>
+            <Label htmlFor="password">Portal password</Label>
             <Input
               id="password"
               type="password"

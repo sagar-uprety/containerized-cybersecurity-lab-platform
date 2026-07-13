@@ -1,19 +1,17 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import type { User, GroupDetail, InstructorLabInfo, GroupProgress } from "../types";
+import type { User, GroupDetail, InstructorLabInfo, GroupProgress, ActivityEvent } from "../types";
 import InstructorLayout from "../components/InstructorLayout";
 import ConfirmModal from "../components/ConfirmModal";
 import AlertError from "../components/AlertError";
 import PageHeader from "../components/PageHeader";
+import Link from "../components/Link";
 import StatCard from "../components/StatCard";
 import DataChip from "../components/DataChip";
 import ProgressRing from "../components/ProgressRing";
-import LastActiveBadge from "../components/LastActiveBadge";
 import DeadlinePicker from "../components/DeadlinePicker";
 import IconButton from "../components/IconButton";
-import LabPassRateChart from "../components/LabPassRateChart";
-import Link from "../components/Link";
 import { showToast } from "../components/Toast";
-import { Users, Layers, MoreHorizontal, Pencil, Trash2, ExternalLink, Plus, Terminal, AlertTriangle } from "lucide-react";
+import { Users, MoreHorizontal, Pencil, Trash2, ExternalLink, Plus, AlertTriangle } from "lucide-react";
 import { navigate } from "../utils/navigate";
 import { fmtTime, timeAgo } from "../utils/time";
 import { outcomeStyle } from "../utils/outcome";
@@ -28,7 +26,6 @@ import {
   unassignGroupLab,
   deleteGroup,
   renameGroup,
-  getGroupExportCsvUrl,
 } from "../api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -56,14 +53,15 @@ function initials(email: string): string {
   return (email || "?").charAt(0).toUpperCase();
 }
 
-const SECTION_NAV = [
-  { id: "overview", label: "Overview" },
-  { id: "labs", label: "Lab assignments" },
-  { id: "pending", label: "Pending approvals" },
-  { id: "pass-rates", label: "Lab pass rates" },
-  { id: "results", label: "Student results" },
-  { id: "activity", label: "Recent activity" },
-];
+function activityLabel(event: ActivityEvent): string {
+  if (event.action !== "check") return outcomeStyle(event.action).label;
+  let label = "Automatic check";
+  if (event.actor_type === "student") label = "Student check";
+  else if (event.reason === "baseline") label = "Automatic baseline check";
+  else if (event.reason === "final") label = "Automatic final check";
+  else if (event.actor_type === "instructor") label = "Instructor check";
+  return event.result === "error" ? `${label} failed` : label;
+}
 
 export default function InstructorGroupDetail({ user, groupId, onLogout }: InstructorGroupDetailProps) {
   const [group, setGroup] = useState<GroupDetail | null>(null);
@@ -231,14 +229,9 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
   const completionPct = progress && progress.total_possible > 0
     ? Math.round((progress.total_passed / progress.total_possible) * 100)
     : null;
-  const attemptedLabTimes = (progress?.labs || []).filter((l) => l.students_attempted > 0);
-  const avgTimeMinutes = attemptedLabTimes.length > 0
-    ? attemptedLabTimes.reduce((acc, l) => acc + l.avg_time_minutes, 0) / attemptedLabTimes.length
-    : null;
+  const studentsChecked = (progress?.labs || []).reduce((total, lab) => total + (lab.students_checked || 0), 0);
 
   const hasPending = !!group && group.pending_members.length > 0;
-  const navItems = SECTION_NAV.filter((s) => s.id !== "pending" || hasPending);
-
   function renderLabCard(labId: string, deadline: string | null, overdue: boolean) {
     const meta = labs.find((l) => l.id === labId);
     const stats = progressByLab.get(labId);
@@ -266,9 +259,9 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
           <div className="flex items-center gap-3">
             <ProgressRing pct={pct} size={52} strokeWidth={5} />
             <div className="space-y-0.5 text-sm text-muted-foreground">
-              <div><strong className="text-foreground">{stats?.students_passed ?? 0}</strong> / {totalStudents} passed</div>
-              <div><strong className="text-foreground">{stats?.students_attempted ?? 0}</strong> attempted</div>
-              <div>Avg <strong className="text-foreground">{stats && stats.avg_time_minutes > 0 ? fmtTime(stats.avg_time_minutes * 60) : "—"}</strong></div>
+              <div><strong className="text-foreground">{stats?.students_passed ?? 0}</strong> / {totalStudents} achieved</div>
+              <div><strong className="text-foreground">{stats?.students_attempted ?? 0}</strong> started</div>
+              <div>Median runtime <strong className="text-foreground">{stats?.median_recorded_minutes ? fmtTime(stats.median_recorded_minutes * 60) : "—"}</strong> <span className="text-xs">(n={stats?.runtime_samples || 0})</span></div>
             </div>
           </div>
 
@@ -292,18 +285,17 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
   }
 
   return (
-    <InstructorLayout user={user} onLogout={onLogout}>
+    <InstructorLayout user={user} onLogout={onLogout} groupContext={{ id: groupId, name: group?.name, hasPending }}>
       <PageHeader
         title={group?.name || "Group"}
         breadcrumbs={[{ label: "Dashboard", href: "/instructor" }, { label: group?.name || "Group" }]}
         actions={
           <>
-            <Badge variant="outline" className="gap-1.5 text-muted-foreground">
-              <Users className="size-3.5" /> {progress?.total_students ?? 0} student{progress?.total_students !== 1 ? "s" : ""}
-            </Badge>
-            <Badge variant="outline" className="gap-1.5 text-muted-foreground">
-              <Layers className="size-3.5" /> {progress?.total_labs ?? 0} lab{progress?.total_labs !== 1 ? "s" : ""}
-            </Badge>
+            <Button asChild variant="outline" size="sm">
+              <Link href={`/instructor/students?group=${groupId}`}>
+                <Users /> Manage students
+              </Link>
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button variant="outline" size="icon" aria-label="Group actions">
@@ -324,38 +316,38 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
         }
       />
 
-      <div className="flex items-start gap-8">
-        <nav className="sticky top-8 hidden w-44 shrink-0 flex-col gap-0.5 xl:flex">
-          {navItems.map((s) => (
-            <a
-              key={s.id}
-              href={`#${s.id}`}
-              className="rounded-md px-2.5 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-primary"
-            >
-              {s.label}
-            </a>
-          ))}
-        </nav>
-
-        <div className="min-w-0 flex-1 space-y-8">
-          {progress && (
-            <div id="overview" className="grid scroll-mt-8 gap-4 sm:grid-cols-3">
+      <div className="min-w-0 space-y-8">
+          {group && (
+            <div id="overview" className="grid scroll-mt-8 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               <StatCard
-                label="Completion"
+                label="Students"
+                value={group.approved_members.length}
+                description={group.pending_members.length > 0 ? `${group.pending_members.length} pending approval` : "All approved"}
+              />
+              <StatCard
+                label="Assigned labs"
+                value={`${group.labs.length} / ${labs.length}`}
+                description="Available labs assigned to this group"
+              />
+              {progress && <>
+              <StatCard
+                label="Passed before"
                 value={completionPct != null ? `${completionPct}%` : "—"}
-                description={`${progress.total_passed} / ${progress.total_possible} assignments`}
+                description={`${progress.total_passed} / ${progress.total_possible} assignments have passed`}
               />
               <StatCard
                 icon={progress.total_at_risk > 0 ? AlertTriangle : undefined}
-                label="At risk"
+                label="Overdue incomplete"
                 value={progress.total_at_risk}
-                description="Overdue lab, not passed"
+                description="Overdue assignment, never passed"
                 tone={progress.total_at_risk > 0 ? "danger" : "default"}
               />
               <StatCard
-                label="Avg session time"
-                value={avgTimeMinutes != null ? fmtTime(avgTimeMinutes * 60) : "—"}
+                label="Check submission coverage"
+                value={`${studentsChecked} / ${progress.total_possible}`}
+                description="Student-lab obligations with a student check"
               />
+              </>}
             </div>
           )}
 
@@ -425,7 +417,7 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
               <Card className="gap-0 divide-y divide-border py-0">
                 {group!.pending_members.map((m) => (
                   <div key={m.user_id} className="flex cursor-pointer items-center gap-3 p-3 hover:bg-accent/40" onClick={() => toggleSelect(m.user_id)}>
-                    <Checkbox checked={selected.has(m.user_id)} onCheckedChange={() => toggleSelect(m.user_id)} onClick={(e) => e.stopPropagation()} />
+                    <Checkbox aria-label={`Select ${m.email}`} checked={selected.has(m.user_id)} onCheckedChange={() => toggleSelect(m.user_id)} onClick={(e) => e.stopPropagation()} />
                     <Avatar size="sm"><AvatarFallback className="bg-accent text-primary">{initials(m.email)}</AvatarFallback></Avatar>
                     <div className="min-w-0 flex-1">
                       <div className="truncate text-sm font-medium text-foreground">{m.email}</div>
@@ -438,98 +430,31 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
             </section>
           )}
 
-          {progress?.labs && progress.labs.length > 0 && (
-            <section id="pass-rates" className="scroll-mt-8">
-              <h2 className="mb-3 text-lg font-semibold text-foreground">Lab pass rates</h2>
-              <LabPassRateChart labs={progress.labs} totalStudents={progress.total_students} />
-            </section>
-          )}
-
-          <section id="results" className="scroll-mt-8">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-foreground">Student results</h2>
-              {progress && progress.students.length > 0 && (
-                <div className="flex items-center gap-2">
-                  <Button asChild variant="outline" size="sm">
-                    <Link href={`/instructor/students?group=${groupId}`}>Manage students</Link>
-                  </Button>
-                  <Button asChild variant="outline" size="sm">
-                    <a href={getGroupExportCsvUrl(groupId)} download>Export CSV</a>
-                  </Button>
-                </div>
-              )}
-            </div>
-            {!progress && group && group.approved_members.length > 0 && (
-              <div className="rounded-lg border border-border p-6 text-center text-sm text-muted-foreground">Loading results…</div>
-            )}
-            {progress && progress.students.length === 0 && (
-              <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">No students enrolled yet.</div>
-            )}
-            {progress && progress.students.length > 0 && (
-              <Card className="gap-0 divide-y divide-border py-0">
-                {[...progress.students].sort((a, b) => (a.email || a.student_id).localeCompare(b.email || b.student_id)).map((s) => {
-                  const pct = s.labs_assigned > 0 ? Math.round((s.labs_passed / s.labs_assigned) * 100) : 0;
-                  return (
-                    <div
-                      key={s.student_id}
-                      role="link"
-                      tabIndex={0}
-                      onClick={() => navigate(`/instructor/groups/${groupId}/students/${s.student_id}`)}
-                      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate(`/instructor/groups/${groupId}/students/${s.student_id}`); } }}
-                      className="flex cursor-pointer items-center gap-3 p-3 transition-colors hover:bg-accent/40"
-                    >
-                      <Avatar size="sm"><AvatarFallback className="bg-accent text-primary">{initials(s.email)}</AvatarFallback></Avatar>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="truncate text-sm font-medium text-foreground">{s.email}</span>
-                          {s.at_risk && <Badge className="border-transparent bg-destructive-bg text-destructive">At risk</Badge>}
-                        </div>
-                        <div className="text-xs text-muted-foreground">{[s.semester, s.study_program].filter(Boolean).join(" · ") || "—"}</div>
-                      </div>
-                      <div className="flex items-center gap-4">
-                        <div className="text-right text-xs text-muted-foreground">
-                          <div className="text-sm font-medium text-foreground">{s.total_sessions}</div>
-                          Sessions
-                        </div>
-                        <div className="text-right text-xs text-muted-foreground">
-                          <div className="text-sm font-medium text-foreground">{fmtTime(s.total_time_seconds)}</div>
-                          Time
-                        </div>
-                        <div className="text-right text-xs text-muted-foreground">
-                          <LastActiveBadge ts={s.last_active} />
-                          <div>Active</div>
-                        </div>
-                        <ProgressRing pct={pct} size={44} strokeWidth={4} label={`${s.labs_passed}/${s.labs_assigned}`} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </Card>
-            )}
-          </section>
-
           <section id="activity" className="scroll-mt-8">
             <h2 className="mb-3 text-lg font-semibold text-foreground">Recent activity</h2>
+            <p className="mb-3 max-w-3xl text-sm text-muted-foreground">
+              Activity lists every check attempt. Student and session counters include saved checker results, so a failed attempt can appear here without increasing those counts.
+            </p>
             {group?.recent_activity && group.recent_activity.length > 0 ? (
               <Card>
-                <CardContent className="space-y-2">
+                <CardContent className="flex flex-col gap-2">
                   {group.recent_activity.map((ev, i) => {
                     const style = outcomeStyle(ev.action);
                     return (
-                      <div key={i} className="flex items-center justify-between gap-3 text-sm">
-                        <span className="flex items-center gap-2 text-foreground">
+                      <div key={i} className="flex flex-col gap-2 border-b border-border py-2 last:border-0 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-foreground">
+                          <span className="font-medium">{ev.student_email || ev.student_id}</span>
                           <DataChip>{ev.student_id}</DataChip>
-                          <Badge className={style.badgeClass}>{style.label}</Badge>
-                          {ev.lab_title}
-                        </span>
+                          <Badge className={ev.result === "error" ? "border-transparent bg-destructive-bg text-destructive" : style.badgeClass}>{activityLabel(ev)}</Badge>
+                          <span className="truncate text-muted-foreground">{ev.lab_title}</span>
+                        </div>
                         <span className="shrink-0 text-xs text-muted-foreground">{timeAgo(ev.timestamp)}</span>
                       </div>
                     );
                   })}
                 </CardContent>
-                <div className="flex items-center gap-1.5 border-t border-border px-4 pt-3 text-xs text-muted-foreground">
-                  <Terminal className="size-3.5 shrink-0" />
-                  For the full command/session audit log across every lab and student in this group, a platform operator can run <code className="font-mono">labctl status &lt;lab&gt; &lt;student&gt;</code> on the lab worker.
+                <div className="border-t border-border px-4 pt-3 text-xs text-muted-foreground">
+                  Open a student session to review synchronized checker and command history.
                 </div>
               </Card>
             ) : (
@@ -538,7 +463,6 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
               </div>
             )}
           </section>
-        </div>
       </div>
 
       <ConfirmModal

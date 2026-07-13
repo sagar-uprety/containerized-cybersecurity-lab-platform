@@ -79,9 +79,9 @@
         - name: unknown lab id
           command: "labctl status unknown-lab student01"
           expect: "unknown lab_id"
-        - name: unknown student id
-          command: "labctl status redis-exposed student99"
-          expect: "unknown student_id"
+        - name: invalid student id
+          command: "labctl status redis-exposed student1"
+          expect: "invalid student_id"
         - name: extra argument
           command: "labctl status redis-exposed student01 extra"
           expect: "expected: labctl <verb> <lab_id> <student_id>"

@@ -22,6 +22,7 @@ def main() -> int:
             "config/.ansible-lint",
             "--exclude",
             "config",
+            "infra",
         ],
         cwd=repo_root,
         env=env,

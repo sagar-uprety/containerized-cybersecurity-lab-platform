@@ -20,7 +20,6 @@ from labctl_core.scenario import (
     endpoint_ports,
     evaluate_condition,
     load_scenario,
-    load_student_record,
     read_injected_lab_password,
     service_images,
     student_number_from_id,
@@ -39,21 +38,14 @@ class LabRuntime:
     def _resolve_student(self, student_id: str) -> tuple[str, int, dict]:
         """Resolve (password, number, record) for provisioning.
 
-        Decision B: a password injected by the portal at start-time wins and
-        needs no on-disk registry (number is derived from the student id). Only
-        when nothing is injected do we fall back to the static students.yml.
+        x02 is the student authority. x01 derives only the numeric runtime key
+        and requires the lab password over stdin/environment for provisioning.
         """
         injected = read_injected_lab_password()
-        if injected:
-            number = student_number_from_id(student_id)
-            return injected, number, {"id": student_id, "number": number, "password": injected}
-
-        student = load_student_record(self.paths, student_id)
-        number = int(student.get("number") or student_number_from_id(student_id))
-        password = str(student.get("password") or "")
-        if not password:
-            raise LabctlError(f"Student password missing for {student_id}")
-        return password, number, student
+        if not injected:
+            raise LabctlError("start/reset requires a student password on stdin")
+        number = student_number_from_id(student_id)
+        return injected, number, {"id": student_id, "number": number, "password": injected}
 
     def _load_context(self, lab_id: str, student_id: str) -> tuple[dict, dict, str, dict]:
         scenario = load_scenario(self.paths, lab_id)
@@ -110,6 +102,7 @@ class LabRuntime:
         if not manifest:
             logging.warning("Lab instance %s not found.", runtime_project)
             return
+        self._emit_recent_command_logs(runtime_project)
         for container in reversed(manifest.get("containers", [])):
             container_name = container.get("name")
             if (
@@ -129,6 +122,7 @@ class LabRuntime:
             logging.warning("Lab instance %s not found.", runtime_project)
             return
 
+        self._emit_recent_command_logs(runtime_project)
         for container in manifest.get("containers", []):
             run_command(["podman", "rm", "-f", container.get("name")], check=False)
         for volume in manifest.get("volumes", []):
@@ -232,13 +226,24 @@ class LabRuntime:
                         matched_states.append(state)
 
                 passed = "fixed" in matched_states
+                if passed:
+                    observed_state = "fixed"
+                elif "vulnerable" in matched_states:
+                    observed_state = "vulnerable"
+                elif exit_code != 0:
+                    observed_state = "error"
+                else:
+                    observed_state = "unknown"
 
                 results.append(
                     {
                         "name": name,
+                        "label": check_def.get("label", name),
+                        "kind": check_def.get("kind", "objective"),
                         "exit_code": exit_code,
                         "output": stdout[:500],
                         "matched_states": matched_states,
+                        "observed_state": observed_state,
                         "passed": passed,
                     }
                 )
@@ -248,7 +253,10 @@ class LabRuntime:
                 "lab": lab_id,
                 "student": student_id,
                 "status": overall,
+                "passed": overall == "fixed",
+                "checker_version": checker.get("version", 1),
                 "checks": results,
+                "command_logs": self._recent_command_logs(runtime_project),
             }
 
         except (ScenarioError, PodmanError) as exc:
@@ -326,14 +334,26 @@ class LabRuntime:
                 entries.append(entry)
         return entries
 
+    def _emit_recent_command_logs(self, runtime_project: str) -> None:
+        command_logs = self._recent_command_logs(runtime_project)
+        if command_logs:
+            print("command_logs: " + json.dumps(command_logs, sort_keys=True))
+
 
 def _classify_state(results: list[dict]) -> str:
-    all_have_vulnerable = all("vulnerable" in r.get("matched_states", []) for r in results)
-    all_have_fixed = all("fixed" in r.get("matched_states", []) for r in results)
-
-    if all_have_fixed:
+    objectives = [result for result in results if result.get("kind", "objective") == "objective"]
+    guardrails = [result for result in results if result.get("kind") == "guardrail"]
+    if not objectives:
+        return "error"
+    if any(result.get("observed_state") == "error" for result in results):
+        return "error"
+    if any(result.get("observed_state") == "unknown" for result in results):
+        return "unknown"
+    if any(not result.get("passed") for result in guardrails):
+        return "unknown"
+    objective_states = [result.get("observed_state") for result in objectives]
+    if all(state == "fixed" for state in objective_states):
         return "fixed"
-    if all_have_vulnerable:
+    if all(state == "vulnerable" for state in objective_states):
         return "vulnerable"
-
-    return "vulnerable"
+    return "partial"

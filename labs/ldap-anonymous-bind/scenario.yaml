@@ -25,12 +25,14 @@ lifecycle:
   retention_after_stop_minutes: 180
 
 checker:
+  version: 1
   states:
     - vulnerable
     - fixed
   checks:
     - name: ldap_anonymous_search
       label: "Anonymous LDAP searches are blocked"
+      kind: objective
       exec_in: workstation
       run: "ldapsearch -x -H ldap://ldap-host -b 'dc=lab,dc=local' '(objectClass=posixAccount)' cn 2>&1"
       states:
@@ -38,6 +40,7 @@ checker:
         fixed: "output_contains: Insufficient access"
     - name: ldap_tls_enforced
       label: "LDAP encryption (TLS) is enforced"
+      kind: objective
       exec_in: workstation
       run: "LDAPTLS_REQCERT=never ldapsearch -x -ZZ -H ldap://ldap-host -b '' -s base namingContexts 2>&1"
       states:
@@ -45,6 +48,7 @@ checker:
         fixed: "output_contains: namingContexts"
     - name: ldap_authenticated_search
       label: "Authenticated LDAP searches are allowed"
+      kind: guardrail
       exec_in: workstation
       run: "ldapsearch -x -H ldap://ldap-host -D 'cn=admin,dc=lab,dc=local' -w dummypassword -b 'dc=lab,dc=local' '(objectClass=posixAccount)' cn 2>&1 | head -20"
       states:

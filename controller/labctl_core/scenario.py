@@ -15,14 +15,13 @@ class ScenarioError(Exception):
 
 
 def read_injected_lab_password():
-    """Return a lab password supplied by the portal at start-time (Decision B).
+    """Return a lab password supplied by x02 for start/reset.
 
     The portal passes the password on the labctl process's stdin (forwarded
     through ssh -> restricted wrapper -> sudo). Env var LAB_STUDENT_PASSWORD is
     also honored as an alternate transport. Never read from argv, which the SSH
-    wrapper logs and rejects. Returns None when nothing was injected (e.g. an
-    interactive/manual invocation), so callers fall back to the static
-    /etc/thesis-labs/students.yml registry.
+    wrapper logs and rejects. Returns None when nothing was injected; callers
+    fail closed because x01 has no student credential registry.
     """
     env_pw = os.environ.get("LAB_STUDENT_PASSWORD")
     if env_pw and env_pw.strip():
@@ -49,17 +48,6 @@ def student_number_from_id(student_id: str) -> int:
 def load_yaml(path: Path) -> dict:
     with path.open("r", encoding="utf-8") as handle:
         return yaml.safe_load(handle) or {}
-
-
-def load_student_record(paths: RuntimePaths, student_id: str) -> dict:
-    if not paths.student_credentials.exists():
-        raise ScenarioError(f"Student credential registry not found: {paths.student_credentials}")
-
-    data = load_yaml(paths.student_credentials)
-    for student in data.get("students", []):
-        if student.get("id") == student_id:
-            return student
-    raise ScenarioError(f"Student credential record not found for {student_id}")
 
 
 def load_scenario(paths: RuntimePaths, lab_id: str) -> dict:

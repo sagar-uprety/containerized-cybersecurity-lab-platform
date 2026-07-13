@@ -134,7 +134,7 @@ export default function InstructorOverview({ user, onLogout }: Props) {
             icon={needsAttention > 0 ? AlertTriangle : CheckCircle2}
             label="Needs attention"
             value={needsAttention}
-            description={needsAttention > 0 ? `${data.total_pending} pending, ${data.total_at_risk} at risk` : "All clear"}
+            description={needsAttention > 0 ? `${data.total_pending} pending, ${data.total_at_risk} overdue incomplete` : "All clear"}
             tone={needsAttention > 0 ? "danger" : "success"}
             href={needsAttention > 0 ? "/instructor/pending" : undefined}
           />

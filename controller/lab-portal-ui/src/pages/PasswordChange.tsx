@@ -52,8 +52,8 @@ export default function PasswordChange({ onChanged, onLogout }: PasswordChangePr
           <div className="mb-3 flex size-11 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <KeyRound className="size-5.5" />
           </div>
-          <div className="text-lg font-semibold tracking-tight text-foreground">Set a new password</div>
-          <div className="mt-0.5 text-sm text-muted-foreground">Choose a new password before continuing to your labs.</div>
+          <h1 className="text-lg font-semibold tracking-tight text-foreground">Set a new portal password</h1>
+          <div className="mt-0.5 text-sm text-muted-foreground">This password signs you into the portal. It is separate from your lab workstation password.</div>
         </div>
 
         {error && (
@@ -65,7 +65,7 @@ export default function PasswordChange({ onChanged, onLogout }: PasswordChangePr
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="current">Current password</Label>
+            <Label htmlFor="current">Current portal password</Label>
             <Input
               id="current"
               type="password"
@@ -78,7 +78,7 @@ export default function PasswordChange({ onChanged, onLogout }: PasswordChangePr
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="next">New password</Label>
+            <Label htmlFor="next">New portal password</Label>
             <Input
               id="next"
               type="password"
@@ -90,7 +90,7 @@ export default function PasswordChange({ onChanged, onLogout }: PasswordChangePr
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="confirm">Confirm new password</Label>
+            <Label htmlFor="confirm">Confirm new portal password</Label>
             <Input
               id="confirm"
               type="password"
@@ -102,7 +102,7 @@ export default function PasswordChange({ onChanged, onLogout }: PasswordChangePr
           </div>
 
           <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? "Saving…" : "Update password"}
+            {loading ? "Saving…" : "Update portal password"}
           </Button>
         </form>
 

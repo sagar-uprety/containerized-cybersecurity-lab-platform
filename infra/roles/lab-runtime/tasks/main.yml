@@ -93,21 +93,16 @@
   tags:
     - labadmin
 
-- name: Install labadmin student registry
-  ansible.builtin.template:
-    src: students.txt.j2
-    dest: "{{ lab_runtime_student_registry }}"
-    owner: root
-    group: "{{ thesis_admin_group }}"
-    mode: "0640"
-
-- name: Install lab student credential registry
-  ansible.builtin.template:
-    src: student-credentials.yml.j2
-    dest: "{{ lab_runtime_student_credentials }}"
-    owner: root
-    group: "{{ thesis_admin_group }}"
-    mode: "0640"
+- name: Remove legacy x01 student registries
+  ansible.builtin.file:
+    path: "{{ thesis_config_root }}/{{ item }}"
+    state: absent
+  loop:
+    - students.txt
+    - students.yml
+  tags:
+    - labctl
+    - labadmin
 
 - name: Install lab scenario registry
   ansible.builtin.template:

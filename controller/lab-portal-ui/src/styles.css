@@ -7,6 +7,7 @@
 
 :root {
   --radius: 0.625rem;
+  --z-drag-overlay: 50;
 
   --background: oklch(0.985 0.004 253);
   --foreground: oklch(0.22 0.02 253);

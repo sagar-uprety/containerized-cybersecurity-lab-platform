@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import type { User, SessionDetail, CheckResultData, Command } from "../types";
+import type { User, GroupDetail, SessionDetail, CheckResultData, Command } from "../types";
 import InstructorLayout from "../components/InstructorLayout";
 import CheckResult from "../components/CheckResult";
 import AlertError from "../components/AlertError";
@@ -7,7 +7,7 @@ import PageHeader from "../components/PageHeader";
 import { fmtTimestamp } from "../utils/time";
 import { outcomeStyle } from "../utils/outcome";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
-import { getInstructorSessionDetail } from "../api";
+import { getGroupDetail, getInstructorSessionDetail } from "../api";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,6 +30,7 @@ interface ParsedSession {
 
 export default function InstructorGroupSessionDetail({ user, groupId, studentId, labId, onLogout }: InstructorGroupSessionDetailProps) {
   const [data, setData] = useState<SessionDetail | null>(null);
+  const [group, setGroup] = useState<GroupDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const params = new URLSearchParams(window.location.search);
@@ -42,15 +43,15 @@ export default function InstructorGroupSessionDetail({ user, groupId, studentId,
   );
 
   useEffect(() => {
-    getInstructorSessionDetail(labId, studentId)
-      .then(setData)
-      .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)));
-  }, [labId, studentId]);
+    const requests: Promise<unknown>[] = [getInstructorSessionDetail(labId, studentId).then(setData)];
+    if (groupId) requests.push(getGroupDetail(groupId).then(setGroup));
+    Promise.all(requests).catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)));
+  }, [groupId, labId, studentId]);
 
   const breadcrumbs = groupId
     ? [
         { label: "Dashboard", href: "/instructor" },
-        { label: `Group`, href: `/instructor/groups/${groupId}` },
+        { label: group?.name || "Group", href: `/instructor/groups/${groupId}` },
         { label: studentId, href: `/instructor/groups/${groupId}/students/${studentId}` },
         { label: sessionNum ? `Session #${sessionNum}` : labId },
       ]
@@ -61,7 +62,7 @@ export default function InstructorGroupSessionDetail({ user, groupId, studentId,
 
   if (error && !data) {
     return (
-      <InstructorLayout user={user} onLogout={onLogout}>
+      <InstructorLayout user={user} onLogout={onLogout} groupContext={groupId ? { id: groupId, name: group?.name, hasPending: !!group?.pending_members.length } : undefined}>
         <PageHeader title="Session" breadcrumbs={breadcrumbs} />
         <AlertError message={error} />
       </InstructorLayout>
@@ -70,7 +71,7 @@ export default function InstructorGroupSessionDetail({ user, groupId, studentId,
 
   if (!data) {
     return (
-      <InstructorLayout user={user} onLogout={onLogout}>
+      <InstructorLayout user={user} onLogout={onLogout} groupContext={groupId ? { id: groupId, name: group?.name, hasPending: !!group?.pending_members.length } : undefined}>
         <Skeleton className="mb-4 h-7 w-48" />
         <Skeleton className="h-96 w-full" />
       </InstructorLayout>
@@ -134,7 +135,7 @@ export default function InstructorGroupSessionDetail({ user, groupId, studentId,
   const statusStyle = outcomeStyle(sessionStatus);
 
   return (
-    <InstructorLayout user={user} onLogout={onLogout}>
+    <InstructorLayout user={user} onLogout={onLogout} groupContext={groupId ? { id: groupId, name: group?.name, hasPending: !!group?.pending_members.length } : undefined}>
       <PageHeader
         title={scenario?.title || labId}
         description={studentId + (sessionNum ? ` · Session #${sessionNum}` : "")}
@@ -148,7 +149,7 @@ export default function InstructorGroupSessionDetail({ user, groupId, studentId,
         </Card>
         {sessionDuration != null && (
           <Card className="flex-row items-center gap-2 px-3 py-2">
-            <span className="text-xs text-muted-foreground">Duration</span>
+            <span className="text-xs text-muted-foreground">Recorded runtime</span>
             <span className="text-sm font-medium text-foreground">{Math.round(sessionDuration / 60)} min</span>
           </Card>
         )}

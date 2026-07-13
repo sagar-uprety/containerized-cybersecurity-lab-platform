@@ -27,12 +27,14 @@ lifecycle:
   retention_after_stop_minutes: 180
 
 checker:
+  version: 1
   states:
     - vulnerable
     - fixed
   checks:
     - name: fw_direct_highport
       label: "Direct high-port access to internal server is blocked"
+      kind: guardrail
       exec_in: workstation
       run: "FW_IP=$(cat /lab/config/fw_internal_ip.txt 2>/dev/null || echo 10.99.0.1); curl -s -o /dev/null -w '%{http_code}' --connect-timeout 3 http://${FW_IP}:8080/ 2>&1 || echo CURL_FAILED"
       states:
@@ -40,6 +42,7 @@ checker:
         fixed: "output_contains: 000"
     - name: fw_sourceport80
       label: "Source-port 80 bypass is blocked"
+      kind: objective
       exec_in: workstation
       run: "FW_IP=$(cat /lab/config/fw_internal_ip.txt 2>/dev/null || echo 10.99.0.1); curl --local-port 80 -s -o /dev/null -w '%{http_code}' --connect-timeout 5 http://${FW_IP}:8080/ 2>&1 || echo CURL_FAILED"
       states:
@@ -47,6 +50,7 @@ checker:
         fixed: "output_contains: 000"
     - name: fw_outbound_http
       label: "Outbound HTTP connectivity works"
+      kind: guardrail
       exec_in: workstation
       run: "curl -s -o /dev/null -w '%{http_code}' --connect-timeout 5 http://example.com/ 2>&1 || echo CURL_FAILED"
       states:
@@ -54,6 +58,7 @@ checker:
         fixed: "output_contains: 200"
     - name: fw_ipv6_stateful
       label: "IPv6 stateful firewall rules are active"
+      kind: objective
       exec_in: firewall-host
       run: "ip6tables -L FORWARD -n 2>&1 | grep -E 'conntrack|ctstate.*ESTABLISHED|ctstate.*RELATED' || echo NO_IPV6_STATEFUL"
       states:

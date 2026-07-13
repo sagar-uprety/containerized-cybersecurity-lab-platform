@@ -1,4 +1,4 @@
-import type { ComponentType, ReactNode } from "react";
+import { useEffect, useState, type ComponentType, type ReactNode } from "react";
 import { ShieldCheck, KeyRound, LogOut, ChevronsUpDown } from "lucide-react";
 import type { User } from "../types";
 import Link from "./Link";
@@ -9,6 +9,7 @@ import {
   SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
+  SidebarGroupLabel,
   SidebarHeader,
   SidebarInset,
   SidebarMenu,
@@ -42,15 +43,27 @@ interface AppShellProps {
   roleLabel: string;
   brandHref: string;
   navItems: NavItem[];
+  contextLabel?: string;
+  contextItems?: NavItem[];
   accountPasswordHref?: string;
   /** Opt out of the centered max-width content column — for workspace views (e.g. the lab terminal split-pane) that should use all available width. */
   fullWidth?: boolean;
   children: ReactNode;
 }
 
-export default function AppShell({ user, onLogout, roleLabel, brandHref, navItems, accountPasswordHref, fullWidth, children }: AppShellProps) {
-  const path = window.location.pathname;
+export default function AppShell({ user, onLogout, roleLabel, brandHref, navItems, contextLabel, contextItems, accountPasswordHref, fullWidth, children }: AppShellProps) {
+  const [path, setPath] = useState(() => window.location.pathname + window.location.hash);
   const initial = (user.username || "?").charAt(0).toUpperCase();
+
+  useEffect(() => {
+    const updatePath = () => setPath(window.location.pathname + window.location.hash);
+    window.addEventListener("hashchange", updatePath);
+    window.addEventListener("popstate", updatePath);
+    return () => {
+      window.removeEventListener("hashchange", updatePath);
+      window.removeEventListener("popstate", updatePath);
+    };
+  }, []);
 
   return (
     <TooltipProvider>
@@ -92,6 +105,32 @@ export default function AppShell({ user, onLogout, roleLabel, brandHref, navItem
                 </SidebarMenu>
               </SidebarGroupContent>
             </SidebarGroup>
+            {contextItems && contextItems.length > 0 && (
+              <SidebarGroup>
+                {contextLabel && <SidebarGroupLabel className="truncate">{contextLabel}</SidebarGroupLabel>}
+                <SidebarGroupContent>
+                  <SidebarMenu>
+                    {contextItems.map(({ href, label, icon: Icon, match }) => (
+                      <SidebarMenuItem key={href}>
+                        <SidebarMenuButton asChild isActive={match(path)} tooltip={label}>
+                          {href.includes("#") ? (
+                            <a href={href}>
+                              <Icon />
+                              <span>{label}</span>
+                            </a>
+                          ) : (
+                            <Link href={href}>
+                              <Icon />
+                              <span>{label}</span>
+                            </Link>
+                          )}
+                        </SidebarMenuButton>
+                      </SidebarMenuItem>
+                    ))}
+                  </SidebarMenu>
+                </SidebarGroupContent>
+              </SidebarGroup>
+            )}
           </SidebarContent>
 
           <SidebarFooter>

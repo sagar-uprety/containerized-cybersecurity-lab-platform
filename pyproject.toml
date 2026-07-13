@@ -71,6 +71,7 @@ ignore = [
 "controller/labctl_core/lifecycle.py" = ["T201"]      # T201: labctl status/check output is stdout contract
 "labs/*/checks/*.py" = ["ERA001", "T201"]             # ERA001: checker comments document tuple result contracts
 "labs/*/demo-app/*.py" = ["INP001", "TRY400"]         # INP001: demo apps are standalone container files
+"tools/generate_portal_demo.py" = ["INP001"]            # standalone fixture-generation script
 "tools/pre_commit/*.py" = ["INP001", "T201"]          # T201: validators print actionable errors to stderr
 
 [tool.ruff.format]

@@ -100,6 +100,14 @@
     - portal
     - portal-api
 
+- name: Remove legacy JSON runtime state
+  ansible.builtin.file:
+    path: "{{ thesis_state_root }}/portal-runtime-state.json"
+    state: absent
+  tags:
+    - portal
+    - portal-api
+
 - name: Check if npm is available locally
   ansible.builtin.command:
     argv: [npm, --version]
@@ -196,6 +204,33 @@
     - portal-api
     - portal-ui
 
+- name: Generate canonical portal demo dataset locally
+  ansible.builtin.command:
+    argv:
+      - python3
+      - "{{ playbook_dir }}/../../tools/generate_portal_demo.py"
+  delegate_to: localhost
+  become: false
+  changed_when: true
+  tags:
+    - portal
+    - portal-api
+    - portal-ui
+    - portal-demo-seed
+
+- name: Install canonical portal demo dataset
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../controller/lab-portal-ui/src/mocks/demo-data.json"
+    dest: "{{ management_controller_root }}/lab-controller-api/demo-data.json"
+    owner: root
+    group: "{{ thesis_admin_group }}"
+    mode: "0640"
+  notify: Restart thesis portal
+  tags:
+    - portal
+    - portal-api
+    - portal-demo-seed
+
 - name: Discover local lab scenario files for portal
   ansible.builtin.find:
     paths: "{{ playbook_dir }}/../../labs"
@@ -237,6 +272,7 @@
     mode: preserve
     directory_mode: "0750"
   loop: "{{ management_lab_scenarios }}"
+  notify: Restart thesis portal
   tags:
     - portal
     - portal-api
@@ -249,6 +285,7 @@
     owner: root
     group: "{{ thesis_admin_group }}"
     mode: "0640"
+  notify: Restart thesis portal
   tags:
     - portal
     - portal-api
@@ -316,6 +353,139 @@
   tags:
     - portal
     - portal-api
+
+- name: Check existing portal database before demo replacement
+  ansible.builtin.stat:
+    path: "{{ thesis_state_root }}/portal.db"
+  register: _portal_db_stat
+  when: thesis_portal_demo_replace | bool
+  tags:
+    - portal
+    - portal-demo-seed
+
+- name: Back up existing portal database before demo replacement
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -c
+      - "import sqlite3, sys; source = sqlite3.connect(sys.argv[1]); target = sqlite3.connect(sys.argv[2]); source.backup(target); target.close(); source.close()"
+      - "{{ thesis_state_root }}/portal.db"
+      - "{{ management_backup_root }}/portal.{{ ansible_date_time.iso8601_basic_short }}.db.bak"
+  when:
+    - thesis_portal_demo_replace | bool
+    - _portal_db_stat.stat.exists
+  tags:
+    - portal
+    - portal-demo-seed
+
+- name: Restrict portal database backup
+  ansible.builtin.file:
+    path: "{{ management_backup_root }}/portal.{{ ansible_date_time.iso8601_basic_short }}.db.bak"
+    owner: root
+    group: "{{ thesis_admin_group }}"
+    mode: "0640"
+  when:
+    - thesis_portal_demo_replace | bool
+    - _portal_db_stat.stat.exists
+  tags:
+    - portal
+    - portal-demo-seed
+
+- name: Check existing evidence directory before demo replacement
+  ansible.builtin.stat:
+    path: "{{ thesis_state_root }}/evidence"
+  register: _portal_evidence_stat
+  when: thesis_portal_demo_replace | bool
+  tags:
+    - portal
+    - portal-demo-seed
+
+- name: Back up existing evidence before demo replacement
+  ansible.builtin.copy:
+    src: "{{ thesis_state_root }}/evidence"
+    dest: "{{ management_backup_root }}/evidence.{{ ansible_date_time.iso8601_basic_short }}.bak"
+    remote_src: true
+    owner: root
+    group: "{{ thesis_admin_group }}"
+    mode: preserve
+  when:
+    - thesis_portal_demo_replace | bool
+    - _portal_evidence_stat.stat.exists
+  tags:
+    - portal
+    - portal-demo-seed
+
+- name: Replace portal state with canonical synthetic dataset
+  when: thesis_portal_demo_replace | bool
+  block:
+    - name: Stop portal for explicit demo replacement
+      ansible.builtin.systemd:
+        name: thesis-portal
+        state: stopped
+        daemon_reload: true
+
+    - name: Load canonical synthetic dataset
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -m
+          - app.demo_seed
+          - --replace
+          - --data
+          - "{{ management_controller_root }}/lab-controller-api/demo-data.json"
+          - --credentials
+          - "{{ thesis_portal_demo_credentials_path }}"
+        chdir: "{{ management_controller_root }}/lab-controller-api"
+      environment:
+        PORTAL_DB_PATH: "{{ thesis_state_root }}/portal.db"
+        PORTAL_DEMO_DATA_PATH: "{{ management_controller_root }}/lab-controller-api/demo-data.json"
+        EVENT_LOG_PATH: "{{ thesis_portal_event_log }}"
+        RESULTS_DIR: "{{ thesis_state_root }}/results"
+        LABS_DIR: "{{ management_controller_root }}/lab-controller-api/labs"
+      register: _portal_demo_seed
+      changed_when: true
+  always:
+    - name: Ensure portal is running after demo replacement
+      ansible.builtin.systemd:
+        name: thesis-portal
+        state: started
+        daemon_reload: true
+  tags:
+    - portal
+    - portal-demo-seed
+
+- name: Ensure local private credential directory exists
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/../../.secrets"
+    state: directory
+    mode: "0700"
+  delegate_to: localhost
+  become: false
+  when: thesis_portal_demo_replace | bool
+  tags:
+    - portal
+    - portal-demo-seed
+
+- name: Fetch generated demo credentials locally
+  ansible.builtin.fetch:
+    src: "{{ thesis_portal_demo_credentials_path }}"
+    dest: "{{ playbook_dir }}/../../.secrets/portal-demo-credentials.csv"
+    flat: true
+  when: thesis_portal_demo_replace | bool
+  tags:
+    - portal
+    - portal-demo-seed
+
+- name: Restrict fetched demo credentials locally
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/../../.secrets/portal-demo-credentials.csv"
+    mode: "0600"
+  delegate_to: localhost
+  become: false
+  when: thesis_portal_demo_replace | bool
+  tags:
+    - portal
+    - portal-demo-seed
 
 - name: Generate controller SSH key
   ansible.builtin.user:

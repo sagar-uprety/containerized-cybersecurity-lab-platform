@@ -1,110 +1,123 @@
-import json
-import logging
-import threading
-import time
-import uuid
-from pathlib import Path
-from typing import Optional
+from datetime import datetime, timezone
 
-from app.config import settings
+from sqlalchemy import select
 
-logger = logging.getLogger(__name__)
+from app.db import SessionLocal
+from app.models import RuntimeLease
 
 
-def _runtime_state_path() -> Path:
-    return Path(settings.RUNTIME_STATE_PATH)
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
 
 
-def _load_runtime_state() -> dict:
-    path = _runtime_state_path()
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except FileNotFoundError:
-        return {}
-    except (OSError, json.JSONDecodeError) as exc:
-        logger.warning("Could not load portal runtime state from %s: %s", path, exc)
-        return {}
-    if not isinstance(data, dict):
-        logger.warning("Ignoring invalid portal runtime state in %s", path)
-        return {}
-    return {str(key): value for key, value in data.items() if isinstance(value, dict)}
+def _aware(value: datetime) -> datetime:
+    return value.replace(tzinfo=timezone.utc) if value.tzinfo is None else value
 
 
-LAB_STATE = _load_runtime_state()
-LAB_STATE_LOCK = threading.Lock()
-
-
-def _persist_runtime_state_locked() -> None:
-    path = _runtime_state_path()
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        tmp_path = path.with_name(f"{path.name}.tmp")
-        tmp_path.write_text(json.dumps(LAB_STATE, sort_keys=True, indent=2), encoding="utf-8")
-        tmp_path.replace(path)
-    except OSError as exc:
-        logger.warning("Could not persist portal runtime state to %s: %s", path, exc)
+def _datetime(value, default: datetime) -> datetime:
+    if isinstance(value, datetime):
+        return _aware(value)
+    if isinstance(value, (int, float)):
+        return datetime.fromtimestamp(value, timezone.utc)
+    return default
 
 
 def state_key(lab_id: str, student_id: str) -> str:
     return f"{lab_id}:{student_id}"
 
 
+def _as_dict(lease: RuntimeLease) -> dict:
+    return {
+        "status": lease.status,
+        "session_id": lease.session_id,
+        "started_at": _aware(lease.started_at).timestamp(),
+        "last_seen": _aware(lease.last_seen_at).timestamp(),
+    }
+
+
 def update_runtime_state(lab_id: str, student_id: str, status_text: str, **extra) -> None:
-    with LAB_STATE_LOCK:
-        value = LAB_STATE.setdefault(
-            state_key(lab_id, student_id),
-            {"started_at": time.time(), "last_seen": time.time()},
-        )
-        if "started_at" in extra:
-            value["session_id"] = str(uuid.uuid4())
-        value["status"] = status_text
-        value.update(extra)
-        _persist_runtime_state_locked()
+    now = _utcnow()
+    key = state_key(lab_id, student_id)
+    with SessionLocal() as session:
+        lease = session.get(RuntimeLease, key)
+        if lease is None:
+            lease = RuntimeLease(
+                id=key,
+                lab_id=lab_id,
+                student_id=student_id,
+                status=status_text,
+                started_at=_datetime(extra.get("started_at"), now),
+                last_seen_at=_datetime(extra.get("last_seen"), now),
+                session_id=extra.get("session_id"),
+                updated_at=now,
+            )
+            session.add(lease)
+        else:
+            lease.status = status_text
+            lease.updated_at = now
+            if "started_at" in extra:
+                lease.started_at = _datetime(extra["started_at"], now)
+            if "last_seen" in extra:
+                lease.last_seen_at = _datetime(extra["last_seen"], now)
+            if "session_id" in extra:
+                lease.session_id = extra["session_id"]
+        session.commit()
 
 
 def runtime_state_for(lab_id: str, student_id: str) -> dict:
-    with LAB_STATE_LOCK:
-        return dict(LAB_STATE.get(state_key(lab_id, student_id), {}))
+    with SessionLocal() as session:
+        lease = session.get(RuntimeLease, state_key(lab_id, student_id))
+        return _as_dict(lease) if lease else {}
 
 
-def session_id_for(lab_id: str, student_id: str) -> Optional[str]:
-    with LAB_STATE_LOCK:
-        state = LAB_STATE.get(state_key(lab_id, student_id))
-        if state:
-            return state.get("session_id")
-        return None
+def session_id_for(lab_id: str, student_id: str):
+    return runtime_state_for(lab_id, student_id).get("session_id")
 
 
 def forget_runtime_state(lab_id: str, student_id: str) -> None:
-    with LAB_STATE_LOCK:
-        LAB_STATE.pop(state_key(lab_id, student_id), None)
-        _persist_runtime_state_locked()
+    remove_runtime_key(state_key(lab_id, student_id))
 
 
 def touch_runtime_state(lab_id: str, student_id: str) -> None:
-    with LAB_STATE_LOCK:
-        key = state_key(lab_id, student_id)
-        if key in LAB_STATE:
-            LAB_STATE[key]["last_seen"] = time.time()
-            _persist_runtime_state_locked()
+    with SessionLocal() as session:
+        lease = session.get(RuntimeLease, state_key(lab_id, student_id))
+        if lease is not None:
+            lease.last_seen_at = _utcnow()
+            lease.updated_at = lease.last_seen_at
+            session.commit()
 
 
 def tracked_runtime_items():
-    with LAB_STATE_LOCK:
-        return [(key, dict(value)) for key, value in LAB_STATE.items()]
+    with SessionLocal() as session:
+        leases = session.scalars(select(RuntimeLease)).all()
+        return [(lease.id, _as_dict(lease)) for lease in leases]
+
+
+def tracked_labs_for_student(student_id: str) -> list[str]:
+    with SessionLocal() as session:
+        return list(
+            session.scalars(
+                select(RuntimeLease.lab_id).where(
+                    RuntimeLease.student_id == student_id,
+                    RuntimeLease.status.in_(["running", "stopped", "error"]),
+                )
+            ).all()
+        )
+
+
+def remove_student_runtime(student_id: str) -> None:
+    with SessionLocal() as session:
+        leases = session.scalars(
+            select(RuntimeLease).where(RuntimeLease.student_id == student_id)
+        ).all()
+        for lease in leases:
+            session.delete(lease)
+        session.commit()
 
 
 def remove_runtime_key(key: str) -> None:
-    with LAB_STATE_LOCK:
-        LAB_STATE.pop(key, None)
-        _persist_runtime_state_locked()
-
-
-def load_check_result(lab_id: str, student_id: str):
-    result_path = Path(settings.RESULTS_DIR) / f"{lab_id}_{student_id}.json"
-    if not result_path.exists():
-        return None
-    try:
-        return json.loads(result_path.read_text(encoding="utf-8"))
-    except json.JSONDecodeError:
-        return None
+    with SessionLocal() as session:
+        lease = session.get(RuntimeLease, key)
+        if lease is not None:
+            session.delete(lease)
+            session.commit()

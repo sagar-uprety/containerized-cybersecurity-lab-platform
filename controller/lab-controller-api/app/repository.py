@@ -319,6 +319,7 @@ def approve_members(session: Session, group_id: int, user_ids: list[int]) -> int
         ).scalar_one_or_none()
         if member is not None:
             member.status = "approved"
+            member.approved_at = datetime.now(timezone.utc)
             count += 1
     session.flush()
     return count
@@ -385,7 +386,12 @@ def assign_lab(
         existing.deadline = deadline
         session.flush()
         return existing
-    assignment = GroupLab(group_id=group_id, lab_id=lab_id, deadline=deadline)
+    assignment = GroupLab(
+        group_id=group_id,
+        lab_id=lab_id,
+        deadline=deadline,
+        assigned_at=datetime.now(timezone.utc),
+    )
     session.add(assignment)
     session.flush()
     return assignment

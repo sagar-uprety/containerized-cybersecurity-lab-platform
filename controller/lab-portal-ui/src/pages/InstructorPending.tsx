@@ -169,6 +169,7 @@ export default function InstructorPending({ user, onLogout }: Props) {
                 >
                   <Checkbox
                     checked={selected.has(key)}
+                    aria-label={`Select ${m.email}`}
                     onCheckedChange={() => toggleSelect(m.groupId, m.user_id)}
                     onClick={(e) => e.stopPropagation()}
                   />

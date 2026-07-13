@@ -119,8 +119,12 @@
         "checker": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["checks", "states"],
+            "required": ["checks", "states", "version"],
             "properties": {
+                "version": {
+                    "type": "integer",
+                    "minimum": 1
+                },
                 "states": {
                     "type": "array",
                     "items": {
@@ -134,7 +138,7 @@
                     "items": {
                         "type": "object",
                         "additionalProperties": false,
-                        "required": ["name", "exec_in", "run", "states"],
+                        "required": ["name", "label", "kind", "exec_in", "run", "states"],
                         "properties": {
                             "name": {
                                 "type": "string",
@@ -143,6 +147,9 @@
                             "label": {
                                 "type": "string",
                                 "minLength": 1
+                            },
+                            "kind": {
+                                "enum": ["objective", "guardrail"]
                             },
                             "exec_in": {
                                 "type": "string",

@@ -62,3 +62,5 @@ thesis_max_concurrent_students: 1
 thesis_evaluation_mode: false
 thesis_portal_nginx_enabled: true
 thesis_portal_event_log: "{{ thesis_log_root }}/portal-events.jsonl"
+thesis_portal_demo_replace: false
+thesis_portal_demo_credentials_path: "{{ thesis_state_root }}/demo-credentials.csv"

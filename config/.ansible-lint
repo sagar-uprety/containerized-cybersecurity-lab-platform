@@ -7,6 +7,7 @@ exclude_paths:
   - site/
   - test-results/
   - playwright-report/
+  - controller/lab-portal-ui/.playwright-cli/
 
 warn_list:
   - experimental                           # warn on experimental rules (don't block commit)

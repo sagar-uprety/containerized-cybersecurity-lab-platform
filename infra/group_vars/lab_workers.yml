@@ -8,8 +8,6 @@ lab_runtime_local_scenario_root: "{{ playbook_dir }}/../../labs"
 lab_runtime_code_root: "{{ thesis_runtime_root }}/labs"
 lab_runtime_rendered_root: "{{ thesis_state_root }}/rendered"
 lab_runtime_results_root: "{{ thesis_state_root }}/results"
-lab_runtime_student_registry: "{{ thesis_config_root }}/students.txt"
-lab_runtime_student_credentials: "{{ thesis_config_root }}/students.yml"
 lab_runtime_scenario_registry: "{{ thesis_config_root }}/scenarios.txt"
 
 lab_runtime_directories:

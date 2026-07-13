@@ -1,7 +1,7 @@
-"""SQLite engine, session factory, and schema init for the portal identity store.
+"""SQLite engine and session factory for canonical x02 portal state.
 
-The portal owns this database (users, groups, lab assignments). It lives on the
-management host (x02) next to the FastAPI process — SQLite is embedded, so the
+The portal owns identity, assignments, runtime leases, and normalized evidence.
+It lives on x02 next to FastAPI; SQLite must remain local to that process.
 """
 
 import contextlib
@@ -45,9 +45,15 @@ def _migrate_columns() -> None:
     migrations = [
         ("users", "semester", "TEXT"),
         ("users", "study_program", "TEXT"),
+        ("users", "synthetic", "BOOLEAN NOT NULL DEFAULT 0"),
         ("group_members", "status", "TEXT NOT NULL DEFAULT 'approved'"),
         ("group_members", "requested_at", "TEXT NOT NULL DEFAULT '2025-01-01T00:00:00+00:00'"),
+        ("group_members", "approved_at", "TEXT"),
+        ("group_members", "synthetic", "BOOLEAN NOT NULL DEFAULT 0"),
         ("group_labs", "deadline", "TEXT"),
+        ("group_labs", "assigned_at", "TEXT NOT NULL DEFAULT '2025-01-01T00:00:00+00:00'"),
+        ("group_labs", "synthetic", "BOOLEAN NOT NULL DEFAULT 0"),
+        ("groups", "synthetic", "BOOLEAN NOT NULL DEFAULT 0"),
     ]
     with engine.connect() as conn:
         for table, column, col_type in migrations:

@@ -1,5 +1,4 @@
 import base64
-import contextlib
 import csv
 import hashlib
 import hmac
@@ -9,11 +8,12 @@ import logging
 import re
 import threading
 import time
-from datetime import datetime, timedelta, timezone
+import uuid
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
 from fastapi.responses import (
     FileResponse,
     HTMLResponse,
@@ -22,6 +22,7 @@ from fastapi.responses import (
 )
 from fastapi.staticfiles import StaticFiles
 
+from app import analytics as analytics_service
 from app import repository as repo
 from app.auth import (
     authenticate_credentials,
@@ -36,22 +37,28 @@ from app.db import SessionLocal, init_db
 from app.events import record_event
 from app.feedback import (
     build_evidence_export,
+    close_lab_session,
+    create_lab_session,
+    feedback_analytics,
     feedback_exists,
     get_check_results_for_student,
     get_command_events_for_student,
+    get_lab_sessions_for_student,
     get_lifecycle_events_for_student,
     list_feedback,
     save_check_result,
     save_command_events,
     save_feedback,
+    sync_assignment_obligations,
 )
 from app.form_tokens import generate_token, validate_token
 from app.runtime_state import (
-    load_check_result,
     remove_runtime_key,
+    remove_student_runtime,
     runtime_state_for,
     state_key,
     touch_runtime_state,
+    tracked_labs_for_student,
     tracked_runtime_items,
     update_runtime_state,
 )
@@ -94,6 +101,7 @@ SESSION_MAX_AGE = 86400
 def _startup_init_db() -> None:
     init_db()
     seed_if_empty()
+    sync_assignment_obligations()
 
 
 def _sign_session_token(username: str) -> str:
@@ -151,47 +159,42 @@ def _is_fetch(request: Request) -> bool:
     return request.headers.get("x-requested-with") == "fetch"
 
 
-def parse_status_output(stdout: str) -> tuple[str, list[dict]]:
-    lines = stdout.splitlines()
-    state = lines[0].strip() if lines else "not_created"
+def _save_command_logs_from_output(lab_id: str, student_id: str, stdout: str) -> None:
     command_logs = []
-    for line in lines[1:]:
-        if not line.startswith("command_logs:"):
-            continue
+    for line in stdout.splitlines():
+        if line.startswith("command_logs:"):
+            try:
+                value = json.loads(line.split(":", 1)[1].strip())
+            except json.JSONDecodeError:
+                continue
+            if isinstance(value, list):
+                command_logs.extend(item for item in value if isinstance(item, dict))
+    json_start = stdout.find("{")
+    if json_start >= 0:
         try:
-            parsed = json.loads(line.split(":", 1)[1].strip())
+            value = json.loads(stdout[json_start:])
         except json.JSONDecodeError:
-            continue
-        if isinstance(parsed, list):
-            command_logs = [entry for entry in parsed if isinstance(entry, dict)]
-    return state, command_logs
-
-
-def get_lab_status(lab_id: str, student_id: str) -> str:
-    success, stdout, _stderr = run_labctl("status", lab_id, student_id)
-    if not success:
-        return "error"
-    status_text, _command_logs = parse_status_output(stdout)
-    return status_text or "not_created"
+            value = None
+        if isinstance(value, dict) and isinstance(value.get("command_logs"), list):
+            command_logs.extend(item for item in value["command_logs"] if isinstance(item, dict))
+    if command_logs:
+        save_command_events(lab_id, student_id, command_logs)
 
 
 def _fast_lab_status(lab_id: str, student_id: str) -> str:
-    """Derive status from in-memory runtime state (no SSH). For read-only views."""
+    """Read canonical operational status from x02 SQLite without SSH."""
     rs = runtime_state_for(lab_id, student_id)
     return rs.get("status") or "not_created"
 
 
-def get_lab_status_details(lab_id: str, student_id: str) -> tuple[str, list[dict]]:
-    success, stdout, _stderr = run_labctl("status", lab_id, student_id)
-    if not success:
-        return "error", []
-    status_text, command_logs = parse_status_output(stdout)
-    if command_logs:
-        save_command_events(lab_id, student_id, command_logs)
-    return status_text, command_logs
-
-
-def run_action(verb: str, lab_id: str, user: dict) -> tuple[bool, str, str, float]:
+def run_action(
+    verb: str,
+    lab_id: str,
+    user: dict,
+    session_id: Optional[str] = None,
+    record_action: bool = True,
+    reason: Optional[str] = None,
+) -> tuple[bool, str, str, float]:
     validate_lab_id(lab_id)
     student_id = user_student_id(user)
     # Provisioning verbs need the student's lab password injected on stdin so
@@ -200,29 +203,98 @@ def run_action(verb: str, lab_id: str, user: dict) -> tuple[bool, str, str, floa
     started = time.monotonic()
     success, stdout, stderr = run_labctl(verb, lab_id, student_id, lab_password=lab_password)
     duration = time.monotonic() - started
-    record_event(
-        action="end" if verb == "destroy" else verb,
-        lab_id=lab_id,
-        student_id=student_id,
-        actor=user["username"],
-        result="success" if success else "error",
-        duration_seconds=duration,
-        detail=stderr if stderr else None,
-    )
+    if success and stdout:
+        _save_command_logs_from_output(lab_id, student_id, stdout)
+    if record_action:
+        record_event(
+            action="end" if verb == "destroy" else verb,
+            lab_id=lab_id,
+            student_id=student_id,
+            actor=user["username"],
+            actor_type=user.get("role", "student"),
+            result="success" if success else "error",
+            duration_seconds=duration,
+            detail=stderr if stderr else None,
+            session_id=session_id,
+            reason=reason,
+        )
     return success, stdout, stderr, duration
 
 
+def _run_system_check(lab_id: str, user: dict, session_id: str, phase: str):
+    student_id = user_student_id(user)
+    success, stdout, stderr, duration = run_action(
+        "check", lab_id, user, session_id=session_id, record_action=False
+    )
+    if not success:
+        record_event(
+            "check",
+            lab_id,
+            student_id,
+            "system",
+            "error",
+            duration_seconds=duration,
+            detail=stderr,
+            session_id=session_id,
+            actor_type="system",
+            reason=phase,
+        )
+        return None
+    try:
+        json_start = stdout.find("{")
+        if json_start < 0:
+            raise ValueError("missing JSON object")
+        check_result = json.loads(stdout[json_start:])
+    except (json.JSONDecodeError, ValueError) as exc:
+        record_event(
+            "check",
+            lab_id,
+            student_id,
+            "system",
+            "error",
+            detail=str(exc),
+            session_id=session_id,
+            actor_type="system",
+            reason=phase,
+        )
+        return None
+    record_event(
+        "check",
+        lab_id,
+        student_id,
+        "system",
+        "success",
+        duration_seconds=duration,
+        session_id=session_id,
+        actor_type="system",
+        reason=phase,
+    )
+    save_check_result(
+        lab_id,
+        student_id,
+        check_result,
+        duration_seconds=duration,
+        session_id=session_id,
+        actor_id="system",
+        actor_type="system",
+        phase=phase,
+    )
+    update_runtime_state(
+        lab_id,
+        student_id,
+        "running",
+        last_seen=time.time(),
+        last_check=check_result,
+    )
+    return check_result
+
+
 def running_student_count(exclude_key: Optional[str] = None) -> int:
-    count = 0
-    for lab in list_scenarios():
-        lab_id = lab["id"]
-        for student in get_student_users().values():
-            key = state_key(lab_id, student["student_id"])
-            if exclude_key and key == exclude_key:
-                continue
-            if get_lab_status(lab_id, student["student_id"]) == "running":
-                count += 1
-    return count
+    return sum(
+        1
+        for key, runtime_state in tracked_runtime_items()
+        if key != exclude_key and runtime_state.get("status") == "running"
+    )
 
 
 def scenario_idle_timeout(scenario: dict):
@@ -299,9 +371,12 @@ def api_labs(user: dict = Depends(get_authenticated_user)):
     visible = get_visible_labs_with_deadlines(user["username"])
     labs = [lab for lab in list_scenarios() if lab["id"] in visible]
     student_id = user_student_id(user)
+    runtime_states = dict(tracked_runtime_items())
     result = []
     for lab in labs:
-        lab_status = get_lab_status(lab["id"], student_id)
+        lab_status = runtime_states.get(state_key(lab["id"], student_id), {}).get(
+            "status", "not_created"
+        )
         result.append(
             {
                 "id": lab["id"],
@@ -327,12 +402,10 @@ def api_lab_detail(lab_id: str, _request: Request, user: dict = Depends(get_auth
         raise HTTPException(status_code=404, detail="Lab not found")
 
     student_id = user_student_id(user)
-    status_text = get_lab_status(lab_id, student_id)
-    if status_text == "running":
-        update_runtime_state(lab_id, student_id, "running", last_seen=time.time())
+    status_text = _fast_lab_status(lab_id, student_id)
 
-    runtime_state = runtime_state_for(lab_id, student_id)
-    check_result = runtime_state.get("last_check") or load_check_result(lab_id, student_id)
+    check_results = get_check_results_for_student(lab_id, student_id)
+    check_result = check_results[-1].get("check_result") if check_results else None
     endpoints = _build_endpoints(scenario, student_id, user)
 
     return {
@@ -505,7 +578,7 @@ async def start_lab(
     for scenario in list_scenarios():
         if scenario["id"] == lab_id:
             continue
-        if get_lab_status(scenario["id"], student_id) == "running":
+        if _fast_lab_status(scenario["id"], student_id) == "running":
             raise HTTPException(
                 status_code=409,
                 detail=f"Another lab ({scenario['title']}) is already running. "
@@ -513,25 +586,58 @@ async def start_lab(
             )
 
     if running_student_count(exclude_key=current_key) >= settings.MAX_CONCURRENT_STUDENTS:
-        record_event("start", lab_id, student_id, user["username"], "rejected", detail="capacity")
+        record_event(
+            "start",
+            lab_id,
+            student_id,
+            user["username"],
+            "rejected",
+            detail="capacity",
+            actor_type="student",
+            reason="capacity",
+        )
         raise HTTPException(
             status_code=503,
             detail="Maximum concurrent students reached. Try again later.",
         )
 
-    success, _stdout, stderr, _duration = run_action("start", lab_id, user)
+    session_id = str(uuid.uuid4())
+    success, _stdout, stderr, _duration = run_action("start", lab_id, user, record_action=False)
     if not success:
+        record_event(
+            "start",
+            lab_id,
+            student_id,
+            user["username"],
+            "error",
+            duration_seconds=_duration,
+            detail=stderr,
+            actor_type="student",
+        )
         logger.error("Lab start failed for %s/%s: %s", lab_id, student_id, stderr)
         update_runtime_state(lab_id, student_id, "error")
         raise HTTPException(status_code=502, detail="Failed to start lab")
 
+    create_lab_session(session_id, lab_id, student_id)
+    record_event(
+        "start",
+        lab_id,
+        student_id,
+        user["username"],
+        "success",
+        duration_seconds=_duration,
+        session_id=session_id,
+        actor_type="student",
+    )
     update_runtime_state(
         lab_id,
         student_id,
         "running",
         started_at=time.time(),
         last_seen=time.time(),
+        session_id=session_id,
     )
+    _run_system_check(lab_id, user, session_id, "baseline")
 
     if _is_fetch(request):
         endpoints = _build_endpoints(scenario, student_id, user)
@@ -549,8 +655,9 @@ async def stop_lab(
     require_lab_visible(user, lab_id)
     body = await _parse_action_body(request)
     validate_token(body["csrf_token"], user)
-    success, _stdout, stderr, _duration = run_action("stop", lab_id, user)
     student_id = user_student_id(user)
+    session_id = runtime_state_for(lab_id, student_id).get("session_id")
+    success, _stdout, stderr, _duration = run_action("stop", lab_id, user, session_id=session_id)
     update_runtime_state(
         lab_id,
         student_id,
@@ -560,6 +667,7 @@ async def stop_lab(
     if not success:
         logger.error("Lab stop failed for %s/%s: %s", lab_id, student_id, stderr)
         raise HTTPException(status_code=502, detail="Failed to stop lab")
+    close_lab_session(session_id, "stop", "student_stop")
     if _is_fetch(request):
         return {"status": "stopped"}
     return RedirectResponse(url=f"/labs/{lab_id}", status_code=303)
@@ -575,19 +683,38 @@ async def reset_lab(
     require_lab_visible(user, lab_id)
     body = await _parse_action_body(request)
     validate_token(body["csrf_token"], user)
-    success, _stdout, stderr, _duration = run_action("reset", lab_id, user)
     student_id = user_student_id(user)
+    previous_session_id = runtime_state_for(lab_id, student_id).get("session_id")
+    success, _stdout, stderr, _duration = run_action(
+        "reset", lab_id, user, session_id=previous_session_id
+    )
+    if not success:
+        update_runtime_state(lab_id, student_id, "error")
+        logger.error("Lab reset failed for %s/%s: %s", lab_id, student_id, stderr)
+        raise HTTPException(status_code=502, detail="Failed to reset lab")
+    close_lab_session(previous_session_id, "reset", "student_reset")
+    session_id = str(uuid.uuid4())
+    create_lab_session(session_id, lab_id, student_id)
+    record_event(
+        "start",
+        lab_id,
+        student_id,
+        user["username"],
+        "success",
+        session_id=session_id,
+        actor_type="student",
+        reason="reset",
+    )
     update_runtime_state(
         lab_id,
         student_id,
-        "running" if success else "error",
+        "running",
         started_at=time.time(),
         last_seen=time.time(),
         last_check=None,
+        session_id=session_id,
     )
-    if not success:
-        logger.error("Lab reset failed for %s/%s: %s", lab_id, student_id, stderr)
-        raise HTTPException(status_code=502, detail="Failed to reset lab")
+    _run_system_check(lab_id, user, session_id, "baseline")
     if _is_fetch(request):
         return {"status": "running"}
     return RedirectResponse(url=f"/labs/{lab_id}", status_code=303)
@@ -603,12 +730,17 @@ async def end_lab(
     require_lab_visible(user, lab_id)
     body = await _parse_action_body(request)
     validate_token(body["csrf_token"], user)
-    success, _stdout, stderr, _duration = run_action("destroy", lab_id, user)
     student_id = user_student_id(user)
-    update_runtime_state(lab_id, student_id, "ended")
+    session_id = runtime_state_for(lab_id, student_id).get("session_id")
+    if session_id:
+        _run_system_check(lab_id, user, session_id, "final")
+    success, _stdout, stderr, _duration = run_action("destroy", lab_id, user, session_id=session_id)
     if not success:
+        update_runtime_state(lab_id, student_id, "error")
         logger.error("Lab end failed for %s/%s: %s", lab_id, student_id, stderr)
         raise HTTPException(status_code=502, detail="Failed to end lab")
+    close_lab_session(session_id, "end", "student_end")
+    update_runtime_state(lab_id, student_id, "ended")
     if _is_fetch(request):
         return {"status": "ended", "redirect": f"/labs/{lab_id}/feedback"}
     return RedirectResponse(url=f"/labs/{lab_id}/feedback", status_code=303)
@@ -624,9 +756,23 @@ async def check_lab(
     require_lab_visible(user, lab_id)
     body = await _parse_action_body(request)
     validate_token(body["csrf_token"], user)
-    success, stdout, stderr, duration = run_action("check", lab_id, user)
     student_id = user_student_id(user)
+    session_id = runtime_state_for(lab_id, student_id).get("session_id")
+    success, stdout, stderr, duration = run_action(
+        "check", lab_id, user, session_id=session_id, record_action=False
+    )
     if not success:
+        record_event(
+            "check",
+            lab_id,
+            student_id,
+            user["username"],
+            "error",
+            duration_seconds=duration,
+            detail=stderr,
+            session_id=session_id,
+            actor_type="student",
+        )
         logger.error("Lab check failed for %s/%s: %s", lab_id, student_id, stderr)
         update_runtime_state(lab_id, student_id, "error")
         if _is_fetch(request):
@@ -642,10 +788,38 @@ async def check_lab(
             raise ValueError("missing JSON object")
         check_result = json.loads(stdout[json_start:])
     except (json.JSONDecodeError, ValueError) as exc:
-        record_event("check", lab_id, student_id, user["username"], "error", detail=str(exc))
+        record_event(
+            "check",
+            lab_id,
+            student_id,
+            user["username"],
+            "error",
+            detail=str(exc),
+            session_id=session_id,
+            actor_type="student",
+        )
         raise HTTPException(status_code=502, detail="Checker did not return valid JSON") from exc
 
-    save_check_result(lab_id, student_id, check_result, duration_seconds=duration)
+    record_event(
+        "check",
+        lab_id,
+        student_id,
+        user["username"],
+        "success",
+        duration_seconds=duration,
+        session_id=session_id,
+        actor_type="student",
+    )
+    save_check_result(
+        lab_id,
+        student_id,
+        check_result,
+        duration_seconds=duration,
+        session_id=session_id,
+        actor_id=user["username"],
+        actor_type="student",
+        phase="student",
+    )
     update_runtime_state(
         lab_id,
         student_id,
@@ -674,10 +848,22 @@ async def submit_feedback(
     section_a = body.get("section_a", "")
     section_b_rating = int(body.get("section_b_rating", 3))
     section_b = body.get("section_b", "")
+    issue_category = body.get("issue_category")
     if not session_id:
         runtime_state = runtime_state_for(lab_id, student_id)
         session_id = runtime_state.get("session_id", "")
-    save_feedback(lab_id, student_id, session_id, section_a, section_b_rating, section_b)
+    try:
+        save_feedback(
+            lab_id,
+            student_id,
+            session_id,
+            section_a,
+            section_b_rating,
+            section_b,
+            issue_category=issue_category,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     if _is_fetch(request):
         return {"ok": True}
     return RedirectResponse(url="/portal", status_code=303)
@@ -728,10 +914,6 @@ def heartbeat(lab_id: str, user: dict = Depends(get_authenticated_user)):
     validate_lab_id(lab_id)
     student_id = user_student_id(user)
     touch_runtime_state(lab_id, student_id)
-    threading.Thread(
-        target=lambda: get_lab_status_details(lab_id, student_id),
-        daemon=True,
-    ).start()
     return {"status": "ok", "lab_id": lab_id, "student": student_id}
 
 
@@ -797,6 +979,7 @@ def require_instructor(user: dict) -> None:
 @app.get("/api/instructor/labs")
 def api_instructor_labs(user: dict = Depends(get_authenticated_user)):
     require_instructor(user)
+    runtime_states = dict(tracked_runtime_items())
     labs = []
     for scenario in list_scenarios():
         lab_id = scenario["id"]
@@ -804,7 +987,10 @@ def api_instructor_labs(user: dict = Depends(get_authenticated_user)):
         total_students = 0
         for student in get_student_users().values():
             total_students += 1
-            if _fast_lab_status(lab_id, student["student_id"]) == "running":
+            if (
+                runtime_states.get(state_key(lab_id, student["student_id"]), {}).get("status")
+                == "running"
+            ):
                 active_count += 1
         labs.append(
             {
@@ -831,11 +1017,12 @@ def api_instructor_lab_detail(lab_id: str, user: dict = Depends(get_authenticate
 
     active_sessions = []
     completed_sessions = []
+    runtime_states = dict(tracked_runtime_items())
 
     for student in get_student_users().values():
         student_id = student["student_id"]
-        status_text = _fast_lab_status(lab_id, student_id)
-        runtime_state = runtime_state_for(lab_id, student_id)
+        runtime_state = runtime_states.get(state_key(lab_id, student_id), {})
+        status_text = runtime_state.get("status", "not_created")
         session_id = runtime_state.get("session_id", "")
         started_at = runtime_state.get("started_at")
         last_seen = runtime_state.get("last_seen")
@@ -908,7 +1095,7 @@ def api_instructor_session_detail(
 ):
     require_instructor(user)
     validate_lab_id(lab_id)
-    status_text = get_lab_status(lab_id, student_id)
+    status_text = _fast_lab_status(lab_id, student_id)
     runtime_state = runtime_state_for(lab_id, student_id)
     session_id = runtime_state.get("session_id", "")
     started_at = runtime_state.get("started_at")
@@ -917,25 +1104,9 @@ def api_instructor_session_detail(
     commands = get_command_events_for_student(lab_id, student_id)
     check_results = get_check_results_for_student(lab_id, student_id)
     lifecycle_events = get_lifecycle_events_for_student(lab_id, student_id)
-
-    duration_seconds = None
-    if lifecycle_events:
-        start_events = [e for e in lifecycle_events if e.get("action") == "start"]
-        end_events = [e for e in lifecycle_events if e.get("action") in ("end", "destroy", "stop")]
-        if start_events and end_events:
-            try:
-                start_ts = time.mktime(
-                    time.strptime(start_events[-1]["timestamp"], "%Y-%m-%dT%H:%M:%SZ")
-                )
-                end_ts = time.mktime(
-                    time.strptime(end_events[-1]["timestamp"], "%Y-%m-%dT%H:%M:%SZ")
-                )
-                duration_seconds = round(end_ts - start_ts, 1)
-            except (ValueError, KeyError):
-                pass
-
-    if duration_seconds is None and started_at and last_seen:
-        duration_seconds = round(last_seen - started_at, 1)
+    sessions = get_lab_sessions_for_student(lab_id, student_id)
+    latest_session = sessions[0] if sessions else None
+    duration_seconds = latest_session.get("duration_seconds") if latest_session else None
 
     latest_check = None
     if check_results:
@@ -955,10 +1126,9 @@ def api_instructor_session_detail(
         "check_results": check_results,
         "latest_check": latest_check,
         "lifecycle_events": lifecycle_events,
+        "sessions": sessions,
         "scenario": scenario,
-        "feedback": list_feedback(lab_id)
-        if feedback_exists(lab_id, student_id, session_id)
-        else None,
+        "feedback_submitted": feedback_exists(lab_id, student_id, session_id),
     }
 
 
@@ -987,37 +1157,13 @@ def api_instructor_students(user: dict = Depends(get_authenticated_user)):
 
 
 @app.get("/api/instructor/students/{student_id}")
-def api_instructor_student_detail(student_id: str, user: dict = Depends(get_authenticated_user)):
+def api_instructor_student_detail(
+    student_id: str,
+    group_id: Optional[int] = None,
+    user: dict = Depends(get_authenticated_user),
+):
     require_instructor(user)
-    labs = []
-    for scenario in list_scenarios():
-        lab_id = scenario["id"]
-        status_text = _fast_lab_status(lab_id, student_id)
-        runtime_state = runtime_state_for(lab_id, student_id)
-        lifecycle = get_lifecycle_events_for_student(lab_id, student_id)
-        check_results = get_check_results_for_student(lab_id, student_id)
-        latest_check = check_results[-1].get("check_result") if check_results else None
-
-        sessions = _build_session_history(lifecycle)
-
-        labs.append(
-            {
-                "lab_id": lab_id,
-                "lab_title": scenario["title"],
-                "status": status_text,
-                "latest_check": latest_check,
-                "total_sessions": len(sessions),
-                "total_checks": len(check_results),
-                "sessions": sessions,
-                "feedback_submitted": feedback_exists(
-                    lab_id, student_id, runtime_state.get("session_id", "")
-                ),
-            }
-        )
-    return {
-        "student_id": student_id,
-        "labs": labs,
-    }
+    return analytics_service.student_detail(student_id, group_id=group_id)
 
 
 def _aware_utc(dt: Optional[datetime]) -> Optional[datetime]:
@@ -1084,7 +1230,95 @@ def _build_session_history(lifecycle):
 def api_instructor_feedback(lab_id: str, user: dict = Depends(get_authenticated_user)):
     require_instructor(user)
     validate_lab_id(lab_id)
-    return list_feedback(lab_id)
+    summary = feedback_analytics(lab_id)
+    responses = list_feedback(lab_id)
+    summary["responses"] = (
+        [
+            {
+                "response_id": response["response_id"],
+                "timestamp": response["timestamp"],
+                "section_a": response["section_a"],
+                "section_b": response["section_b"],
+                "issue_category": response.get("issue_category"),
+                "synthetic": response.get("synthetic", False),
+            }
+            for response in responses
+        ]
+        if len(responses) >= 5
+        else []
+    )
+    return summary
+
+
+@app.get("/api/instructor/analytics")
+def api_instructor_analytics(
+    group_id: Optional[int] = None, user: dict = Depends(get_authenticated_user)
+):
+    require_instructor(user)
+    return analytics_service.instructor_analytics(group_id=group_id)
+
+
+@app.get("/api/instructor/interventions")
+def api_instructor_interventions(
+    group_id: Optional[int] = None,
+    student_id: Optional[str] = None,
+    intervention_status: Optional[str] = Query(None, alias="status"),
+    user: dict = Depends(get_authenticated_user),
+):
+    require_instructor(user)
+    return analytics_service.list_interventions(
+        group_id=group_id, student_id=student_id, status=intervention_status
+    )
+
+
+@app.post("/api/instructor/interventions")
+async def api_create_intervention(request: Request, user: dict = Depends(get_authenticated_user)):
+    require_instructor(user)
+    body = await _parse_action_body(request)
+    validate_token(body["csrf_token"], user)
+    try:
+        return JSONResponse(
+            analytics_service.create_intervention(body, user["username"]), status_code=201
+        )
+    except (KeyError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/api/instructor/interventions/{intervention_id}")
+async def api_update_intervention(
+    intervention_id: int,
+    request: Request,
+    user: dict = Depends(get_authenticated_user),
+):
+    require_instructor(user)
+    body = await _parse_action_body(request)
+    validate_token(body["csrf_token"], user)
+    try:
+        result = analytics_service.update_intervention(intervention_id, body)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    if result is None:
+        raise HTTPException(status_code=404, detail="Intervention not found")
+    return result
+
+
+@app.get("/api/results")
+def api_student_results(user: dict = Depends(get_authenticated_user)):
+    require_student(user)
+    return analytics_service.student_results(user_student_id(user))
+
+
+@app.get("/api/results/{lab_id}")
+def api_student_lab_results(lab_id: str, user: dict = Depends(get_authenticated_user)):
+    require_student(user)
+    require_lab_visible(user, lab_id)
+    result = analytics_service.student_results(user_student_id(user))
+    lab = next((item for item in result["labs"] if item["lab_id"] == lab_id), None)
+    detail = analytics_service.student_detail(user_student_id(user))
+    lab_detail = next((item for item in detail["labs"] if item["lab_id"] == lab_id), None)
+    if lab is None or lab_detail is None:
+        raise HTTPException(status_code=404, detail="Result not found")
+    return {**lab, **lab_detail}
 
 
 @app.post("/api/instructor/evidence/export")
@@ -1107,7 +1341,7 @@ async def api_export_evidence(request: Request, user: dict = Depends(get_authent
 def api_download_export(export_id: str, user: dict = Depends(get_authenticated_user)):
     require_instructor(user)
     export_path = (
-        Path(settings.RUNTIME_STATE_PATH).parent / "evidence" / "exports" / f"{export_id}.tar.gz"
+        Path(settings.PORTAL_DB_PATH).parent / "evidence" / "exports" / f"{export_id}.tar.gz"
     )
     if not export_path.is_file():
         raise HTTPException(status_code=404, detail="Export not found")
@@ -1137,11 +1371,15 @@ def _require_instructor_csrf(request: Request, user: dict, body: Optional[dict] 
 def _destroy_student_labs(student_id: str) -> None:
     """Best-effort teardown of a student's lab instances before removal, so the
     freed student number/ports are safe to reuse (see repository.next_free_number)."""
-    for scenario in list_scenarios():
+    for lab_id in tracked_labs_for_student(student_id):
         try:
-            run_labctl("destroy", scenario["id"], student_id)
+            success, stdout, _stderr = run_labctl("destroy", lab_id, student_id)
+            if success:
+                _save_command_logs_from_output(lab_id, student_id, stdout)
+                remove_runtime_key(state_key(lab_id, student_id))
         except Exception:
-            logger.warning("Teardown failed for %s/%s", scenario["id"], student_id)
+            logger.warning("Teardown failed for %s/%s", lab_id, student_id)
+    remove_student_runtime(student_id)
 
 
 @app.get("/api/instructor/csrf")
@@ -1356,6 +1594,7 @@ async def api_assign_lab(
         try:
             repo.assign_lab(session, group_id, lab_id, deadline=deadline)
             session.commit()
+            sync_assignment_obligations()
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         group = repo.get_group(session, group_id)
@@ -1375,6 +1614,7 @@ def api_unassign_lab(
         if not repo.unassign_lab(session, group_id, lab_id):
             raise HTTPException(status_code=404, detail="Assignment not found")
         session.commit()
+    sync_assignment_obligations()
     return {"ok": True}
 
 
@@ -1416,36 +1656,10 @@ def api_group_detail(group_id: int, user: dict = Depends(get_authenticated_user)
             for gl in group.labs
         ]
 
-        member_ids = {m.user.internal_id or m.user.email for m in group.members if m.status == "approved"}
-        recent_activity: list[dict] = []
-        try:
-            lc_path = Path(settings.RESULTS_DIR).parent / "evidence" / "lifecycle-events.jsonl"
-            if lc_path.exists() and member_ids:
-                all_events = []
-                with lc_path.open("r", encoding="utf-8") as fh:
-                    for line in fh:
-                        if not line.strip():
-                            continue
-                        with contextlib.suppress(json.JSONDecodeError):
-                            ev = json.loads(line)
-                            if ev.get("student_id") in member_ids:
-                                all_events.append(ev)
-                all_events.sort(key=lambda e: e.get("timestamp", ""), reverse=True)
-                for ev in all_events[:10]:
-                    lid = ev.get("lab_id", "")
-                    sc = load_scenario_metadata(lid)
-                    recent_activity.append(
-                        {
-                            "timestamp": ev.get("timestamp"),
-                            "action": ev.get("action"),
-                            "student_id": ev.get("student_id"),
-                            "lab_id": lid,
-                            "lab_title": sc["title"] if sc else lid,
-                            "result": ev.get("result"),
-                        }
-                    )
-        except Exception:
-            pass
+        member_ids = {
+            m.user.internal_id or m.user.email for m in group.members if m.status == "approved"
+        }
+        recent_activity = analytics_service.recent_activity(member_ids)
 
         return {
             "id": group.id,
@@ -1476,6 +1690,7 @@ async def api_approve_members(
         try:
             count = repo.approve_members(session, group_id, user_ids)
             session.commit()
+            sync_assignment_obligations()
         except ValueError as exc:
             raise HTTPException(status_code=404, detail=str(exc)) from exc
         return {"approved": count}
@@ -1506,6 +1721,14 @@ async def api_reject_members(
 @app.get("/api/instructor/groups/{group_id}/progress")
 def api_group_progress(group_id: int, user: dict = Depends(get_authenticated_user)):
     require_instructor(user)
+    result = analytics_service.group_progress(group_id)
+    if result is None:
+        raise HTTPException(status_code=404, detail="Group not found")
+    return result
+
+
+def _legacy_api_group_progress(group_id: int):
+    """Retained temporarily for migration comparison; not exposed as a route."""
     with SessionLocal() as session:
         group = repo.get_group(session, group_id)
         if group is None:
@@ -1664,6 +1887,11 @@ def api_group_export_csv(group_id: int, user: dict = Depends(get_authenticated_u
 @app.get("/api/instructor/students-progress")
 def api_instructor_students_progress(user: dict = Depends(get_authenticated_user)):
     require_instructor(user)
+    return analytics_service.students_progress()
+
+
+def _legacy_api_instructor_students_progress():
+    """Retained temporarily for migration comparison; not exposed as a route."""
     now = datetime.now(timezone.utc)
     with SessionLocal() as session:
         students = repo.list_users(session, role="student")
@@ -1737,116 +1965,7 @@ def api_instructor_students_progress(user: dict = Depends(get_authenticated_user
 @app.get("/api/instructor/dashboard")
 def api_instructor_dashboard(user: dict = Depends(get_authenticated_user)):
     require_instructor(user)
-    with SessionLocal() as session:
-        groups = repo.list_groups(session)
-        all_students = repo.list_users(session, role="student")
-        total_labs = len(list_scenarios())
-        total_pending = 0
-        total_possible = 0
-        group_summaries = []
-        for g in groups:
-            approved = sum(1 for m in g.members if m.status == "approved")
-            pending = sum(1 for m in g.members if m.status == "pending")
-            total_pending += pending
-            total_possible += approved * len(g.labs)
-            group_summaries.append(
-                {
-                    "id": g.id,
-                    "name": g.name,
-                    "member_count": approved,
-                    "pending_count": pending,
-                    "lab_count": len(g.labs),
-                    "created_at": g.created_at.isoformat() if g.created_at else None,
-                }
-            )
-
-        now = datetime.now(timezone.utc)
-        total_passed = 0
-        latest_checks: dict[tuple[str, str], dict] = {}
-        try:
-            cr_path = Path(settings.RESULTS_DIR).parent / "evidence" / "check-results.jsonl"
-            if cr_path.exists():
-                with cr_path.open("r", encoding="utf-8") as fh:
-                    for line in fh:
-                        if not line.strip():
-                            continue
-                        rec = json.loads(line)
-                        key = (rec.get("lab_id", ""), rec.get("student_id", ""))
-                        latest_checks[key] = rec.get("check_result", {})
-                for cr in latest_checks.values():
-                    if cr.get("passed") or cr.get("status") == "fixed":
-                        total_passed += 1
-        except Exception:
-            pass
-
-        # At-risk: an approved member of a group whose group-assigned lab is
-        # past its deadline and hasn't been passed yet. Reuses latest_checks
-        # (already scanned above) instead of re-walking session history.
-        total_at_risk = 0
-        for g in groups:
-            overdue_labs = [gl for gl in g.labs if _aware_utc(gl.deadline) and _aware_utc(gl.deadline) < now]
-            if not overdue_labs:
-                continue
-            for m in g.members:
-                if m.status != "approved":
-                    continue
-                sid = m.user.internal_id or m.user.email
-                is_at_risk = False
-                for gl in overdue_labs:
-                    cr = latest_checks.get((gl.lab_id, sid), {})
-                    if not (cr.get("passed") or cr.get("status") == "fixed"):
-                        is_at_risk = True
-                        break
-                if is_at_risk:
-                    total_at_risk += 1
-
-        recent = []
-        active_student_ids: set[str] = set()
-        week_ago_iso = (now - timedelta(days=7)).isoformat()
-        try:
-            lc_path = Path(settings.RESULTS_DIR).parent / "evidence" / "lifecycle-events.jsonl"
-            if lc_path.exists():
-                all_events = []
-                with lc_path.open("r", encoding="utf-8") as fh:
-                    for line in fh:
-                        if not line.strip():
-                            continue
-                        with contextlib.suppress(json.JSONDecodeError):
-                            all_events.append(json.loads(line))
-                all_events.sort(key=lambda e: e.get("timestamp", ""), reverse=True)
-                for ev in all_events:
-                    ts = ev.get("timestamp", "")
-                    sid = ev.get("student_id")
-                    if sid and ts >= week_ago_iso:
-                        active_student_ids.add(sid)
-                for ev in all_events[:15]:
-                    lid = ev.get("lab_id", "")
-                    sc = load_scenario_metadata(lid)
-                    recent.append(
-                        {
-                            "timestamp": ev.get("timestamp"),
-                            "action": ev.get("action"),
-                            "student_id": ev.get("student_id"),
-                            "lab_id": lid,
-                            "lab_title": sc["title"] if sc else lid,
-                            "result": ev.get("result"),
-                        }
-                    )
-        except Exception:
-            pass
-
-        return {
-            "total_groups": len(groups),
-            "total_labs": total_labs,
-            "total_students": len(all_students),
-            "total_pending": total_pending,
-            "total_passed": total_passed,
-            "total_possible": total_possible,
-            "total_at_risk": total_at_risk,
-            "active_this_week": len(active_student_ids),
-            "groups": group_summaries,
-            "recent_activity": recent,
-        }
+    return analytics_service.instructor_dashboard()
 
 
 # ---------------------------------------------------------------------------
@@ -1879,6 +1998,13 @@ def portal_overview():
     return _serve_spa()
 
 
+@app.get("/results", response_class=HTMLResponse)
+@app.get("/results/{lab_id}", response_class=HTMLResponse)
+def student_results_spa(lab_id: Optional[str] = None):
+    _ = lab_id
+    return _serve_spa()
+
+
 @app.get("/labs/{lab_id}", response_class=HTMLResponse)
 def lab_detail_spa(lab_id: str):
     _ = lab_id
@@ -1901,6 +2027,16 @@ def instructor_spa():
     return _serve_spa()
 
 
+@app.get("/instructor/results", response_class=HTMLResponse)
+def instructor_results_spa():
+    return _serve_spa()
+
+
+@app.get("/instructor/analytics", response_class=HTMLResponse)
+def instructor_analytics_spa():
+    return _serve_spa()
+
+
 @app.get("/instructor/students", response_class=HTMLResponse)
 def instructor_students_spa():
     return _serve_spa()
@@ -1918,6 +2054,18 @@ def instructor_account_password_spa():
 
 @app.get("/instructor/groups/{group_id}", response_class=HTMLResponse)
 def instructor_group_detail_spa(group_id: int):
+    _ = group_id
+    return _serve_spa()
+
+
+@app.get("/instructor/groups/{group_id}/results", response_class=HTMLResponse)
+def instructor_group_results_spa(group_id: int):
+    _ = group_id
+    return _serve_spa()
+
+
+@app.get("/instructor/groups/{group_id}/analytics", response_class=HTMLResponse)
+def instructor_group_analytics_spa(group_id: int):
     _ = group_id
     return _serve_spa()
 
@@ -1996,7 +2144,10 @@ def lab_lifecycle_manager():
 
                 if should_stop_for_idle or should_stop_for_runtime:
                     reason = "max_runtime" if should_stop_for_runtime else "idle"
-                    success, _stdout, stderr = run_labctl("stop", lab_id, student_id)
+                    session_id = runtime_state.get("session_id")
+                    success, stdout, stderr = run_labctl("stop", lab_id, student_id)
+                    if success:
+                        _save_command_logs_from_output(lab_id, student_id, stdout)
                     record_event(
                         "auto_stop",
                         lab_id,
@@ -2004,15 +2155,24 @@ def lab_lifecycle_manager():
                         "scheduler",
                         "success" if success else "error",
                         detail=reason if success else stderr,
+                        session_id=session_id,
+                        actor_type="system",
+                        reason=reason,
                     )
-                    update_runtime_state(lab_id, student_id, "stopped", last_seen=current_time)
+                    if success:
+                        close_lab_session(session_id, "auto_stop", reason)
+                        update_runtime_state(lab_id, student_id, "stopped", last_seen=current_time)
+                    else:
+                        update_runtime_state(lab_id, student_id, "error")
 
                 elif (
                     runtime_state.get("status") == "stopped"
                     and destroy_timeout is not None
                     and idle_minutes > float(destroy_timeout)
                 ):
-                    success, _stdout, stderr = run_labctl("destroy", lab_id, student_id)
+                    success, stdout, stderr = run_labctl("destroy", lab_id, student_id)
+                    if success:
+                        _save_command_logs_from_output(lab_id, student_id, stdout)
                     record_event(
                         "retention_cleanup",
                         lab_id,
@@ -2020,6 +2180,9 @@ def lab_lifecycle_manager():
                         "scheduler",
                         "success" if success else "error",
                         detail=stderr if stderr else None,
+                        session_id=runtime_state.get("session_id"),
+                        actor_type="system",
+                        reason="retention",
                     )
                     if success:
                         remove_runtime_key(key)

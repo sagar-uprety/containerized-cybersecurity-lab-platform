@@ -1,5 +1,6 @@
 import json
 import re
+from functools import cache, lru_cache
 from pathlib import Path
 from typing import Optional
 
@@ -31,6 +32,7 @@ def student_number(student_id: str, user: Optional[dict] = None) -> int:
     return int(match.group(1))
 
 
+@cache
 def load_scenario_metadata(lab_id: str):
     validate_lab_id(lab_id)
     labs_root = Path(settings.LABS_DIR)
@@ -54,6 +56,7 @@ def load_scenario_metadata(lab_id: str):
     return scenario
 
 
+@lru_cache(maxsize=1)
 def list_scenarios():
     labs = []
     root = Path(settings.LABS_DIR)

@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Info } from "lucide-react";
@@ -30,6 +31,7 @@ export default function Feedback({ user, labId, onLogout }: FeedbackProps) {
   const [sectionA, setSectionA] = useState("");
   const [sectionBRating, setSectionBRating] = useState(3);
   const [sectionB, setSectionB] = useState("");
+  const [issueCategory, setIssueCategory] = useState("none");
 
   useDocumentTitle("Lab Feedback");
 
@@ -49,6 +51,7 @@ export default function Feedback({ user, labId, onLogout }: FeedbackProps) {
         sectionA,
         sectionBRating,
         sectionB,
+        issueCategory: issueCategory === "none" ? undefined : issueCategory,
       });
       navigate("/");
     } catch (err: unknown) {
@@ -90,7 +93,7 @@ export default function Feedback({ user, labId, onLogout }: FeedbackProps) {
               This feedback form is part of the thesis evaluation process. Your responses are used
               to improve the lab platform and are <strong>not linked to your grade</strong>.
               Participation is mandatory so we can measure learning outcomes, but individual
-              responses remain confidential.
+              responses are de-identified before instructor review. Identity is retained only to prevent duplicate submissions.
             </AlertDescription>
           </Alert>
 
@@ -98,7 +101,7 @@ export default function Feedback({ user, labId, onLogout }: FeedbackProps) {
             <Card>
               <CardContent className="space-y-3">
                 <div>
-                  <div className="text-sm font-semibold text-foreground">Section A — Reflection</div>
+                  <h2 className="text-sm font-semibold text-foreground">Section A — Reflection</h2>
                   <p className="text-sm text-muted-foreground">Free-text reflection on what you learned during this lab.</p>
                 </div>
                 <Textarea
@@ -107,6 +110,8 @@ export default function Feedback({ user, labId, onLogout }: FeedbackProps) {
                   onChange={(e) => setSectionA(e.target.value)}
                   placeholder="What was the most surprising thing you discovered? What would you do differently next time?"
                   required
+                  minLength={4}
+                  maxLength={4000}
                 />
               </CardContent>
             </Card>
@@ -114,12 +119,25 @@ export default function Feedback({ user, labId, onLogout }: FeedbackProps) {
             <Card>
               <CardContent className="space-y-3">
                 <div>
-                  <div className="text-sm font-semibold text-foreground">Section B — Evaluation</div>
+                  <h2 className="text-sm font-semibold text-foreground">Section B — Evaluation</h2>
                   <p className="text-sm text-muted-foreground">Rate the clarity of the lab guide and instructions.</p>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Rating (1 = very unclear, 5 = very clear)</Label>
                   <RatingInput value={sectionBRating} onChange={setSectionBRating} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="feedback-category">Primary issue, if any</Label>
+                  <Select value={issueCategory} onValueChange={setIssueCategory}>
+                    <SelectTrigger id="feedback-category"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="none">No specific issue</SelectItem>
+                      <SelectItem value="instructions">Instructions unclear</SelectItem>
+                      <SelectItem value="checker">Checker result unexpected</SelectItem>
+                      <SelectItem value="environment">Environment problem</SelectItem>
+                      <SelectItem value="difficulty">Difficulty or prerequisite gap</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <p className="text-sm text-muted-foreground">Free-text feedback on what was confusing or could be improved.</p>
                 <Textarea
@@ -128,6 +146,8 @@ export default function Feedback({ user, labId, onLogout }: FeedbackProps) {
                   onChange={(e) => setSectionB(e.target.value)}
                   placeholder="Which step was hardest to follow? What additional hint would have helped?"
                   required
+                  minLength={4}
+                  maxLength={4000}
                 />
               </CardContent>
             </Card>

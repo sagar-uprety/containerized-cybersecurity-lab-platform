@@ -18,6 +18,9 @@ def record_event(
     result: str,
     duration_seconds: Optional[float] = None,
     detail: Optional[str] = None,
+    session_id: Optional[str] = None,
+    actor_type: Optional[str] = None,
+    reason: Optional[str] = None,
 ) -> None:
     event = {
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
@@ -31,6 +34,12 @@ def record_event(
         event["duration_seconds"] = round(duration_seconds, 3)
     if detail:
         event["detail"] = detail[:240]
+    if session_id:
+        event["session_id"] = session_id
+    if actor_type:
+        event["actor_type"] = actor_type
+    if reason:
+        event["reason"] = reason
 
     event_path = Path(settings.EVENT_LOG_PATH)
     event_path.parent.mkdir(parents=True, exist_ok=True)
@@ -46,6 +55,9 @@ def record_event(
         result=result,
         duration_seconds=duration_seconds,
         detail=detail,
+        session_id=session_id,
+        actor_type=actor_type,
+        reason=reason,
     )
 
 

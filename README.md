@@ -28,13 +28,13 @@ VM-hosted, container-first cybersecurity lab platform. Two RHEL 9.6 VMs: x02
 
 `controller/labctl` is a thin wrapper. Reusable logic in `labctl_core/`:
 
-| Module         | Purpose                                                                 |
-| -------------- | ----------------------------------------------------------------------- |
-| `cli.py`       | Argument validation and verb dispatch                                   |
-| `config.py`    | Runtime path discovery                                                  |
-| `scenario.py`  | Scenario loading, student registry, port derivation, checker conditions |
-| `podman.py`    | Safe argv-based Podman operations                                       |
-| `lifecycle.py` | Start, stop, reset, destroy, status, check                              |
+| Module         | Purpose                                                                         |
+| -------------- | ------------------------------------------------------------------------------- |
+| `cli.py`       | Argument validation and verb dispatch                                           |
+| `config.py`    | Runtime path discovery                                                          |
+| `scenario.py`  | Scenario loading, injected lab credentials, port derivation, checker conditions |
+| `podman.py`    | Safe argv-based Podman operations                                               |
+| `lifecycle.py` | Start, stop, reset, destroy, status, check                                      |
 
 Checker logic is declarative in `scenario.yaml`. Students never run `labctl`,
 Podman, or Ansible directly — portal actions on x02 call restricted lifecycle

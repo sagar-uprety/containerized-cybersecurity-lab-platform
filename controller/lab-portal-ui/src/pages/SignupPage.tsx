@@ -91,7 +91,7 @@ export default function SignupPage({ onSignup, onSwitchToLogin }: SignupPageProp
           <div className="mb-3 flex size-11 items-center justify-center rounded-lg bg-primary text-primary-foreground">
             <ShieldCheck className="size-5.5" />
           </div>
-          <div className="text-lg font-semibold tracking-tight text-foreground">Create account</div>
+          <h1 className="text-lg font-semibold tracking-tight text-foreground">Create account</h1>
           <div className="mt-0.5 text-sm text-muted-foreground">Cybersecurity Lab Platform</div>
         </div>
 
@@ -139,7 +139,7 @@ export default function SignupPage({ onSignup, onSwitchToLogin }: SignupPageProp
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="signup-password">Password</Label>
+            <Label htmlFor="signup-password">Portal password</Label>
             <Input
               id="signup-password"
               type="password"
@@ -164,7 +164,7 @@ export default function SignupPage({ onSignup, onSwitchToLogin }: SignupPageProp
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="signup-confirm">Confirm password</Label>
+            <Label htmlFor="signup-confirm">Confirm portal password</Label>
             <Input
               id="signup-confirm"
               type="password"
@@ -174,7 +174,7 @@ export default function SignupPage({ onSignup, onSwitchToLogin }: SignupPageProp
               required
             />
             {confirm.length > 0 && password !== confirm && (
-              <div className="text-xs text-destructive">Passwords do not match</div>
+              <div className="text-xs text-destructive">Portal passwords do not match</div>
             )}
           </div>
 

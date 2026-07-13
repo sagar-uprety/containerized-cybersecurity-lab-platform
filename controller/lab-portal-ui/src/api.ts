@@ -15,6 +15,11 @@ import type {
   InstructorLabInfo,
   InstructorLabDetailData,
   StudentResultsData,
+  StudentLabResultsData,
+  InstructorAnalyticsData,
+  Intervention,
+  InterventionStatus,
+  ReviewReasonCode,
 } from "./types";
 
 const API_BASE = "/api";
@@ -33,7 +38,7 @@ export function setSessionExpiredHandler(handler: () => void): void {
   onSessionExpired = handler;
 }
 
-async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
+async function request<T>(path: string, options: RequestInit = {}, notifySessionExpired = true): Promise<T> {
   const url = `${API_BASE}${path}`;
   const headers: Record<string, string> = {
     "X-Requested-With": "fetch",
@@ -52,7 +57,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   }
 
   if (!response.ok) {
-    if (response.status === 401 && onSessionExpired) {
+    if (response.status === 401 && notifySessionExpired && onSessionExpired) {
       onSessionExpired();
       throw new ApiError("Session expired. Please log in again.", 401);
     }
@@ -81,7 +86,7 @@ export function logout(): Promise<null> {
 }
 
 export function getMe(): Promise<User> {
-  return request("/me");
+  return request("/me", {}, false);
 }
 
 export function getLabs(): Promise<Lab[]> {
@@ -144,6 +149,7 @@ export function submitFeedback(
     sectionA: string;
     sectionBRating: number;
     sectionB: string;
+    issueCategory?: string;
   }
 ): Promise<unknown> {
   return request(`/labs/${labId}/feedback`, {
@@ -154,6 +160,7 @@ export function submitFeedback(
       section_a: opts.sectionA,
       section_b_rating: opts.sectionBRating,
       section_b: opts.sectionB,
+      issue_category: opts.issueCategory,
     }),
     headers: { "Content-Type": "application/json" },
   });
@@ -179,8 +186,9 @@ export function getInstructorStudents(): Promise<Array<{ student_id: string; ema
   return request("/instructor/students");
 }
 
-export function getInstructorStudentDetail(studentId: string): Promise<StudentDetail> {
-  return request(`/instructor/students/${studentId}`);
+export function getInstructorStudentDetail(studentId: string, groupId?: number): Promise<StudentDetail> {
+  const query = groupId != null ? `?group_id=${groupId}` : "";
+  return request(`/instructor/students/${studentId}${query}`);
 }
 
 export function getInstructorFeedback(labId: string): Promise<unknown> {
@@ -201,6 +209,49 @@ export function exportEvidence(opts: { csrfToken: string; evaluationId: string; 
 
 export function getStudentResults(): Promise<StudentResultsData> {
   return request("/results");
+}
+
+export function getStudentLabResults(labId: string): Promise<StudentLabResultsData> {
+  return request(`/results/${labId}`);
+}
+
+export function getInstructorAnalytics(groupId?: number): Promise<InstructorAnalyticsData> {
+  const query = groupId != null ? `?group_id=${groupId}` : "";
+  return request(`/instructor/analytics${query}`);
+}
+
+export function getInterventions(opts: { groupId?: number; studentId?: string; status?: InterventionStatus } = {}): Promise<Intervention[]> {
+  const query = new URLSearchParams();
+  if (opts.groupId != null) query.set("group_id", String(opts.groupId));
+  if (opts.studentId) query.set("student_id", opts.studentId);
+  if (opts.status) query.set("status", opts.status);
+  return request(`/instructor/interventions${query.size ? `?${query}` : ""}`);
+}
+
+export function createIntervention(input: {
+  studentId: string;
+  groupId: number;
+  labId?: string;
+  reason: ReviewReasonCode;
+  note: string;
+  followUpAt?: string;
+}): Promise<Intervention> {
+  return instructorPost("/instructor/interventions", {
+    student_id: input.studentId,
+    group_id: input.groupId,
+    lab_id: input.labId,
+    reason: input.reason,
+    note: input.note,
+    follow_up_at: input.followUpAt,
+  });
+}
+
+export function updateIntervention(id: number, input: { status?: InterventionStatus; note?: string; followUpAt?: string }): Promise<Intervention> {
+  return instructorPost(`/instructor/interventions/${id}`, {
+    status: input.status,
+    note: input.note,
+    follow_up_at: input.followUpAt,
+  });
 }
 
 export function changePassword(currentPassword: string, newPassword: string): Promise<unknown> {

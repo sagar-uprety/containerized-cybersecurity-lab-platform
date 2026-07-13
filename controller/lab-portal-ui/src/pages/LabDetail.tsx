@@ -84,7 +84,7 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
     function createOverlay() {
       if (overlay) return;
       overlay = document.createElement("div");
-      overlay.style.cssText = "position:fixed;top:0;left:0;right:0;bottom:0;z-index:9999;cursor:col-resize;";
+      overlay.style.cssText = "position:fixed;inset:0;z-index:var(--z-drag-overlay);cursor:col-resize;";
       document.body.appendChild(overlay);
     }
     function removeOverlay() {
@@ -279,7 +279,7 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
 
           <Card className="mb-4">
             <CardContent className="space-y-2">
-              <div className="text-sm font-semibold text-foreground">Situation</div>
+              <h2 className="text-sm font-semibold text-foreground">Situation</h2>
               <p className="text-sm text-muted-foreground"><strong className="text-foreground">Role:</strong> {scenario.story?.role}</p>
               <p className="text-sm text-muted-foreground">{scenario.story?.situation}</p>
               <div className="rounded-md border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
@@ -290,7 +290,7 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
 
           <Card className="mb-4">
             <CardContent className="space-y-2">
-              <div className="text-sm font-semibold text-foreground">Lab guide</div>
+              <h2 className="text-sm font-semibold text-foreground">Lab guide</h2>
               <p className="text-sm text-muted-foreground">
                 Follow the MkDocs guide for orientation, investigation, remediation, and verification.
               </p>
@@ -305,7 +305,8 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
           {isRunning && endpoints && (
             <Card>
               <CardContent className="space-y-2">
-                <div className="text-sm font-semibold text-foreground">Access</div>
+                <h2 className="text-sm font-semibold text-foreground">Access</h2>
+                <p className="text-xs text-muted-foreground">SSH uses your workstation password, which is separate from your portal password.</p>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Terminal</span>
                   <a href={endpoints.browser_terminal} target="_blank" rel="noreferrer" className="text-primary hover:underline">Open in tab</a>

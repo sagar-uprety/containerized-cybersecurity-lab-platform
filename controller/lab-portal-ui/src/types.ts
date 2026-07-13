@@ -110,9 +110,13 @@ export interface DashboardStats {
 
 export interface ActivityEvent {
   student_id: string;
+  student_email: string | null;
   action: string;
   lab_title: string;
   timestamp: string;
+  result: string;
+  actor_type: "student" | "instructor" | "system";
+  reason: string | null;
 }
 
 export interface GroupProgress {
@@ -121,6 +125,7 @@ export interface GroupProgress {
   total_passed: number;
   total_possible: number;
   total_at_risk: number;
+  overdue_incomplete: number;
   students: StudentProgress[];
   labs: LabProgress[];
 }
@@ -136,6 +141,9 @@ export interface StudentProgress {
   total_time_seconds: number;
   last_active?: string;
   at_risk?: boolean;
+  labs_started?: number;
+  checks_submitted?: number;
+  review_reasons?: ReviewReason[];
 }
 
 export interface LabProgress {
@@ -144,6 +152,9 @@ export interface LabProgress {
   students_passed: number;
   students_attempted: number;
   avg_time_minutes: number;
+  students_checked?: number;
+  median_recorded_minutes?: number;
+  runtime_samples?: number;
 }
 
 export interface StudentDetail {
@@ -156,6 +167,10 @@ export interface StudentLabDetail {
   lab_title: string;
   total_sessions?: number;
   latest_check?: { passed?: boolean; status?: string };
+  ever_passed?: boolean;
+  first_pass_at?: string;
+  checks_submitted?: number;
+  criteria?: CriterionEvidence[];
   sessions?: SessionSummary[];
 }
 
@@ -163,6 +178,8 @@ export interface SessionSummary {
   started_at?: string;
   duration_seconds?: number;
   check_count?: number;
+  student_check_count: number;
+  automatic_check_count: number;
   outcome?: string;
   passed?: boolean | null;
 }
@@ -199,6 +216,9 @@ export interface StudentsProgressEntry {
   total_time_seconds: number;
   last_active?: string;
   at_risk?: boolean;
+  labs_started?: number;
+  checks_submitted?: number;
+  review_reasons?: ReviewReason[];
   groups?: Array<{ id: number; name: string }>;
 }
 
@@ -242,4 +262,119 @@ export interface StudentResultsData {
   total_time_seconds: number;
   total_passed: number;
   total_labs: number;
+}
+
+export interface StudentLabResultsData extends StudentLabDetail {
+  difficulty?: string;
+  result: "passed" | "failed" | "not_attempted";
+  total_time_seconds: number;
+}
+
+export interface AnalyticsPoint {
+  week: string;
+  completion_rate: number;
+  completed_assignments: number;
+  eligible_assignments: number;
+  sessions: number;
+  active_students: number;
+  is_partial?: boolean;
+}
+
+export interface AnalyticsLab {
+  lab_id: string;
+  title: string;
+  completion_rate: number;
+  started_rate: number;
+  check_submission_rate: number;
+  median_recorded_minutes: number;
+  runtime_samples: number;
+  open_sessions: number;
+  students_passed: number;
+  students_started: number;
+  students_checked: number;
+  students_assigned: number;
+  common_failed_criterion?: string;
+  criterion_failure_rate?: number;
+  environment_errors: number;
+  feedback_count: number;
+  feedback_average?: number;
+}
+
+export interface AnalyticsGroup {
+  id: number;
+  name: string;
+  completion_rate: number;
+  active_rate: number;
+  at_risk: number;
+  completed_assignments: number;
+  eligible_assignments: number;
+  active_students: number;
+  total_students: number;
+  overdue_incomplete: number;
+}
+
+export interface InstructorAnalyticsData {
+  scope_name?: string;
+  as_of: string;
+  timezone: string;
+  window_label: string;
+  total_students: number;
+  completion_rate: number;
+  completed_assignments: number;
+  eligible_assignments: number;
+  active_this_week: number;
+  at_risk: number;
+  overdue_incomplete: number;
+  overdue_eligible: number;
+  median_session_minutes: number;
+  median_runtime_samples: number;
+  open_sessions: number;
+  weekly: AnalyticsPoint[];
+  labs: AnalyticsLab[];
+  groups: AnalyticsGroup[];
+}
+
+export type ReviewReasonCode =
+  | "overdue_incomplete"
+  | "not_started_near_deadline"
+  | "repeated_criterion_failure"
+  | "no_check_recorded"
+  | "environment_error";
+
+export interface ReviewReason {
+  code: ReviewReasonCode;
+  label: string;
+  lab_id?: string;
+  lab_title?: string;
+  criterion_name?: string;
+}
+
+export interface CriterionEvidence {
+  name: string;
+  label: string;
+  kind: "objective" | "guardrail";
+  ever_passed: boolean;
+  current_passed: boolean | null;
+  current_state?: string;
+  total_checks: number;
+  failed_checks: number;
+  failures_before_achievement: number;
+  first_pass_at?: string;
+  last_checked_at?: string;
+}
+
+export type InterventionStatus = "open" | "contacted" | "resolved";
+
+export interface Intervention {
+  id: number;
+  student_id: string;
+  group_id: number;
+  lab_id?: string;
+  reason: ReviewReasonCode;
+  note: string;
+  owner: string;
+  status: InterventionStatus;
+  follow_up_at?: string;
+  created_at: string;
+  updated_at: string;
 }

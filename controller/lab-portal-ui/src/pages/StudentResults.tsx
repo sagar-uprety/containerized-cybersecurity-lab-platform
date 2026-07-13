@@ -12,6 +12,8 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CheckCircle2 } from "lucide-react";
+import { ArrowRight } from "lucide-react";
+import { navigate } from "../utils/navigate";
 
 interface Props {
   user: User;
@@ -59,10 +61,10 @@ export default function StudentResults({ user, onLogout }: Props) {
           <div className="mb-8 grid gap-4 sm:grid-cols-3">
             <StatCard icon={CheckCircle2} label="Labs passed" value={`${data.total_passed} / ${data.total_labs}`} tone="success" />
             <StatCard label="Sessions tried" value={data.total_sessions} />
-            <StatCard label="Total time spent" value={fmtTime(data.total_time_seconds)} />
+            <StatCard label="Recorded runtime" value={fmtTime(data.total_time_seconds)} />
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-border">
+          <div className="overflow-x-auto rounded-lg border border-border">
             <Table>
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
@@ -70,13 +72,20 @@ export default function StudentResults({ user, onLogout }: Props) {
                   <TableHead>Difficulty</TableHead>
                   <TableHead>Result</TableHead>
                   <TableHead>Sessions</TableHead>
-                  <TableHead>Time spent</TableHead>
+                  <TableHead>Recorded runtime</TableHead>
                   <TableHead>Last active</TableHead>
+                  <TableHead className="text-right">History</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {data.labs.map((lab) => (
-                  <TableRow key={lab.lab_id} className="hover:bg-transparent">
+                  <TableRow
+                    key={lab.lab_id}
+                    className="cursor-pointer"
+                    tabIndex={0}
+                    onClick={() => navigate(`/results/${lab.lab_id}`)}
+                    onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate(`/results/${lab.lab_id}`); } }}
+                  >
                     <TableCell className="font-medium text-foreground">{lab.lab_title}</TableCell>
                     <TableCell><Badge variant="outline" className="capitalize">{lab.difficulty}</Badge></TableCell>
                     <TableCell>
@@ -89,6 +98,7 @@ export default function StudentResults({ user, onLogout }: Props) {
                     <TableCell className="text-sm text-foreground">{lab.sessions_attempted}</TableCell>
                     <TableCell className="text-sm text-foreground">{fmtTime(lab.total_time_seconds)}</TableCell>
                     <TableCell><LastActiveBadge ts={lab.last_active} /></TableCell>
+                    <TableCell className="text-right"><span className="inline-flex items-center gap-1 text-sm font-medium text-primary">View sessions <ArrowRight className="size-3.5" /></span></TableCell>
                   </TableRow>
                 ))}
               </TableBody>
