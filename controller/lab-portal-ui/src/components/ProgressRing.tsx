@@ -7,7 +7,6 @@ interface ProgressRingProps {
 
 function colorFor(pct: number): string {
   if (pct >= 80) return "var(--success)";
-  if (pct >= 40) return "var(--warning)";
   if (pct > 0) return "var(--primary)";
   return "var(--border)";
 }

@@ -135,7 +135,7 @@ export default function InstructorOverview({ user, onLogout }: Props) {
             label="Needs attention"
             value={needsAttention}
             description={needsAttention > 0 ? `${data.total_pending} pending, ${data.total_at_risk} at risk` : "All clear"}
-            tone={needsAttention > 0 ? "warning" : "success"}
+            tone={needsAttention > 0 ? "danger" : "success"}
             href={needsAttention > 0 ? "/instructor/pending" : undefined}
           />
           <StatCard
@@ -228,7 +228,7 @@ export default function InstructorOverview({ user, onLogout }: Props) {
         )}
 
         {filteredGroups.length > 0 && (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          <div className="grid items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {filteredGroups.map((g: Group) => (
               <Card
                 key={g.id}
@@ -236,19 +236,19 @@ export default function InstructorOverview({ user, onLogout }: Props) {
                 tabIndex={0}
                 onClick={() => navigate(`/instructor/groups/${g.id}`)}
                 onKeyDown={(e) => handleGroupKeyDown(e, g.id)}
-                className="cursor-pointer transition-colors hover:bg-accent/40 hover:ring-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                className="h-full cursor-pointer py-5 transition-colors hover:bg-accent/40 hover:ring-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <CardContent>
+                <CardContent className="flex h-full flex-col">
                   <div className="font-medium text-foreground">{g.name}</div>
                   <div className="mt-2 flex flex-wrap gap-1.5">
                     <Badge variant="outline">{g.member_count} member{g.member_count !== 1 ? "s" : ""}</Badge>
                     <Badge variant="outline">{g.lab_count} lab{g.lab_count !== 1 ? "s" : ""}</Badge>
                     {g.pending_count > 0 && (
-                      <Badge className="border-transparent bg-warning-bg text-warning">{g.pending_count} pending</Badge>
+                      <Badge className="border-transparent bg-warning-bg text-warning">{g.pending_count} pending approval{g.pending_count !== 1 ? "s" : ""}</Badge>
                     )}
                   </div>
                   {g.created_at && (
-                    <div className="mt-2 text-xs text-muted-foreground">
+                    <div className="mt-auto pt-2 text-xs text-muted-foreground">
                       Created {new Date(g.created_at).toLocaleDateString()}
                     </div>
                   )}

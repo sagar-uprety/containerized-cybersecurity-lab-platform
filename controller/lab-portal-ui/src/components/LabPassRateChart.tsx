@@ -13,15 +13,13 @@ const chartConfig = {
 
 function colorFor(pct: number): string {
   if (pct >= 80) return "var(--chart-2)";
-  if (pct >= 40) return "var(--chart-3)";
   if (pct > 0) return "var(--chart-1)";
   return "var(--border)";
 }
 
 export default function LabPassRateChart({ labs, totalStudents }: Props) {
   const data = labs.map((l) => ({
-    name: l.title.length > 22 ? l.title.slice(0, 20) + "…" : l.title,
-    fullName: l.title,
+    name: l.title,
     pct: totalStudents > 0 ? Math.round((l.students_passed / totalStudents) * 100) : 0,
     passed: l.students_passed,
   }));
@@ -34,16 +32,16 @@ export default function LabPassRateChart({ labs, totalStudents }: Props) {
     >
       <BarChart data={data} layout="vertical" margin={{ top: 4, right: 24, bottom: 4, left: 4 }}>
         <XAxis type="number" domain={[0, 100]} tickFormatter={(v) => `${v}%`} tickLine={false} axisLine={false} />
-        <YAxis type="category" dataKey="name" width={150} tickLine={false} axisLine={false} />
+        <YAxis type="category" dataKey="name" width={260} tickLine={false} axisLine={false} tick={{ width: 250 }} interval={0} />
         <ChartTooltip
           content={
             <ChartTooltipContent
               hideLabel
               formatter={(value, _name, item) => {
-                const payload = item?.payload as { fullName?: string; passed?: number } | undefined;
+                const payload = item?.payload as { name?: string; passed?: number } | undefined;
                 return (
                   <span>
-                    <span className="font-medium text-foreground">{payload?.fullName}</span>: {String(value)}% ({payload?.passed ?? 0}/{totalStudents} passed)
+                    <span className="font-medium text-foreground">{payload?.name}</span>: {String(value)}% ({payload?.passed ?? 0}/{totalStudents} passed)
                   </span>
                 );
               }}

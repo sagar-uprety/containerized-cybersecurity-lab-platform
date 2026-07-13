@@ -5,6 +5,7 @@ import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import ConfirmModal from "./ConfirmModal";
 import { cn } from "@/lib/utils";
 
 interface DeadlinePickerProps {
@@ -32,23 +33,24 @@ export default function DeadlinePicker({ deadline, busy, saving, onSave }: Deadl
   }, [deadline]);
 
   const isOverdue = !!(origDate && origDate < new Date());
+  const [pendingSave, setPendingSave] = useState<string | null>(null);
+  const [pendingClear, setPendingClear] = useState(false);
 
   function commit(nextDate: Date | undefined, nextTime: string) {
+    setOpen(false);
     if (!nextDate) {
-      onSave(null);
-      setOpen(false);
+      setPendingClear(true);
       return;
     }
     const [h, m] = nextTime.split(":").map(Number);
     const combined = new Date(nextDate);
     combined.setHours(h || 0, m || 0, 0, 0);
-    onSave(combined.toISOString());
-    setOpen(false);
+    setPendingSave(combined.toISOString());
   }
 
   function handleClear(e: React.MouseEvent) {
     e.stopPropagation();
-    onSave(null);
+    setPendingClear(true);
   }
 
   return (
@@ -96,6 +98,25 @@ export default function DeadlinePicker({ deadline, busy, saving, onSave }: Deadl
           <Button type="button" size="sm" disabled={!date} onClick={() => commit(date, time)}>Save</Button>
         </div>
       </PopoverContent>
+
+      <ConfirmModal
+        open={pendingSave != null}
+        title={origDate ? "Change deadline?" : "Set deadline?"}
+        message={pendingSave ? `Deadline will be set to ${fmtTrigger(new Date(pendingSave))}.` : undefined}
+        confirmLabel="Confirm"
+        onConfirm={() => { onSave(pendingSave); setPendingSave(null); }}
+        onCancel={() => setPendingSave(null)}
+      />
+
+      <ConfirmModal
+        open={pendingClear}
+        title="Remove deadline?"
+        message="This lab will no longer have a due date for this group."
+        confirmLabel="Remove deadline"
+        confirmDanger
+        onConfirm={() => { onSave(null); setPendingClear(false); }}
+        onCancel={() => setPendingClear(false)}
+      />
     </Popover>
   );
 }

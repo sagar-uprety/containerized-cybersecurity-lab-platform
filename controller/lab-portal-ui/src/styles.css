@@ -29,11 +29,15 @@
   --ring: oklch(0.509 0.159 253.4);
   --success: #16A34A;
   --success-bg: #DCFCE7;
-  --warning: #B45309;
-  --warning-bg: #FEF3C7;
+  /* "warning" is intentionally NOT amber/yellow -- pending/in-progress states
+     reuse the brand blue tint (same as the active-nav accent) instead of a
+     third semantic hue. Only success (green) and destructive (red) are true
+     colored signals; everything else is blue or neutral. */
+  --warning: var(--primary);
+  --warning-bg: var(--accent);
   --chart-1: oklch(0.509 0.159 253.4);
   --chart-2: #16A34A;
-  --chart-3: #B45309;
+  --chart-3: oklch(0.46 0.02 253);
   --chart-4: oklch(0.55 0.2 25);
   --chart-5: oklch(0.46 0.02 253);
   --sidebar: oklch(0.97 0.005 253);
