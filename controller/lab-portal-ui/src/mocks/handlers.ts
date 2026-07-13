@@ -1,5 +1,5 @@
 import { http, HttpResponse } from "msw";
-import { store, LABS, INSTRUCTOR_USER, allocGroupId } from "./data";
+import { store, LABS, INSTRUCTOR_USER, STUDENT_USER, studentLabState, allocGroupId } from "./data";
 import {
   dashboardStats, groupSummary, groupDetail, groupProgress, studentsProgress,
   studentDetail, sessionDetail,
@@ -7,11 +7,97 @@ import {
 
 const API = "/api";
 
+// Dev-only role switch for exercising both instructor and student UI against the mock backend:
+// localStorage.setItem("mockRole", "student") in the browser console, then reload.
+function currentRole(): "instructor" | "student" {
+  return localStorage.getItem("mockRole") === "student" ? "student" : "instructor";
+}
+
 export const handlers = [
-  http.get(`${API}/me`, () => HttpResponse.json({ ...INSTRUCTOR_USER, must_change_password: false })),
+  http.get(`${API}/me`, () =>
+    HttpResponse.json(
+      currentRole() === "student"
+        ? { ...STUDENT_USER, must_change_password: false }
+        : { ...INSTRUCTOR_USER, must_change_password: false }
+    )
+  ),
   http.post(`${API}/logout`, () => HttpResponse.json(null, { status: 204 })),
   http.post(`${API}/password`, () => HttpResponse.json({ ok: true })),
   http.get(`${API}/instructor/csrf`, () => HttpResponse.json({ csrf_token: "mock-csrf-token" })),
+
+  http.get(`${API}/enrollment-options`, () =>
+    HttpResponse.json(
+      store.groups.slice(0, 3).map((g, i) => ({
+        id: g.id,
+        name: g.name,
+        member_count: 10 + i * 7,
+        status: i === 0 ? "approved" : i === 1 ? "pending" : null,
+      }))
+    )
+  ),
+  http.post(`${API}/enroll/:groupId`, () => HttpResponse.json({ ok: true })),
+
+  http.get(`${API}/labs`, () =>
+    HttpResponse.json(
+      LABS.map((l) => ({
+        id: l.id,
+        title: l.title,
+        difficulty: l.difficulty,
+        status: studentLabState[l.id]?.status ?? "not_created",
+        story: l.story,
+        deadline: studentLabState[l.id]?.deadline ?? null,
+      }))
+    )
+  ),
+
+  http.get(`${API}/labs/:id`, ({ params }) => {
+    const lab = LABS.find((l) => l.id === params.id);
+    if (!lab) return HttpResponse.json({ detail: "Lab not found" }, { status: 404 });
+    const state = studentLabState[lab.id] ?? { status: "not_created" as const, deadline: null };
+    const isRunning = state.status === "running";
+    return HttpResponse.json({
+      scenario: {
+        title: lab.title,
+        difficulty: lab.difficulty,
+        story: lab.story,
+        lifecycle: { idle_timeout_minutes: 30, max_runtime_minutes: 180 },
+        checker: { checks: [{ name: "auth_required", label: "Authentication required" }, { name: "no_anon_access", label: "Anonymous access blocked" }] },
+      },
+      status: state.status,
+      deadline: state.deadline,
+      csrf_token: "mock-csrf-token",
+      endpoints: isRunning
+        ? { browser_terminal: "about:blank", ssh: `ssh student01@lab-worker.example -p 2201`, guide_url: `https://docs.example.invalid/labs/${lab.id}` }
+        : undefined,
+    });
+  }),
+
+  http.post(`${API}/labs/:id/start`, ({ params }) => {
+    studentLabState[String(params.id)] = { status: "running", deadline: studentLabState[String(params.id)]?.deadline ?? null };
+    return HttpResponse.json({ ok: true });
+  }),
+  http.post(`${API}/labs/:id/stop`, ({ params }) => {
+    studentLabState[String(params.id)] = { status: "stopped", deadline: studentLabState[String(params.id)]?.deadline ?? null };
+    return HttpResponse.json({ ok: true });
+  }),
+  http.post(`${API}/labs/:id/reset`, () => HttpResponse.json({ ok: true })),
+  http.post(`${API}/labs/:id/end`, ({ params }) => {
+    studentLabState[String(params.id)] = { status: "stopped", deadline: studentLabState[String(params.id)]?.deadline ?? null };
+    return HttpResponse.json({ ok: true });
+  }),
+  http.post(`${API}/labs/:id/check`, () =>
+    HttpResponse.json({
+      status: "vulnerable",
+      checks: [
+        { name: "auth_required", passed: false },
+        { name: "no_anon_access", passed: true },
+      ],
+    })
+  ),
+  http.post(`${API}/heartbeat/:id`, () => HttpResponse.json({ ok: true })),
+
+  http.get(`${API}/labs/:id/feedback`, () => HttpResponse.json({ csrf_token: "mock-csrf-token", session_id: "mock-session-id", already_submitted: false })),
+  http.post(`${API}/labs/:id/feedback`, () => HttpResponse.json({ ok: true })),
 
   http.get(`${API}/instructor/dashboard`, () => HttpResponse.json(dashboardStats())),
 

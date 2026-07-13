@@ -294,6 +294,14 @@ function buildStore() {
 export const store = buildStore();
 
 export const INSTRUCTOR_USER = { username: "instructor@thesis.local", role: "instructor" as const };
+export const STUDENT_USER = { username: "anna.krger@tum.de", role: "student" as const, student_id: "student01" };
+
+// Per-lab state for the mock student session (STUDENT_USER's own lab list/detail).
+export const studentLabState: Record<string, { status: "not_created" | "running" | "stopped" | "passed"; deadline: string | null }> = {
+  [LABS[0].id]: { status: "passed", deadline: null },
+  [LABS[1].id]: { status: "running", deadline: new Date(Date.now() + 20 * 3600 * 1000).toISOString() },
+  [LABS[2].id]: { status: "stopped", deadline: new Date(Date.now() + 5 * 86400 * 1000).toISOString() },
+};
 
 let nextGroupId = Math.max(...store.groups.map((g) => g.id)) + 1;
 export function allocGroupId(): number {

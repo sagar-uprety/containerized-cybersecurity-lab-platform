@@ -1,8 +1,11 @@
 import { useState, useEffect } from "react";
-import * as Popover from "@radix-ui/react-popover";
-import { DayPicker } from "react-day-picker";
-import "react-day-picker/style.css";
-import { Calendar, X } from "lucide-react";
+import { CalendarIcon, X } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Calendar } from "@/components/ui/calendar";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { cn } from "@/lib/utils";
 
 interface DeadlinePickerProps {
   deadline: string | null;
@@ -48,50 +51,51 @@ export default function DeadlinePicker({ deadline, busy, saving, onSave }: Deadl
     onSave(null);
   }
 
-  const triggerClass = isOverdue
-    ? "deadline-trigger deadline-trigger-overdue"
-    : origDate
-      ? "deadline-trigger deadline-trigger-set"
-      : "deadline-trigger";
-
   return (
-    <Popover.Root open={open} onOpenChange={setOpen}>
-      <Popover.Trigger asChild>
-        <button type="button" className={triggerClass} disabled={busy}>
-          <Calendar size={13} />
-          {saving ? "Saving..." : origDate ? fmtTrigger(origDate) : "Set deadline"}
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={busy}
+          className={cn(
+            "gap-1.5 font-normal",
+            isOverdue && "border-destructive/40 bg-destructive-bg text-destructive",
+            origDate && !isOverdue && "border-primary/30 bg-accent text-primary"
+          )}
+        >
+          <CalendarIcon className="size-3.5" />
+          {saving ? "Saving…" : origDate ? fmtTrigger(origDate) : "Set deadline"}
           {origDate && !saving && (
-            <span className="deadline-trigger-clear" onClick={handleClear}>
-              <X size={12} />
+            <span
+              role="button"
+              tabIndex={-1}
+              onClick={handleClear}
+              className="ml-0.5 rounded-full p-0.5 hover:bg-foreground/10"
+            >
+              <X className="size-3" />
             </span>
           )}
-        </button>
-      </Popover.Trigger>
-      <Popover.Portal>
-        <Popover.Content sideOffset={6} align="end" className="deadline-popover">
-          <DayPicker
-            mode="single"
-            selected={date}
-            onSelect={setDate}
-            autoFocus
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-auto">
+        <Calendar mode="single" selected={date} onSelect={setDate} autoFocus />
+        <div className="flex items-center gap-2 border-t border-border pt-2.5">
+          <Label htmlFor="deadline-time" className="text-xs text-muted-foreground">Time</Label>
+          <Input
+            id="deadline-time"
+            type="time"
+            value={time}
+            onChange={(e) => setTime(e.target.value)}
+            className="h-8 w-auto"
           />
-          <div className="deadline-popover-time">
-            <label htmlFor="deadline-time">Time</label>
-            <input
-              id="deadline-time"
-              type="time"
-              value={time}
-              onChange={(e) => setTime(e.target.value)}
-            />
-          </div>
-          <div className="deadline-popover-actions">
-            <button type="button" className="btn btn-sm" onClick={() => setOpen(false)}>Cancel</button>
-            <button type="button" className="btn btn-primary btn-sm" disabled={!date} onClick={() => commit(date, time)}>
-              Save
-            </button>
-          </div>
-        </Popover.Content>
-      </Popover.Portal>
-    </Popover.Root>
+        </div>
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
+          <Button type="button" size="sm" disabled={!date} onClick={() => commit(date, time)}>Save</Button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

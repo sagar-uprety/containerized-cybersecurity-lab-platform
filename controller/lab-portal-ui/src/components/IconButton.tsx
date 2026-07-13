@@ -1,4 +1,6 @@
 import type { ComponentType } from "react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 interface IconButtonProps {
   icon: ComponentType<{ size?: number }>;
@@ -10,20 +12,32 @@ interface IconButtonProps {
   size?: number;
 }
 
+const dangerClass = "hover:bg-destructive-bg hover:text-destructive";
+
 // Icon-only action button with a required accessible label (title + aria-label).
 // Use in place of text buttons like "Remove"/"View" in dense card/row contexts.
 export default function IconButton({ icon: Icon, label, onClick, href, danger, disabled, size = 15 }: IconButtonProps) {
-  const className = `icon-btn${danger ? " icon-btn-danger" : ""}`;
   if (href) {
     return (
-      <a href={href} target="_blank" rel="noreferrer" className={className} title={label} aria-label={label}>
-        <Icon size={size} />
-      </a>
+      <Button asChild variant="ghost" size="icon" className={cn(danger && dangerClass)}>
+        <a href={href} target="_blank" rel="noreferrer" title={label} aria-label={label}>
+          <Icon size={size} />
+        </a>
+      </Button>
     );
   }
   return (
-    <button type="button" className={className} title={label} aria-label={label} onClick={onClick} disabled={disabled}>
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      title={label}
+      aria-label={label}
+      onClick={onClick}
+      disabled={disabled}
+      className={cn(danger && dangerClass)}
+    >
       <Icon size={size} />
-    </button>
+    </Button>
   );
 }

@@ -1,13 +1,21 @@
 import { useState, useEffect } from "react";
 import type { User, FeedbackInfo } from "../types";
-import Header from "../components/Header";
+import StudentLayout from "../components/StudentLayout";
 import AlertError from "../components/AlertError";
-import Breadcrumbs from "../components/Breadcrumbs";
+import PageHeader from "../components/PageHeader";
+import DataChip from "../components/DataChip";
 import Link from "../components/Link";
 import RatingInput from "../components/RatingInput";
 import { getLabFeedback, submitFeedback } from "../api";
 import { navigate } from "../utils/navigate";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Info } from "lucide-react";
 
 interface FeedbackProps {
   user: User;
@@ -51,100 +59,85 @@ export default function Feedback({ user, labId, onLogout }: FeedbackProps) {
 
   if (!info && !error) {
     return (
-      <>
-        <Header user={user} onLogout={onLogout} />
-        <div className="container">
-          <div className="skeleton" style={{ height: 28, width: 200, marginBottom: 16 }} />
-          <div className="skeleton" style={{ height: 300 }} />
-        </div>
-      </>
+      <StudentLayout user={user} onLogout={onLogout}>
+        <Skeleton className="mb-4 h-7 w-48" />
+        <Skeleton className="h-72 w-full" />
+      </StudentLayout>
     );
   }
 
   return (
-    <>
-      <Header user={user} onLogout={onLogout} />
-      <div className="container">
-        <Breadcrumbs items={[{ label: "Labs", href: "/" }, { label: "Feedback" }]} />
-        <h1>Lab Feedback</h1>
+    <StudentLayout user={user} onLogout={onLogout}>
+      <PageHeader title="Lab feedback" breadcrumbs={[{ label: "Labs", href: "/" }, { label: "Feedback" }]} />
 
-        <AlertError message={error} />
+      <AlertError message={error} className="mb-6" />
 
-        {info?.already_submitted ? (
-          <div className="panel submitted-panel">
-            <p>Feedback for this lab session has already been submitted. Thank you.</p>
-            <p className="text-mono-data">
-              Session: {info.session_id?.slice(0, 8)}...
-            </p>
-            <Link href="/" className="btn btn-primary mb-0" style={{ marginTop: "var(--sp-4)" }}>
-              Return to Overview
-            </Link>
-          </div>
-        ) : (
-          <>
-            <div className="ethical-notice">
+      {info?.already_submitted ? (
+        <Card>
+          <CardContent className="space-y-2">
+            <p className="text-sm text-foreground">Feedback for this lab session has already been submitted. Thank you.</p>
+            {info.session_id && <DataChip>{info.session_id.slice(0, 8)}…</DataChip>}
+            <Button asChild className="mt-2">
+              <Link href="/">Return to overview</Link>
+            </Button>
+          </CardContent>
+        </Card>
+      ) : (
+        <>
+          <Alert className="mb-6 border-primary/20 bg-accent">
+            <Info className="text-primary" />
+            <AlertDescription className="text-foreground">
               This feedback form is part of the thesis evaluation process. Your responses are used
               to improve the lab platform and are <strong>not linked to your grade</strong>.
               Participation is mandatory so we can measure learning outcomes, but individual
               responses remain confidential.
-            </div>
+            </AlertDescription>
+          </Alert>
 
-            <form onSubmit={handleSubmit}>
-              <div className="panel">
-                <div className="panel-header">
-                  <span className="panel-title">Section A &mdash; Reflection</span>
+          <form onSubmit={handleSubmit} className="space-y-6">
+            <Card>
+              <CardContent className="space-y-3">
+                <div>
+                  <div className="text-sm font-semibold text-foreground">Section A — Reflection</div>
+                  <p className="text-sm text-muted-foreground">Free-text reflection on what you learned during this lab.</p>
                 </div>
-                <p className="text-sm-muted">
-                  Free-text reflection on what you learned during this lab.
-                </p>
-                <div className="form-group">
-                  <textarea
-                    rows={6}
-                    value={sectionA}
-                    onChange={(e) => setSectionA(e.target.value)}
-                    placeholder="What was the most surprising thing you discovered? What would you do differently next time?"
-                    required
-                  />
-                </div>
-              </div>
+                <Textarea
+                  rows={6}
+                  value={sectionA}
+                  onChange={(e) => setSectionA(e.target.value)}
+                  placeholder="What was the most surprising thing you discovered? What would you do differently next time?"
+                  required
+                />
+              </CardContent>
+            </Card>
 
-              <div className="panel">
-                <div className="panel-header">
-                  <span className="panel-title">Section B &mdash; Evaluation</span>
+            <Card>
+              <CardContent className="space-y-3">
+                <div>
+                  <div className="text-sm font-semibold text-foreground">Section B — Evaluation</div>
+                  <p className="text-sm text-muted-foreground">Rate the clarity of the lab guide and instructions.</p>
                 </div>
-                <p className="text-sm-muted">
-                  Rate the clarity of the lab guide and instructions.
-                </p>
-                <div className="form-group">
-                  <label className="form-label">
-                    Rating (1 = very unclear, 5 = very clear)
-                  </label>
-                  <RatingInput
-                    value={sectionBRating}
-                    onChange={setSectionBRating}
-                  />
+                <div className="space-y-1.5">
+                  <Label>Rating (1 = very unclear, 5 = very clear)</Label>
+                  <RatingInput value={sectionBRating} onChange={setSectionBRating} />
                 </div>
-                <p className="text-sm-muted">
-                  Free-text feedback on what was confusing or could be improved.
-                </p>
-                <div className="form-group">
-                  <textarea
-                    rows={4}
-                    value={sectionB}
-                    onChange={(e) => setSectionB(e.target.value)}
-                    placeholder="Which step was hardest to follow? What additional hint would have helped?"
-                    required
-                  />
-                </div>
-              </div>
+                <p className="text-sm text-muted-foreground">Free-text feedback on what was confusing or could be improved.</p>
+                <Textarea
+                  rows={4}
+                  value={sectionB}
+                  onChange={(e) => setSectionB(e.target.value)}
+                  placeholder="Which step was hardest to follow? What additional hint would have helped?"
+                  required
+                />
+              </CardContent>
+            </Card>
 
-              <button type="submit" className="btn btn-primary" disabled={submitting}>
-                {submitting ? "Submitting..." : "Submit Feedback"}
-              </button>
-            </form>
-          </>
-        )}
-      </div>
-    </>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Submitting…" : "Submit feedback"}
+            </Button>
+          </form>
+        </>
+      )}
+    </StudentLayout>
   );
 }

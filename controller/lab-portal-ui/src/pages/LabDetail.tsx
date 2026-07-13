@@ -1,14 +1,18 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { Maximize2 } from "lucide-react";
 import type { User, LabDetail as LabDetailData, CheckResultData } from "../types";
-import Header from "../components/Header";
+import StudentLayout from "../components/StudentLayout";
 import StatusBadge from "../components/StatusBadge";
 import CheckResult from "../components/CheckResult";
 import AlertError from "../components/AlertError";
-import Breadcrumbs from "../components/Breadcrumbs";
-import Link from "../components/Link";
+import PageHeader from "../components/PageHeader";
 import { getLabDetail, startLab, stopLab, resetLab, endLab, runCheck, sendHeartbeat } from "../api";
 import { navigate } from "../utils/navigate";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 type LabAction = "start" | "stop" | "reset" | "end" | "check";
 
@@ -92,7 +96,7 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
     function onPointerDown(e: PointerEvent) {
       e.preventDefault();
       dragging = true;
-      handle!.classList.add("active");
+      handle!.classList.add("bg-primary");
       createOverlay();
       setPane(e.clientX);
     }
@@ -104,7 +108,7 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
     function onPointerUp() {
       if (!dragging) return;
       dragging = false;
-      handle!.classList.remove("active");
+      handle!.classList.remove("bg-primary");
       removeOverlay();
     }
     function onKeyDown(e: KeyboardEvent) {
@@ -176,25 +180,19 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
 
   if (error && !data) {
     return (
-      <>
-        <Header user={user} onLogout={onLogout} />
-        <div className="container">
-          <Breadcrumbs items={[{ label: "Labs", href: "/" }, { label: "Error" }]} />
-          <AlertError message={error} />
-        </div>
-      </>
+      <StudentLayout user={user} onLogout={onLogout}>
+        <PageHeader title="Error" breadcrumbs={[{ label: "Labs", href: "/" }, { label: "Error" }]} />
+        <AlertError message={error} />
+      </StudentLayout>
     );
   }
 
   if (!data) {
     return (
-      <>
-        <Header user={user} onLogout={onLogout} />
-        <div className="container">
-          <div className="skeleton" style={{ height: 28, width: 200, marginBottom: 16 }} />
-          <div className="skeleton" style={{ height: 400 }} />
-        </div>
-      </>
+      <StudentLayout user={user} onLogout={onLogout}>
+        <Skeleton className="mb-4 h-7 w-48" />
+        <Skeleton className="h-96 w-full" />
+      </StudentLayout>
     );
   }
 
@@ -207,168 +205,157 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
   const deadlineUrgent = hoursLeft !== null && hoursLeft < 24 && hoursLeft > 0;
 
   return (
-    <>
-      <Header user={user} onLogout={onLogout} />
-      <div className="container">
-        <Breadcrumbs items={[{ label: "Labs", href: "/" }, { label: scenario.title }]} />
+    <StudentLayout user={user} onLogout={onLogout}>
+      <PageHeader title={scenario.title} breadcrumbs={[{ label: "Labs", href: "/" }, { label: scenario.title }]} />
 
-        <div className="lab-shell" id="lab-shell" ref={shellRef}>
-          <section className="lab-content">
-            <h1>{scenario.title}</h1>
+      <div
+        id="lab-shell"
+        ref={shellRef}
+        className="grid overflow-hidden rounded-lg border border-border bg-card [grid-template-columns:minmax(340px,var(--left-pane,48%))_8px_minmax(400px,1fr)]"
+        style={{ height: "calc(100vh - 8.5rem)" }}
+      >
+        <section className="overflow-y-auto p-5">
+          <div className="mb-3 flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">State</span>
+            <StatusBadge status={status} />
+          </div>
 
-            <div className="status-row">
-              <span className="status-label">State</span>
-              <StatusBadge status={status} />
+          {deadlineDate && (
+            <div
+              className={cn(
+                "mb-3 rounded-md border px-3 py-2 text-sm",
+                deadlineUrgent ? "border-destructive/30 bg-destructive-bg text-destructive" : "border-border bg-muted text-muted-foreground"
+              )}
+            >
+              Deadline: {deadlineDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} at {deadlineDate.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
+              {hoursLeft !== null && hoursLeft < 48 && (
+                <span className="ml-2 font-semibold">
+                  ({hoursLeft < 1 ? "< 1 hour left" : `${Math.ceil(hoursLeft)} hours left`})
+                </span>
+              )}
             </div>
+          )}
 
-            {deadlineDate && (
-              <div
-                className="duration-warning"
-                style={deadlineUrgent ? {
-                  color: "var(--red)",
-                  background: "var(--red-bg)",
-                  borderColor: "var(--red-border)",
-                } : {}}
-              >
-                Deadline: {deadlineDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} at {deadlineDate.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
-                {hoursLeft !== null && hoursLeft < 48 && (
-                  <span style={{ marginLeft: "var(--sp-2)", fontWeight: 700 }}>
-                    ({hoursLeft < 1 ? "< 1 hour left" : `${Math.ceil(hoursLeft)} hours left`})
-                  </span>
-                )}
-              </div>
+          <AlertError message={error} className="mb-3" />
+
+          <div className="mb-4 flex flex-wrap gap-2">
+            {canStart && (
+              <Button onClick={() => doAction("start")} disabled={!!actionLoading}>
+                {actionLoading === "start" ? "Starting…" : "Start lab"}
+              </Button>
             )}
-
-            <AlertError message={error} />
-
-            <div className="toolbar">
-              {canStart && (
-                <button
-                  className="btn btn-primary btn-block-mobile"
-                  onClick={() => doAction("start")}
+            {isRunning && (
+              <>
+                <Button
+                  variant="outline"
+                  className="border-warning/30 text-warning hover:bg-warning-bg"
+                  onClick={doCheck}
                   disabled={!!actionLoading}
                 >
-                  {actionLoading === "start" ? "Starting..." : "Start Lab"}
-                </button>
-              )}
-              {isRunning && (
-                <>
-                  <button
-                    className="btn btn-amber btn-block-mobile"
-                    onClick={doCheck}
-                    disabled={!!actionLoading}
-                  >
-                    {actionLoading === "check" ? "Checking..." : "Run Check"}
-                  </button>
-                  <button
-                    className="btn btn-block-mobile"
-                    onClick={() => doAction("stop")}
-                    disabled={!!actionLoading}
-                  >
-                    {actionLoading === "stop" ? "Stopping..." : "Stop"}
-                  </button>
-                  <button
-                    className="btn btn-block-mobile"
-                    onClick={() => doAction("reset")}
-                    disabled={!!actionLoading}
-                  >
-                    {actionLoading === "reset" ? "Resetting..." : "Reset"}
-                  </button>
-                </>
-              )}
-              {status !== "not_created" && (
-                <button
-                  className="btn btn-danger btn-block-mobile"
-                  onClick={() => doAction("end")}
-                  disabled={!!actionLoading}
-                >
-                  {actionLoading === "end" ? "Ending..." : "End Lab"}
-                </button>
-              )}
-            </div>
+                  {actionLoading === "check" ? "Checking…" : "Run check"}
+                </Button>
+                <Button variant="outline" onClick={() => doAction("stop")} disabled={!!actionLoading}>
+                  {actionLoading === "stop" ? "Stopping…" : "Stop"}
+                </Button>
+                <Button variant="outline" onClick={() => doAction("reset")} disabled={!!actionLoading}>
+                  {actionLoading === "reset" ? "Resetting…" : "Reset"}
+                </Button>
+              </>
+            )}
+            {status !== "not_created" && (
+              <Button
+                variant="outline"
+                className="border-destructive/30 text-destructive hover:bg-destructive-bg"
+                onClick={() => doAction("end")}
+                disabled={!!actionLoading}
+              >
+                {actionLoading === "end" ? "Ending…" : "End lab"}
+              </Button>
+            )}
+          </div>
 
-            <CheckResult result={checkResult} visible={hasChecked} checkerChecks={scenario.checker?.checks} />
+          {hasChecked && <div className="mb-4"><CheckResult result={checkResult} visible={hasChecked} checkerChecks={scenario.checker?.checks} /></div>}
 
-            <div className="panel">
-              <div className="panel-header">
-                <span className="panel-title">Situation</span>
-              </div>
-              <p><strong>Role:</strong> {scenario.story?.role}</p>
-              <p>{scenario.story?.situation}</p>
-              <div className="duration-warning">
+          <Card className="mb-4">
+            <CardContent className="space-y-2">
+              <div className="text-sm font-semibold text-foreground">Situation</div>
+              <p className="text-sm text-muted-foreground"><strong className="text-foreground">Role:</strong> {scenario.story?.role}</p>
+              <p className="text-sm text-muted-foreground">{scenario.story?.situation}</p>
+              <div className="rounded-md border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
                 This lab will auto-stop if idle for {scenario.lifecycle?.idle_timeout_minutes} min or if running for more than {scenario.lifecycle?.max_runtime_minutes} min.
               </div>
-            </div>
+            </CardContent>
+          </Card>
 
-            <div className="panel">
-              <div className="panel-header">
-                <span className="panel-title">Lab Guide</span>
-              </div>
-              <p className="text-sm-muted">
+          <Card className="mb-4">
+            <CardContent className="space-y-2">
+              <div className="text-sm font-semibold text-foreground">Lab guide</div>
+              <p className="text-sm text-muted-foreground">
                 Follow the MkDocs guide for orientation, investigation, remediation, and verification.
               </p>
-              <a
-                href={endpoints?.guide_url || `/docs/labs/${labId}/`}
-                target="_blank"
-                rel="noreferrer"
-                className="btn btn-primary btn-sm guide-link"
-                style={{ marginTop: "var(--sp-2)" }}
-              >
-                Open Lab Guide
-              </a>
-            </div>
+              <Button asChild size="sm">
+                <a href={endpoints?.guide_url || `/docs/labs/${labId}/`} target="_blank" rel="noreferrer">
+                  Open lab guide
+                </a>
+              </Button>
+            </CardContent>
+          </Card>
 
-            {isRunning && endpoints && (
-              <div className="panel">
-                <div className="panel-header">
-                  <span className="panel-title">Access</span>
+          {isRunning && endpoints && (
+            <Card>
+              <CardContent className="space-y-2">
+                <div className="text-sm font-semibold text-foreground">Access</div>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Terminal</span>
+                  <a href={endpoints.browser_terminal} target="_blank" rel="noreferrer" className="text-primary hover:underline">Open in tab</a>
                 </div>
-                <div className="access-row">
-                  <span className="access-label">Terminal</span>
-                  <a href={endpoints.browser_terminal} target="_blank" rel="noreferrer">
-                    Open in tab
-                  </a>
-                </div>
-                <div className="access-row">
-                  <span className="access-label">SSH fallback</span>
-                  <code>{endpoints.ssh}</code>
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">SSH fallback</span>
+                  <code className="rounded bg-sidebar px-1.5 py-0.5 font-mono text-xs">{endpoints.ssh}</code>
                 </div>
                 {endpoints.app && (
-                  <div className="access-row">
-                    <span className="access-label">Application</span>
-                    <a href={endpoints.app} target="_blank" rel="noreferrer">
-                      {endpoints.app}
-                    </a>
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Application</span>
+                    <a href={endpoints.app} target="_blank" rel="noreferrer" className="truncate text-primary hover:underline">{endpoints.app}</a>
                   </div>
                 )}
-              </div>
-            )}
-          </section>
-
-          {isRunning && endpoints ? (
-            <>
-              <div className="split-handle" id="split-handle" ref={handleRef} role="separator" tabIndex={0} aria-label="Resize terminal pane" />
-              <aside className="lab-terminal" id="terminal-container">
-                <div className="terminal-header">
-                  <span className="terminal-title">{user.student_id || user.username}</span>
-                  <button className="btn btn-ghost btn-sm" onClick={goFullscreen}>Fullscreen</button>
-                </div>
-                <iframe
-                  className="terminal-frame"
-                  id="terminal-iframe"
-                  title="Student browser terminal"
-                  src={endpoints.browser_terminal}
-                />
-              </aside>
-            </>
-          ) : (
-            <>
-              <div className="split-handle" style={{ visibility: "hidden" }} />
-              <aside className="lab-terminal" style={{ visibility: "hidden" }} />
-            </>
+              </CardContent>
+            </Card>
           )}
-        </div>
+        </section>
+
+        {isRunning && endpoints ? (
+          <>
+            <div
+              id="split-handle"
+              ref={handleRef}
+              role="separator"
+              tabIndex={0}
+              aria-label="Resize terminal pane"
+              className="z-10 h-full w-full cursor-col-resize touch-none select-none bg-border transition-colors hover:bg-primary"
+            />
+            <aside id="terminal-container" className="flex min-w-0 flex-col bg-[#010409]">
+              <div className="flex h-9 shrink-0 items-center justify-between border-b border-black/20 bg-primary px-3">
+                <span className="font-mono text-xs font-semibold text-white/80">{user.student_id || user.username}</span>
+                <Button variant="ghost" size="sm" className="h-6 gap-1 text-white/80 hover:bg-white/10 hover:text-white" onClick={goFullscreen}>
+                  <Maximize2 className="size-3" /> Fullscreen
+                </Button>
+              </div>
+              <iframe
+                className="w-full flex-1 border-0 bg-[#010409]"
+                id="terminal-iframe"
+                title="Student browser terminal"
+                src={endpoints.browser_terminal}
+              />
+            </aside>
+          </>
+        ) : (
+          <>
+            <div className="invisible" />
+            <aside className="invisible" />
+          </>
+        )}
       </div>
-    </>
+    </StudentLayout>
   );
 }

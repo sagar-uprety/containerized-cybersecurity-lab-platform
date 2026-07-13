@@ -6,14 +6,21 @@ import ConfirmModal from "../components/ConfirmModal";
 import ProgressRing from "../components/ProgressRing";
 import LastActiveBadge from "../components/LastActiveBadge";
 import IconButton from "../components/IconButton";
-import Breadcrumbs from "../components/Breadcrumbs";
-import { Trash2, ArrowUpDown } from "lucide-react";
+import PageHeader from "../components/PageHeader";
+import DataChip from "../components/DataChip";
+import { Trash2, ArrowUpDown, Search } from "lucide-react";
 import { showToast } from "../components/Toast";
 import { getStudentsProgress, removeGroupMember, deleteStudent } from "../api";
 import { fmtTime } from "../utils/time";
 import { navigate } from "../utils/navigate";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
 import { useDebounce } from "../utils/useDebounce";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { cn } from "@/lib/utils";
 
 interface Props {
   user: User;
@@ -122,115 +129,130 @@ export default function InstructorStudents({ user, onLogout }: Props) {
     if (targetGroup) navigate(`/instructor/groups/${targetGroup.id}/students/${s.student_id}`);
   }
 
-  function SortLabel({ col, children }: { col: SortCol; children: React.ReactNode }) {
+  function SortHead({ col, children, className }: { col: SortCol; children: React.ReactNode; className?: string }) {
     const active = sortBy === col;
     return (
-      <button className="sort-label" onClick={() => toggleSort(col)}>
-        {children}
-        <ArrowUpDown size={11} style={{ opacity: active ? 1 : 0.35 }} />
-      </button>
+      <TableHead className={className}>
+        <button
+          onClick={() => toggleSort(col)}
+          className={cn("inline-flex items-center gap-1 transition-colors hover:text-foreground", active && "text-foreground")}
+        >
+          {children}
+          <ArrowUpDown className={cn("size-3", active ? "opacity-100" : "opacity-35")} />
+        </button>
+      </TableHead>
     );
   }
 
   return (
     <InstructorLayout user={user} onLogout={onLogout}>
-      <div className="container">
-        <Breadcrumbs items={[
+      <PageHeader
+        title={filterGroupName ? `Students in ${filterGroupName}` : "All students"}
+        breadcrumbs={[
           { label: "Dashboard", href: "/instructor" },
           { label: filterGroupName ? filterGroupName : "All Students" },
-        ]} />
+        ]}
+      />
 
-        <h1>{filterGroupName ? `Students in ${filterGroupName}` : "All Students"}</h1>
-
-        <div className="flex-center flex-wrap gap-sm mb-lg">
-          <input
+      <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="relative w-64">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
             type="text"
-            placeholder="Search by email or ID..."
+            placeholder="Search by email or ID…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            style={{ maxWidth: 320 }}
+            className="pl-8"
           />
-          <select
-            className="filter-select"
-            value={filterGroupId ?? ""}
-            onChange={(e) => setFilterGroupId(e.target.value ? parseInt(e.target.value, 10) : null)}
-          >
-            <option value="">All groups</option>
-            {allGroups.map((g) => (
-              <option key={g.id} value={g.id}>{g.name}</option>
-            ))}
-          </select>
-          <div className="flex-center gap-sm" style={{ marginLeft: "auto" }}>
-            <SortLabel col="passed">Passed</SortLabel>
-            <SortLabel col="sessions">Sessions</SortLabel>
-            <SortLabel col="time">Time</SortLabel>
-            <SortLabel col="last_active">Last active</SortLabel>
-          </div>
         </div>
-
-        <AlertError message={error} />
-
-        {!students && !error && (
-          <div className="panel" style={{ padding: 0 }}>
-            <div className="skeleton" style={{ height: 300 }} />
-          </div>
-        )}
-
-        {students && sorted.length === 0 && (
-          <div className="empty-state">
-            {debouncedSearch ? "No students match your search." : filterGroupId ? "No students in this group." : "No students registered yet."}
-          </div>
-        )}
-
-        {students && sorted.length > 0 && (
-          <div className="panel student-row-list" style={{ padding: "0.5rem" }}>
-            {sorted.map((s) => {
-              const pct = s.labs_assigned > 0 ? Math.round((s.labs_passed / s.labs_assigned) * 100) : 0;
-              return (
-                <div
-                  key={s.student_id}
-                  className="student-row-card"
-                  role="link"
-                  tabIndex={0}
-                  onClick={() => handleRowClick(s)}
-                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleRowClick(s); } }}
-                >
-                  <div className="avatar-circle">{initials(s.email)}</div>
-                  <div className="student-row-identity">
-                    <div className="student-row-email">{s.email}</div>
-                    <div className="student-row-meta">
-                      {!filterGroupId && s.groups && s.groups.length > 0
-                        ? s.groups.map((g) => g.name).join(", ")
-                        : [s.semester, s.study_program].filter(Boolean).join(" · ") || s.student_id}
-                    </div>
-                  </div>
-                  <div className="student-row-metrics">
-                    <div className="student-row-metric">
-                      <div className="student-row-metric-value">{s.total_sessions}</div>
-                      <div className="student-row-metric-label">Sessions</div>
-                    </div>
-                    <div className="student-row-metric">
-                      <div className="student-row-metric-value">{fmtTime(s.total_time_seconds)}</div>
-                      <div className="student-row-metric-label">Time</div>
-                    </div>
-                    <div className="student-row-metric">
-                      <LastActiveBadge ts={s.last_active} />
-                      <div className="student-row-metric-label">Active</div>
-                    </div>
-                    <ProgressRing pct={pct} size={44} strokeWidth={4} label={`${s.labs_passed}/${s.labs_assigned}`} />
-                    <IconButton
-                      icon={Trash2}
-                      label={`Remove ${s.email}`}
-                      danger
-                      onClick={(e) => { e.stopPropagation(); setRemoveTarget(s); }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <Select
+          value={filterGroupId != null ? String(filterGroupId) : "all"}
+          onValueChange={(v) => setFilterGroupId(v === "all" ? null : parseInt(v, 10))}
+        >
+          <SelectTrigger className="w-48"><SelectValue placeholder="All groups" /></SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All groups</SelectItem>
+            {allGroups.map((g) => (
+              <SelectItem key={g.id} value={String(g.id)}>{g.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
+
+      <AlertError message={error} className="mb-4" />
+
+      {!students && !error && (
+        <div className="overflow-hidden rounded-lg border border-border">
+          <Skeleton className="h-[300px] w-full rounded-none" />
+        </div>
+      )}
+
+      {students && sorted.length === 0 && (
+        <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+          {debouncedSearch ? "No students match your search." : filterGroupId ? "No students in this group." : "No students registered yet."}
+        </div>
+      )}
+
+      {students && sorted.length > 0 && (
+        <div className="overflow-hidden rounded-lg border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow className="hover:bg-transparent">
+                <TableHead>Student</TableHead>
+                <SortHead col="passed">Passed</SortHead>
+                <SortHead col="sessions">Sessions</SortHead>
+                <SortHead col="time">Time</SortHead>
+                <SortHead col="last_active">Last active</SortHead>
+                <TableHead className="w-10" />
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sorted.map((s) => {
+                const pct = s.labs_assigned > 0 ? Math.round((s.labs_passed / s.labs_assigned) * 100) : 0;
+                return (
+                  <TableRow
+                    key={s.student_id}
+                    className="cursor-pointer"
+                    onClick={() => handleRowClick(s)}
+                    tabIndex={0}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); handleRowClick(s); } }}
+                  >
+                    <TableCell>
+                      <div className="flex items-center gap-2.5">
+                        <Avatar size="sm"><AvatarFallback className="bg-accent text-primary">{initials(s.email)}</AvatarFallback></Avatar>
+                        <div>
+                          <div className="text-sm font-medium text-foreground">{s.email}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {!filterGroupId && s.groups && s.groups.length > 0
+                              ? s.groups.map((g) => g.name).join(", ")
+                              : [s.semester, s.study_program].filter(Boolean).join(" · ") || <DataChip>{s.student_id}</DataChip>}
+                          </div>
+                        </div>
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex items-center gap-2">
+                        <ProgressRing pct={pct} size={36} strokeWidth={3.5} label={`${s.labs_passed}/${s.labs_assigned}`} />
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-sm text-foreground">{s.total_sessions}</TableCell>
+                    <TableCell className="text-sm text-foreground">{fmtTime(s.total_time_seconds)}</TableCell>
+                    <TableCell><LastActiveBadge ts={s.last_active} /></TableCell>
+                    <TableCell>
+                      <IconButton
+                        icon={Trash2}
+                        label={`Remove ${s.email}`}
+                        danger
+                        onClick={(e) => { e.stopPropagation(); setRemoveTarget(s); }}
+                      />
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </div>
+      )}
 
       <ConfirmModal
         open={!!removeTarget}

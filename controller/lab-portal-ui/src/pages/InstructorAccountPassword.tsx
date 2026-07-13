@@ -1,5 +1,6 @@
 import PasswordChange from "./PasswordChange";
 import Link from "../components/Link";
+import { ArrowLeft } from "lucide-react";
 
 interface Props {
   onChanged: () => void;
@@ -11,10 +12,13 @@ interface Props {
 // (same component the forced first-login gate uses) — only adds a way back.
 export default function InstructorAccountPassword({ onChanged, onLogout }: Props) {
   return (
-    <div style={{ position: "relative" }}>
-      <div style={{ position: "absolute", top: "1.5rem", left: "1.5rem" }}>
-        <Link href="/instructor" className="back-link">← Back to Dashboard</Link>
-      </div>
+    <div className="relative">
+      <Link
+        href="/instructor"
+        className="absolute left-6 top-6 inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground"
+      >
+        <ArrowLeft className="size-3.5" /> Back to dashboard
+      </Link>
       <PasswordChange onChanged={onChanged} onLogout={onLogout} />
     </div>
   );

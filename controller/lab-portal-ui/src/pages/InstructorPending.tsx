@@ -2,11 +2,17 @@ import { useState, useEffect, useCallback } from "react";
 import type { User, Group, GroupDetail } from "../types";
 import InstructorLayout from "../components/InstructorLayout";
 import AlertError from "../components/AlertError";
-import Breadcrumbs from "../components/Breadcrumbs";
+import PageHeader from "../components/PageHeader";
 import { showToast } from "../components/Toast";
 import { getGroups, getGroupDetail, approveMembers, rejectMembers } from "../api";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
 import { timeAgo } from "../utils/time";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card } from "@/components/ui/card";
 
 interface Props {
   user: User;
@@ -108,66 +114,81 @@ export default function InstructorPending({ user, onLogout }: Props) {
     }
   }
 
+  const allKeys = allPending.map((m) => `${m.groupId}:${m.user_id}`);
+  const allSelected = allKeys.length > 0 && allKeys.every((k) => selected.has(k));
+
   return (
     <InstructorLayout user={user} onLogout={onLogout} pendingCount={totalPending}>
-      <div className="container">
-        <Breadcrumbs items={[
-          { label: "Dashboard", href: "/instructor" },
-          { label: "Pending Approvals" },
-        ]} />
+      <PageHeader
+        title="Pending approvals"
+        breadcrumbs={[{ label: "Dashboard", href: "/instructor" }, { label: "Pending Approvals" }]}
+      />
 
-        <h1>Pending Approvals</h1>
+      <AlertError message={error} className="mb-4" />
 
-        <AlertError message={error} />
+      {!groups && !error && <Skeleton className="h-48 w-full" />}
 
-        {!groups && !error && (
-          <div className="skeleton" style={{ height: 200 }} />
-        )}
+      {groups && totalPending === 0 && (
+        <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+          No pending approvals across any group.
+        </div>
+      )}
 
-        {groups && totalPending === 0 && (
-          <div className="empty-state">No pending approvals across any group.</div>
-        )}
+      {allPending.length > 0 && (
+        <>
+          <div className="mb-3 flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setSelected(allSelected ? new Set() : new Set(allKeys))}
+            >
+              {allSelected ? "Deselect all" : "Select all"}
+            </Button>
+            <Button size="sm" disabled={selected.size === 0 || actionLoading} onClick={() => handleBulkAction("approve")}>
+              Approve {selected.size > 0 ? `(${selected.size})` : ""}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={selected.size === 0 || actionLoading}
+              onClick={() => handleBulkAction("reject")}
+              className="border-destructive/30 text-destructive hover:bg-destructive-bg"
+            >
+              Reject
+            </Button>
+          </div>
 
-        {allPending.length > 0 && (
-          <>
-            <div className="toolbar" style={{ paddingTop: 0 }}>
-              <button className="btn btn-sm" onClick={() => {
-                const allKeys = allPending.map((m) => `${m.groupId}:${m.user_id}`);
-                const allSelected = allKeys.every((k) => selected.has(k));
-                setSelected(allSelected ? new Set() : new Set(allKeys));
-              }}>
-                {allPending.every((m) => selected.has(`${m.groupId}:${m.user_id}`)) ? "Deselect All" : "Select All"}
-              </button>
-              <button className="btn btn-primary btn-sm" disabled={selected.size === 0 || actionLoading} onClick={() => handleBulkAction("approve")}>
-                Approve {selected.size > 0 ? `(${selected.size})` : ""}
-              </button>
-              <button className="btn btn-sm btn-danger-outline" disabled={selected.size === 0 || actionLoading} onClick={() => handleBulkAction("reject")}>
-                Reject
-              </button>
-            </div>
-
-            <div className="panel student-row-list" style={{ padding: "0.5rem" }}>
-              {allPending.map((m) => {
-                const key = `${m.groupId}:${m.user_id}`;
-                return (
-                  <div key={key} className="student-row-card" style={{ cursor: "default" }} onClick={() => toggleSelect(m.groupId, m.user_id)}>
-                    <input type="checkbox" checked={selected.has(key)} onChange={() => toggleSelect(m.groupId, m.user_id)} onClick={(e) => e.stopPropagation()} />
-                    <div className="avatar-circle">{initials(m.email)}</div>
-                    <div className="student-row-identity">
-                      <div className="student-row-email">{m.email}</div>
-                      <div className="student-row-meta">{[m.study_program, m.semester].filter(Boolean).join(" · ") || "—"}</div>
-                    </div>
-                    <span className="badge">{m.groupName}</span>
-                    <div className="text-sm-muted" style={{ minWidth: 100, textAlign: "right" }}>
-                      {m.requested_at ? timeAgo(m.requested_at) : ""}
+          <Card className="gap-0 divide-y divide-border py-0">
+            {allPending.map((m) => {
+              const key = `${m.groupId}:${m.user_id}`;
+              return (
+                <div
+                  key={key}
+                  className="flex cursor-pointer items-center gap-3 p-3 transition-colors hover:bg-accent/40"
+                  onClick={() => toggleSelect(m.groupId, m.user_id)}
+                >
+                  <Checkbox
+                    checked={selected.has(key)}
+                    onCheckedChange={() => toggleSelect(m.groupId, m.user_id)}
+                    onClick={(e) => e.stopPropagation()}
+                  />
+                  <Avatar size="sm"><AvatarFallback className="bg-accent text-primary">{initials(m.email)}</AvatarFallback></Avatar>
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium text-foreground">{m.email}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {[m.study_program, m.semester].filter(Boolean).join(" · ") || "—"}
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          </>
-        )}
-      </div>
+                  <Badge variant="outline">{m.groupName}</Badge>
+                  <div className="w-24 shrink-0 text-right text-xs text-muted-foreground">
+                    {m.requested_at ? timeAgo(m.requested_at) : ""}
+                  </div>
+                </div>
+              );
+            })}
+          </Card>
+        </>
+      )}
     </InstructorLayout>
   );
 }

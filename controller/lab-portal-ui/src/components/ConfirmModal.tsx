@@ -1,4 +1,14 @@
-import { useEffect, useRef, type ReactNode } from "react";
+import type { ReactNode } from "react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 interface ConfirmModalProps {
   open: boolean;
@@ -21,44 +31,24 @@ export default function ConfirmModal({
   onCancel,
   children,
 }: ConfirmModalProps) {
-  const dialogRef = useRef<HTMLDialogElement>(null);
-
-  useEffect(() => {
-    if (!dialogRef.current) return;
-    if (open && !dialogRef.current.open) dialogRef.current.showModal();
-    else if (!open && dialogRef.current.open) dialogRef.current.close();
-  }, [open]);
-
-  if (!open) return null;
-
   return (
-    <dialog
-      ref={dialogRef}
-      onClose={onCancel}
-      onClick={(e) => { if (e.target === dialogRef.current) onCancel(); }}
-      className="confirm-dialog"
-    >
-      <div className="confirm-dialog-body">
-        <h3 className="confirm-dialog-title">{title}</h3>
-        {!children && message && (
-          <p className="confirm-dialog-message">{message}</p>
-        )}
-        {children}
-        {children && message && (
-          <p className="text-sm-muted mb-md" style={{ lineHeight: 1.5 }}>
-            {message}
-          </p>
-        )}
-        <div className="confirm-dialog-actions">
-          <button className="btn btn-sm" onClick={onCancel}>Cancel</button>
-          <button
-            className={`btn btn-sm ${confirmDanger ? "btn-danger" : "btn-primary"}`}
+    <AlertDialog open={open} onOpenChange={(next) => { if (!next) onCancel(); }}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>{title}</AlertDialogTitle>
+          {message && <AlertDialogDescription>{message}</AlertDialogDescription>}
+        </AlertDialogHeader>
+        {children && <div className="text-sm">{children}</div>}
+        <AlertDialogFooter>
+          <AlertDialogCancel onClick={onCancel}>Cancel</AlertDialogCancel>
+          <AlertDialogAction
             onClick={onConfirm}
+            className={confirmDanger ? "bg-destructive text-white hover:bg-destructive/90" : ""}
           >
             {confirmLabel || "Confirm"}
-          </button>
-        </div>
-      </div>
-    </dialog>
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 }

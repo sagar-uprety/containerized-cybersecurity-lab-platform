@@ -1,7 +1,14 @@
 import { useState } from "react";
+import { ShieldCheck } from "lucide-react";
 import type { User } from "../types";
 import { login } from "../api";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card } from "@/components/ui/card";
+import { CircleAlert } from "lucide-react";
 
 export interface LoginPageProps {
   mode?: "student" | "instructor";
@@ -43,21 +50,29 @@ export default function LoginPage({
   }
 
   return (
-    <div className="login-page">
-      <div className="login-card">
-        <div className="login-logo">
-          <div className="login-logo-title">
-            {isInstructor ? "Instructor Login" : "Thesis Lab Portal"}
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-sm p-8">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <div className="mb-3 flex size-11 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <ShieldCheck className="size-5.5" />
           </div>
-          <div className="login-logo-sub">Cybersecurity Lab Platform</div>
+          <div className="text-lg font-semibold tracking-tight text-foreground">
+            {isInstructor ? "Instructor login" : "Thesis Lab Portal"}
+          </div>
+          <div className="mt-0.5 text-sm text-muted-foreground">Cybersecurity Lab Platform</div>
         </div>
 
-        {error && <div className="login-error">{error}</div>}
+        {error && (
+          <Alert variant="destructive" className="mb-4 border-destructive/20 bg-destructive-bg">
+            <CircleAlert />
+            <AlertDescription className="text-destructive">{error}</AlertDescription>
+          </Alert>
+        )}
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label" htmlFor="username">Email</label>
-            <input
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="username">Email</Label>
+            <Input
               id="username"
               type="email"
               value={username}
@@ -68,9 +83,9 @@ export default function LoginPage({
             />
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="password">Password</label>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="password">Password</Label>
+            <Input
               id="password"
               type="password"
               value={password}
@@ -80,22 +95,19 @@ export default function LoginPage({
             />
           </div>
 
-          <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-            {loading ? "Signing in..." : "Sign in"}
-          </button>
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Signing in…" : "Sign in"}
+          </Button>
         </form>
 
-        <div className="login-footer">
+        <div className="mt-5 text-center text-sm text-muted-foreground">
           {isInstructor ? (
             <a
               href="/"
-              onClick={(e) => {
-                e.preventDefault();
-                onSwitchToLogin?.();
-              }}
-              className="link-tum"
+              onClick={(e) => { e.preventDefault(); onSwitchToLogin?.(); }}
+              className="text-primary hover:underline"
             >
-              &larr; Back to student login
+              ← Back to student login
             </a>
           ) : (
             <>
@@ -103,23 +115,17 @@ export default function LoginPage({
                 Don't have an account?{" "}
                 <a
                   href="/signup"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    onSwitchToSignup?.();
-                  }}
-                  className="link-tum"
+                  onClick={(e) => { e.preventDefault(); onSwitchToSignup?.(); }}
+                  className="text-primary hover:underline"
                 >
                   Sign up
                 </a>
               </div>
-              <div className="mb-0" style={{ marginTop: "var(--sp-2)" }}>
+              <div className="mt-2">
                 <a
                   href="/instructor/login"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    onSwitchToInstructor?.();
-                  }}
-                  className="link-tum"
+                  onClick={(e) => { e.preventDefault(); onSwitchToInstructor?.(); }}
+                  className="text-primary hover:underline"
                 >
                   Are you an instructor?
                 </a>
@@ -127,7 +133,7 @@ export default function LoginPage({
             </>
           )}
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

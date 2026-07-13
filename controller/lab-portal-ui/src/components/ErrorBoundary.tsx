@@ -1,4 +1,5 @@
 import { Component, type ReactNode, type ErrorInfo } from "react";
+import { Button } from "@/components/ui/button";
 
 interface Props { children: ReactNode; fallback?: ReactNode }
 interface State { hasError: boolean; error: Error | null }
@@ -18,17 +19,14 @@ export default class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       if (this.props.fallback) return this.props.fallback;
       return (
-        <div className="container" style={{ textAlign: "center", paddingTop: "4rem" }}>
-          <h1>Something went wrong</h1>
-          <p className="text-sm-muted mb-md">
+        <div className="flex h-screen flex-col items-center justify-center gap-2 bg-background p-8 text-center">
+          <h1 className="text-2xl font-semibold tracking-tight text-foreground">Something went wrong</h1>
+          <p className="mb-2 text-sm text-muted-foreground">
             {this.state.error?.message || "An unexpected error occurred."}
           </p>
-          <button
-            className="btn btn-primary"
-            onClick={() => { this.setState({ hasError: false, error: null }); window.location.reload(); }}
-          >
-            Reload Page
-          </button>
+          <Button onClick={() => { this.setState({ hasError: false, error: null }); window.location.reload(); }}>
+            Reload page
+          </Button>
         </div>
       );
     }

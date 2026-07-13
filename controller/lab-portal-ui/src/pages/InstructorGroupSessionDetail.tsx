@@ -3,11 +3,16 @@ import type { User, SessionDetail, CheckResultData, Command } from "../types";
 import InstructorLayout from "../components/InstructorLayout";
 import CheckResult from "../components/CheckResult";
 import AlertError from "../components/AlertError";
-import Breadcrumbs from "../components/Breadcrumbs";
+import PageHeader from "../components/PageHeader";
 import { fmtTimestamp } from "../utils/time";
 import { outcomeStyle } from "../utils/outcome";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
 import { getInstructorSessionDetail } from "../api";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { cn } from "@/lib/utils";
 
 interface InstructorGroupSessionDetailProps {
   user: User;
@@ -57,10 +62,8 @@ export default function InstructorGroupSessionDetail({ user, groupId, studentId,
   if (error && !data) {
     return (
       <InstructorLayout user={user} onLogout={onLogout}>
-        <div className="container">
-          <Breadcrumbs items={breadcrumbs} />
-          <AlertError message={error} />
-        </div>
+        <PageHeader title="Session" breadcrumbs={breadcrumbs} />
+        <AlertError message={error} />
       </InstructorLayout>
     );
   }
@@ -68,10 +71,8 @@ export default function InstructorGroupSessionDetail({ user, groupId, studentId,
   if (!data) {
     return (
       <InstructorLayout user={user} onLogout={onLogout}>
-        <div className="container">
-          <div className="skeleton" style={{ height: 28, width: 200, marginBottom: 16 }} />
-          <div className="skeleton" style={{ height: 400 }} />
-        </div>
+        <Skeleton className="mb-4 h-7 w-48" />
+        <Skeleton className="h-96 w-full" />
       </InstructorLayout>
     );
   }
@@ -134,76 +135,78 @@ export default function InstructorGroupSessionDetail({ user, groupId, studentId,
 
   return (
     <InstructorLayout user={user} onLogout={onLogout}>
-      <div className="container">
-        <Breadcrumbs items={breadcrumbs} />
+      <PageHeader
+        title={scenario?.title || labId}
+        description={studentId + (sessionNum ? ` · Session #${sessionNum}` : "")}
+        breadcrumbs={breadcrumbs}
+      />
 
-        <h1>{scenario?.title || labId}</h1>
-        <div className="text-sm-muted mb-md">
-          {studentId}
-          {sessionNum && <span style={{ marginLeft: "var(--sp-2)" }}>&middot; Session #{sessionNum}</span>}
-        </div>
-
-        <div className="flex-center flex-wrap gap-lg mb-lg">
-          <div className="panel inline-panel flex-center gap-sm">
-            <span className="status-label">Status</span>
-            <span className={`badge ${statusStyle.badgeClass}`}>{statusStyle.label}</span>
-          </div>
-          {sessionDuration != null && (
-            <div className="panel inline-panel flex-center gap-sm">
-              <span className="status-label">Duration</span>
-              <span>{Math.round(sessionDuration / 60)} min</span>
-            </div>
-          )}
-        </div>
-
-        {sessionCheck && (
-          <CheckResult result={sessionCheck} visible={true} checkerChecks={scenario?.checker?.checks} />
+      <div className="mb-6 flex flex-wrap gap-3">
+        <Card className="flex-row items-center gap-2 px-3 py-2">
+          <span className="text-xs text-muted-foreground">Status</span>
+          <Badge className={statusStyle.badgeClass}>{statusStyle.label}</Badge>
+        </Card>
+        {sessionDuration != null && (
+          <Card className="flex-row items-center gap-2 px-3 py-2">
+            <span className="text-xs text-muted-foreground">Duration</span>
+            <span className="text-sm font-medium text-foreground">{Math.round(sessionDuration / 60)} min</span>
+          </Card>
         )}
+      </div>
 
-        <div className="panel">
-          <div className="panel-header">
-            <h2 className="mb-0">Commands</h2>
+      {sessionCheck && (
+        <div className="mb-6">
+          <CheckResult result={sessionCheck} visible={true} checkerChecks={scenario?.checker?.checks} />
+        </div>
+      )}
+
+      <Card className="mb-6">
+        <CardContent>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-lg font-semibold text-foreground">Commands</h2>
             {sessionCommands.length > 0 && (
-              <span className="text-sm-muted">
-                {sessionCommands.length} recorded
-              </span>
+              <span className="text-xs text-muted-foreground">{sessionCommands.length} recorded</span>
             )}
           </div>
           {sessionCommands.length > 0 ? (
-            <div className="command-list">
-              {sessionCommands.map((cmd, i) => (
-                <div key={i} className="command-row">
-                  <span className="command-timestamp">{fmtTimestamp(cmd.timestamp)}</span>
-                  <code className="command-text">{cmd.command?.trim() ? cmd.command : "(Enter)"}</code>
-                </div>
-              ))}
-            </div>
+            <ScrollArea className="h-96">
+              <div className="space-y-1 pr-3">
+                {sessionCommands.map((cmd, i) => (
+                  <div key={i} className="flex items-start gap-3 rounded-md px-2 py-1.5 text-sm hover:bg-accent/40">
+                    <span className="w-32 shrink-0 text-xs text-muted-foreground">{fmtTimestamp(cmd.timestamp)}</span>
+                    <code className="whitespace-pre-wrap break-all font-mono text-[0.8125rem] text-foreground">
+                      {cmd.command?.trim() ? cmd.command : "(Enter)"}
+                    </code>
+                  </div>
+                ))}
+              </div>
+            </ScrollArea>
           ) : (
-            <p className="text-sm-muted">No commands recorded{sessionNum ? " for this session" : ""}.</p>
+            <p className="text-sm text-muted-foreground">No commands recorded{sessionNum ? " for this session" : ""}.</p>
           )}
-        </div>
+        </CardContent>
+      </Card>
 
-        {!sessionNum && lifecycle_events && lifecycle_events.length > 0 && (
-          <div className="panel mb-0">
-            <div className="panel-header">
-              <h2 className="mb-0">Lifecycle Events</h2>
-            </div>
-            <div className="event-list">
+      {!sessionNum && lifecycle_events && lifecycle_events.length > 0 && (
+        <Card>
+          <CardContent>
+            <h2 className="mb-3 text-lg font-semibold text-foreground">Lifecycle events</h2>
+            <div className="space-y-1">
               {lifecycle_events.map((event, i) => (
-                <div key={i} className="event-row">
-                  <span className="event-timestamp">{fmtTimestamp(event.timestamp)}</span>
-                  <span className="event-action">{event.action}</span>
+                <div key={i} className="flex items-center gap-3 rounded-md px-2 py-1.5 text-sm hover:bg-accent/40">
+                  <span className="w-40 shrink-0 text-xs text-muted-foreground">{fmtTimestamp(event.timestamp)}</span>
+                  <span className="text-foreground">{event.action}</span>
                   {event.result && (
-                    <span className={`event-result ${event.result === "success" ? "event-success" : "event-error"}`}>
+                    <span className={cn("ml-auto text-xs font-medium", event.result === "success" ? "text-success" : "text-destructive")}>
                       {event.result}
                     </span>
                   )}
                 </div>
               ))}
             </div>
-          </div>
-        )}
-      </div>
+          </CardContent>
+        </Card>
+      )}
     </InstructorLayout>
   );
 }

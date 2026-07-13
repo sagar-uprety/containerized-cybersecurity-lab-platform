@@ -1,6 +1,12 @@
 import { useState } from "react";
+import { KeyRound, CircleAlert } from "lucide-react";
 import { changePassword } from "../api";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card } from "@/components/ui/card";
 
 interface PasswordChangeProps {
   onChanged: () => void;
@@ -40,21 +46,27 @@ export default function PasswordChange({ onChanged, onLogout }: PasswordChangePr
   }
 
   return (
-    <div className="login-page">
-      <div className="login-card">
-        <div className="login-logo">
-          <div className="login-logo-title">Set a new password</div>
-          <div className="login-logo-sub">
-            Choose a new password before continuing to your labs.
+    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-sm p-8">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <div className="mb-3 flex size-11 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <KeyRound className="size-5.5" />
           </div>
+          <div className="text-lg font-semibold tracking-tight text-foreground">Set a new password</div>
+          <div className="mt-0.5 text-sm text-muted-foreground">Choose a new password before continuing to your labs.</div>
         </div>
 
-        {error && <div className="login-error">{error}</div>}
+        {error && (
+          <Alert variant="destructive" className="mb-4 border-destructive/20 bg-destructive-bg">
+            <CircleAlert />
+            <AlertDescription className="text-destructive">{error}</AlertDescription>
+          </Alert>
+        )}
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label" htmlFor="current">Current password</label>
-            <input
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="current">Current password</Label>
+            <Input
               id="current"
               type="password"
               value={current}
@@ -65,9 +77,9 @@ export default function PasswordChange({ onChanged, onLogout }: PasswordChangePr
             />
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="next">New password</label>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="next">New password</Label>
+            <Input
               id="next"
               type="password"
               value={next}
@@ -77,9 +89,9 @@ export default function PasswordChange({ onChanged, onLogout }: PasswordChangePr
             />
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="confirm">Confirm new password</label>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="confirm">Confirm new password</Label>
+            <Input
               id="confirm"
               type="password"
               value={confirm}
@@ -89,19 +101,15 @@ export default function PasswordChange({ onChanged, onLogout }: PasswordChangePr
             />
           </div>
 
-          <button type="submit" className="btn btn-primary btn-block" disabled={loading}>
-            {loading ? "Saving..." : "Update password"}
-          </button>
+          <Button type="submit" className="w-full" disabled={loading}>
+            {loading ? "Saving…" : "Update password"}
+          </Button>
         </form>
 
-        <button
-          className="btn btn-ghost-dark btn-sm btn-block"
-          style={{ marginTop: "var(--sp-3)" }}
-          onClick={onLogout}
-        >
+        <Button variant="ghost" className="mt-3 w-full text-muted-foreground" onClick={onLogout}>
           Log out
-        </button>
-      </div>
+        </Button>
+      </Card>
     </div>
   );
 }

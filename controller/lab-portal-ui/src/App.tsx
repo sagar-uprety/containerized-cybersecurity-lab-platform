@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, lazy, Suspense } from "react";
+import { MonitorSmartphone } from "lucide-react";
 import type { User, Route } from "./types";
 import { getMe, logout, setSessionExpiredHandler } from "./api";
 import ErrorBoundary from "./components/ErrorBoundary";
@@ -68,7 +69,7 @@ function parseRoute(): Route {
   return { page: "not-found" };
 }
 
-export default function App() {
+function AppContent() {
   const [route, setRoute] = useState<Route>(parseRoute);
   const [user, setUser] = useState<User | null>(null);
   const [checking, setChecking] = useState(true);
@@ -234,5 +235,27 @@ export default function App() {
       </Suspense>
       <ToastContainer />
     </ErrorBoundary>
+  );
+}
+
+// The portal is built for instructor/student desk workflows (terminals, data tables,
+// multi-column layouts) that don't have a meaningful mobile equivalent. Below `lg`,
+// show a static notice instead of a half-broken responsive layout.
+export default function App() {
+  return (
+    <>
+      <div className="fixed inset-0 z-50 flex flex-col items-center justify-center gap-3 bg-background p-8 text-center lg:hidden">
+        <MonitorSmartphone className="size-8 text-muted-foreground" />
+        <div>
+          <p className="text-lg font-semibold text-foreground">Best viewed on a laptop or desktop</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            The Thesis Lab Portal is designed for larger screens. Please switch to a laptop or desktop to continue.
+          </p>
+        </div>
+      </div>
+      <div className="hidden lg:block">
+        <AppContent />
+      </div>
+    </>
   );
 }

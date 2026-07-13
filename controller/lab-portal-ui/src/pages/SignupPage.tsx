@@ -1,7 +1,16 @@
 import { useState } from "react";
+import { ShieldCheck, Check, Circle } from "lucide-react";
 import type { User } from "../types";
 import { register } from "../api";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Card } from "@/components/ui/card";
+import { CircleAlert } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 const SEMESTERS = ["SS 2026", "WS 2026/27"];
 const PROGRAMS = ["Information Systems", "Informatics"];
@@ -76,21 +85,27 @@ export default function SignupPage({ onSignup, onSwitchToLogin }: SignupPageProp
   }
 
   return (
-    <div className="login-page">
-      <div className="login-card" style={{ maxWidth: 420 }}>
-        <div className="login-logo">
-          <div className="login-logo-title">Create Account</div>
-          <div className="login-logo-sub">Cybersecurity Lab Platform</div>
+    <div className="flex min-h-screen items-center justify-center bg-background p-4 py-10">
+      <Card className="w-full max-w-md p-8">
+        <div className="mb-6 flex flex-col items-center text-center">
+          <div className="mb-3 flex size-11 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+            <ShieldCheck className="size-5.5" />
+          </div>
+          <div className="text-lg font-semibold tracking-tight text-foreground">Create account</div>
+          <div className="mt-0.5 text-sm text-muted-foreground">Cybersecurity Lab Platform</div>
         </div>
 
-        {error && <div className="login-error">{error}</div>}
+        {error && (
+          <Alert variant="destructive" className="mb-4 border-destructive/20 bg-destructive-bg">
+            <CircleAlert />
+            <AlertDescription className="text-destructive">{error}</AlertDescription>
+          </Alert>
+        )}
 
-        <form onSubmit={handleSubmit}>
-          <div className="form-group">
-            <label className="form-label" htmlFor="signup-email">
-              University Email
-            </label>
-            <input
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-1.5">
+            <Label htmlFor="signup-email">University email</Label>
+            <Input
               id="signup-email"
               type="email"
               value={email}
@@ -102,49 +117,30 @@ export default function SignupPage({ onSignup, onSwitchToLogin }: SignupPageProp
             />
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="signup-semester">
-              Semester
-            </label>
-            <select
-              id="signup-semester"
-              value={semester}
-              onChange={(e) => setSemester(e.target.value)}
-              required
-            >
-              <option value="">Select semester...</option>
-              {SEMESTERS.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
-              ))}
-            </select>
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="signup-semester">Semester</Label>
+              <Select value={semester} onValueChange={setSemester}>
+                <SelectTrigger id="signup-semester" className="w-full"><SelectValue placeholder="Select…" /></SelectTrigger>
+                <SelectContent>
+                  {SEMESTERS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="signup-program">Study program</Label>
+              <Select value={program} onValueChange={setProgram}>
+                <SelectTrigger id="signup-program" className="w-full"><SelectValue placeholder="Select…" /></SelectTrigger>
+                <SelectContent>
+                  {PROGRAMS.map((p) => <SelectItem key={p} value={p}>{p}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="signup-program">
-              Study Program
-            </label>
-            <select
-              id="signup-program"
-              value={program}
-              onChange={(e) => setProgram(e.target.value)}
-              required
-            >
-              <option value="">Select program...</option>
-              {PROGRAMS.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="form-group">
-            <label className="form-label" htmlFor="signup-password">
-              Password
-            </label>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="signup-password">Password</Label>
+            <Input
               id="signup-password"
               type="password"
               value={password}
@@ -153,28 +149,23 @@ export default function SignupPage({ onSignup, onSwitchToLogin }: SignupPageProp
               required
             />
             {password.length > 0 && (
-              <ul className="password-rules">
-                {PASSWORD_RULES.map((rule) => (
-                  <li
-                    key={rule.label}
-                    style={{
-                      color: rule.test(password)
-                        ? "var(--green, #22c55e)"
-                        : "var(--muted, #6b7280)",
-                    }}
-                  >
-                    {rule.test(password) ? "✓" : "○"} {rule.label}
-                  </li>
-                ))}
+              <ul className="mt-2 space-y-1">
+                {PASSWORD_RULES.map((rule) => {
+                  const ok = rule.test(password);
+                  return (
+                    <li key={rule.label} className={cn("flex items-center gap-1.5 text-xs", ok ? "text-success" : "text-muted-foreground")}>
+                      {ok ? <Check className="size-3" /> : <Circle className="size-3" />}
+                      {rule.label}
+                    </li>
+                  );
+                })}
               </ul>
             )}
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="signup-confirm">
-              Confirm Password
-            </label>
-            <input
+          <div className="space-y-1.5">
+            <Label htmlFor="signup-confirm">Confirm password</Label>
+            <Input
               id="signup-confirm"
               type="password"
               value={confirm}
@@ -183,35 +174,26 @@ export default function SignupPage({ onSignup, onSwitchToLogin }: SignupPageProp
               required
             />
             {confirm.length > 0 && password !== confirm && (
-              <div className="field-error">
-                Passwords do not match
-              </div>
+              <div className="text-xs text-destructive">Passwords do not match</div>
             )}
           </div>
 
-          <button
-            type="submit"
-            className="btn btn-primary btn-block"
-            disabled={loading || !allValid}
-          >
-            {loading ? "Creating account..." : "Sign up"}
-          </button>
+          <Button type="submit" className="w-full" disabled={loading || !allValid}>
+            {loading ? "Creating account…" : "Sign up"}
+          </Button>
         </form>
 
-        <div className="login-footer">
+        <div className="mt-5 text-center text-sm text-muted-foreground">
           Already have an account?{" "}
           <a
             href="/"
-            onClick={(e) => {
-              e.preventDefault();
-              onSwitchToLogin();
-            }}
-            className="link-tum"
+            onClick={(e) => { e.preventDefault(); onSwitchToLogin(); }}
+            className="text-primary hover:underline"
           >
             Sign in
           </a>
         </div>
-      </div>
+      </Card>
     </div>
   );
 }

@@ -1,3 +1,5 @@
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+
 interface RatingInputProps {
   value: number;
   onChange: (v: number) => void;
@@ -8,22 +10,21 @@ interface RatingInputProps {
 
 export default function RatingInput({ value, onChange, max = 5, lowLabel = "Very unclear", highLabel = "Very clear" }: RatingInputProps) {
   return (
-    <div className="rating-input">
-      <span className="rating-label-end">{lowLabel}</span>
-      <div className="rating-buttons">
+    <div className="flex items-center gap-3">
+      <span className="text-xs text-muted-foreground">{lowLabel}</span>
+      <ToggleGroup
+        type="single"
+        variant="outline"
+        value={value ? String(value) : ""}
+        onValueChange={(v) => v && onChange(Number(v))}
+      >
         {Array.from({ length: max }, (_, i) => i + 1).map((n) => (
-          <button
-            key={n}
-            type="button"
-            className={`rating-btn ${value === n ? "rating-btn-active" : ""}`}
-            onClick={() => onChange(n)}
-            aria-label={`Rating ${n}`}
-          >
+          <ToggleGroupItem key={n} value={String(n)} aria-label={`Rating ${n}`} className="data-[state=on]:bg-primary data-[state=on]:text-primary-foreground">
             {n}
-          </button>
+          </ToggleGroupItem>
         ))}
-      </div>
-      <span className="rating-label-end">{highLabel}</span>
+      </ToggleGroup>
+      <span className="text-xs text-muted-foreground">{highLabel}</span>
     </div>
   );
 }

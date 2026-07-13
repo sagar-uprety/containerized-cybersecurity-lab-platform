@@ -3,12 +3,19 @@ import type { User, GroupDetail, StudentDetail, GroupMember, PendingMember } fro
 import InstructorLayout from "../components/InstructorLayout";
 import AlertError from "../components/AlertError";
 import StatCard from "../components/StatCard";
-import Breadcrumbs from "../components/Breadcrumbs";
+import PageHeader from "../components/PageHeader";
+import DataChip from "../components/DataChip";
 import { navigate } from "../utils/navigate";
 import { fmtDuration, fmtTimestamp } from "../utils/time";
 import { outcomeStyle } from "../utils/outcome";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
 import { getGroupDetail, getInstructorStudentDetail } from "../api";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ArrowRight } from "lucide-react";
 
 interface InstructorGroupStudentDetailProps {
   user: User;
@@ -49,126 +56,114 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
 
   return (
     <InstructorLayout user={user} onLogout={onLogout}>
-      <div className="container">
-        <Breadcrumbs items={[
+      <PageHeader
+        title={memberInfo?.email || studentId}
+        breadcrumbs={[
           { label: "Dashboard", href: "/instructor" },
           { label: group?.name || "Group", href: `/instructor/groups/${groupId}` },
           { label: memberInfo?.email || studentId },
-        ]} />
+        ]}
+        actions={
+          <>
+            {memberInfo?.semester && <Badge variant="outline">{memberInfo.semester}</Badge>}
+            {memberInfo?.study_program && <Badge variant="outline">{memberInfo.study_program}</Badge>}
+            <DataChip>{studentId}</DataChip>
+          </>
+        }
+      />
 
-        <h1>{memberInfo?.email || studentId}</h1>
-
-        <div className="flex-center flex-wrap gap-sm mb-lg">
-          {memberInfo?.semester && <span className="badge">{memberInfo.semester}</span>}
-          {memberInfo?.study_program && <span className="badge">{memberInfo.study_program}</span>}
-          <span className="badge text-mono">{studentId}</span>
-        </div>
-
-        <div className="stat-grid stat-grid-auto mb-lg">
-          <StatCard value={student?.labs?.length || 0} label="Labs Assigned" />
-          <StatCard value={passedLabs} label="Passed" color="var(--green)" />
-          <StatCard value={totalSessions} label="Sessions" />
-        </div>
-
-        <AlertError message={error} />
-
-        {!student && !error && (
-          <div className="skeleton" style={{ height: 200 }} />
-        )}
-
-        {student && student.labs.length === 0 && (
-          <div className="empty-state">No lab data for this student in this group.</div>
-        )}
-
-        {student && student.labs.some((l) => l.sessions?.some((s) => s.duration_seconds && s.duration_seconds < 60)) && (
-          <div className="mb-md">
-            <label className="filter-checkbox-label">
-              <input
-                type="checkbox"
-                checked={hideShort}
-                onChange={(e) => setHideShort(e.target.checked)}
-              />
-              Hide sessions under 1 minute
-            </label>
-          </div>
-        )}
-
-        {student && student.labs.map((lab) => {
-          const sessions = hideShort
-            ? (lab.sessions || []).filter((s) => !s.duration_seconds || s.duration_seconds >= 60)
-            : (lab.sessions || []);
-
-          return (
-            <section key={lab.lab_id} className="section-block">
-              <div className="section-header-row">
-                <h2 className="mb-0">{lab.lab_title}</h2>
-                {lab.latest_check ? (
-                  <span className={`badge ${lab.latest_check.passed === true || lab.latest_check.status === "fixed" ? "badge-success" : "badge-danger"}`}>
-                    {lab.latest_check.passed === true || lab.latest_check.status === "fixed" ? "Passed" : lab.latest_check.status?.toUpperCase() || "Failed"}
-                  </span>
-                ) : (
-                  <span className="badge">Not attempted</span>
-                )}
-              </div>
-
-              {sessions.length > 0 ? (
-                <div className="panel" style={{ padding: 0, overflow: "hidden", marginBottom: 0 }}>
-                  <table className="data-table" style={{ width: "100%", marginBottom: 0 }}>
-                    <thead>
-                      <tr>
-                        <th>Session</th>
-                        <th>Started</th>
-                        <th>Duration</th>
-                        <th>Checks</th>
-                        <th>Outcome</th>
-                        <th />
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {sessions.map((sess, i) => {
-                        const sessionIndex = (lab.sessions || []).length - (lab.sessions || []).indexOf(sess);
-                        const rowHref = `/instructor/groups/${groupId}/students/${studentId}/labs/${lab.lab_id}?session=${sessionIndex}`;
-                        return (
-                          <tr
-                            key={i}
-                            className="clickable-row"
-                            role="link"
-                            tabIndex={0}
-                            onClick={() => navigate(rowHref)}
-                            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate(rowHref); } }}
-                          >
-                            <td className="mono-cell text-sm-muted">
-                              #{sessionIndex}
-                            </td>
-                            <td>{fmtTimestamp(sess.started_at)}</td>
-                            <td>{fmtDuration(sess.duration_seconds)}</td>
-                            <td>{sess.check_count || 0}</td>
-                            <td>
-                              {(() => {
-                                const style = outcomeStyle(sess.outcome);
-                                return <span className={`badge ${style.badgeClass}`}>{style.label}</span>;
-                              })()}
-                            </td>
-                            <td style={{ textAlign: "right" }}>
-                              <span style={{ fontSize: "0.82rem", color: "var(--tum-blue)" }}>
-                                Details &rarr;
-                              </span>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <div className="panel text-center mb-0" style={{ color: "var(--muted)" }}>
-                  {hideShort ? "All sessions under 1 minute (hidden)." : "No sessions recorded."}
-                </div>
-              )}
-            </section>
-          );
-        })}
+      <div className="mb-8 grid gap-4 sm:grid-cols-3">
+        <StatCard value={student?.labs?.length || 0} label="Labs assigned" />
+        <StatCard value={passedLabs} label="Passed" tone="success" />
+        <StatCard value={totalSessions} label="Sessions" />
       </div>
+
+      <AlertError message={error} className="mb-6" />
+
+      {!student && !error && <Skeleton className="h-48 w-full" />}
+
+      {student && student.labs.length === 0 && (
+        <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+          No lab data for this student in this group.
+        </div>
+      )}
+
+      {student && student.labs.some((l) => l.sessions?.some((s) => s.duration_seconds && s.duration_seconds < 60)) && (
+        <div className="mb-4 flex items-center gap-2">
+          <Checkbox id="hide-short" checked={hideShort} onCheckedChange={(v) => setHideShort(!!v)} />
+          <Label htmlFor="hide-short" className="text-sm font-normal text-muted-foreground">Hide sessions under 1 minute</Label>
+        </div>
+      )}
+
+      {student && student.labs.map((lab) => {
+        const sessions = hideShort
+          ? (lab.sessions || []).filter((s) => !s.duration_seconds || s.duration_seconds >= 60)
+          : (lab.sessions || []);
+        const passed = lab.latest_check?.passed === true || lab.latest_check?.status === "fixed";
+
+        return (
+          <section key={lab.lab_id} className="mb-8">
+            <div className="mb-3 flex items-center justify-between gap-2">
+              <h2 className="text-lg font-semibold text-foreground">{lab.lab_title}</h2>
+              {lab.latest_check ? (
+                <Badge className={passed ? "border-transparent bg-success-bg text-success" : "border-transparent bg-destructive-bg text-destructive"}>
+                  {passed ? "Passed" : lab.latest_check.status?.toUpperCase() || "Failed"}
+                </Badge>
+              ) : (
+                <Badge variant="outline">Not attempted</Badge>
+              )}
+            </div>
+
+            {sessions.length > 0 ? (
+              <div className="overflow-hidden rounded-lg border border-border">
+                <Table>
+                  <TableHeader>
+                    <TableRow className="hover:bg-transparent">
+                      <TableHead>Session</TableHead>
+                      <TableHead>Started</TableHead>
+                      <TableHead>Duration</TableHead>
+                      <TableHead>Checks</TableHead>
+                      <TableHead>Outcome</TableHead>
+                      <TableHead className="w-20" />
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {sessions.map((sess, i) => {
+                      const sessionIndex = (lab.sessions || []).length - (lab.sessions || []).indexOf(sess);
+                      const rowHref = `/instructor/groups/${groupId}/students/${studentId}/labs/${lab.lab_id}?session=${sessionIndex}`;
+                      const style = outcomeStyle(sess.outcome);
+                      return (
+                        <TableRow
+                          key={i}
+                          className="cursor-pointer"
+                          tabIndex={0}
+                          onClick={() => navigate(rowHref)}
+                          onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate(rowHref); } }}
+                        >
+                          <TableCell><DataChip>#{sessionIndex}</DataChip></TableCell>
+                          <TableCell className="text-sm text-foreground">{fmtTimestamp(sess.started_at)}</TableCell>
+                          <TableCell className="text-sm text-foreground">{fmtDuration(sess.duration_seconds)}</TableCell>
+                          <TableCell className="text-sm text-foreground">{sess.check_count || 0}</TableCell>
+                          <TableCell><Badge className={style.badgeClass}>{style.label}</Badge></TableCell>
+                          <TableCell className="text-right">
+                            <span className="inline-flex items-center gap-1 text-sm text-primary">
+                              Details <ArrowRight className="size-3" />
+                            </span>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+                {hideShort ? "All sessions under 1 minute (hidden)." : "No sessions recorded."}
+              </div>
+            )}
+          </section>
+        );
+      })}
     </InstructorLayout>
   );
 }

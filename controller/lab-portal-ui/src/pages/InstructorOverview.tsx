@@ -1,14 +1,28 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import * as Dialog from "@radix-ui/react-dialog";
 import InstructorLayout from "../components/InstructorLayout";
 import AlertError from "../components/AlertError";
+import PageHeader from "../components/PageHeader";
+import StatCard from "../components/StatCard";
 import Link from "../components/Link";
-import { Layers, BookMarked, Plus } from "lucide-react";
+import { Layers, BookMarked, Plus, Search, ArrowRight, Users, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { getDashboardStats, createGroup, getInstructorStudents } from "../api.js";
 import { navigate } from "../utils/navigate";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
 import { useDebounce } from "../utils/useDebounce";
 import type { User, DashboardStats, Group, StudentsProgressEntry } from "../types";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 interface Props {
   user: User;
@@ -90,185 +104,187 @@ export default function InstructorOverview({ user, onLogout }: Props) {
     : null;
 
   return (
-    <InstructorLayout user={user} onLogout={onLogout}>
-      <div className="container">
-        <div className="page-title-row">
-          <h1 className="mb-0">Instructor Dashboard</h1>
-          {data && (
-            <div className="chip-row" style={{ marginLeft: "auto" }}>
-              <span className="chip"><Layers size={13} /> {data.total_groups} group{data.total_groups !== 1 ? "s" : ""}</span>
-              <span className="chip"><BookMarked size={13} /> {data.total_labs} lab{data.total_labs !== 1 ? "s" : ""}</span>
-            </div>
-          )}
+    <InstructorLayout user={user} onLogout={onLogout} pendingCount={data?.total_pending}>
+      <PageHeader
+        title="Dashboard"
+        description="Who needs your attention, and how your groups are doing."
+        actions={
+          data ? (
+            <>
+              <Badge variant="outline" className="gap-1.5 text-muted-foreground">
+                <Layers className="size-3.5" /> {data.total_groups} group{data.total_groups !== 1 ? "s" : ""}
+              </Badge>
+              <Badge variant="outline" className="gap-1.5 text-muted-foreground">
+                <BookMarked className="size-3.5" /> {data.total_labs} lab{data.total_labs !== 1 ? "s" : ""}
+              </Badge>
+            </>
+          ) : undefined
+        }
+      />
+
+      {data && (
+        <div className="mb-8 grid gap-4 sm:grid-cols-3">
+          <StatCard
+            icon={CheckCircle2}
+            label="Overall completion"
+            value={completionPct != null ? `${completionPct}%` : "—"}
+            description={`${data.total_passed} / ${data.total_possible} assignments passed`}
+          />
+          <StatCard
+            icon={needsAttention > 0 ? AlertTriangle : CheckCircle2}
+            label="Needs attention"
+            value={needsAttention}
+            description={needsAttention > 0 ? `${data.total_pending} pending, ${data.total_at_risk} at risk` : "All clear"}
+            tone={needsAttention > 0 ? "warning" : "success"}
+            href={needsAttention > 0 ? "/instructor/pending" : undefined}
+          />
+          <StatCard
+            icon={Users}
+            label="Active this week"
+            value={activePct != null ? `${activePct}%` : "—"}
+            description={`${data.active_this_week} / ${data.total_students} students`}
+          />
+        </div>
+      )}
+
+      <AlertError message={error} className="mb-6" />
+
+      <section className="mb-8">
+        <h2 className="mb-3 text-lg font-semibold text-foreground">Student search</h2>
+        <div className="relative max-w-md">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Find a student across all groups…"
+            value={studentSearch}
+            onChange={(e) => setStudentSearch(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+        {debouncedStudentSearch.length >= 2 && students && (
+          studentMatches.length === 0 ? (
+            <div className="mt-2 text-sm text-muted-foreground">No students found.</div>
+          ) : (
+            <Card className="mt-2 max-w-md gap-0 divide-y divide-border py-0">
+              {studentMatches.map((s) => (
+                <div key={s.student_id} className="p-3">
+                  <div className="text-sm font-medium text-foreground">{s.email || s.student_id}</div>
+                  {s.groups && s.groups.length > 0 ? (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {s.groups.map((g) => (
+                        <Button key={g.id} asChild variant="outline" size="xs" className="gap-1">
+                          <Link href={`/instructor/groups/${g.id}/students/${s.student_id}`}>
+                            {g.name} <ArrowRight className="size-3" />
+                          </Link>
+                        </Button>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="mt-1 text-xs text-muted-foreground">Not enrolled in any group</div>
+                  )}
+                </div>
+              ))}
+            </Card>
+          )
+        )}
+      </section>
+
+      <section>
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <h2 className="text-lg font-semibold text-foreground">Groups</h2>
+          <div className="flex items-center gap-2">
+            {filteredGroups.length > 3 && (
+              <Input
+                type="text"
+                placeholder="Filter groups…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-48"
+              />
+            )}
+            <Button size="sm" onClick={() => setNewGroupOpen(true)}>
+              <Plus /> New group
+            </Button>
+          </div>
         </div>
 
-        {data && (
-          <div className="insight-grid mb-lg">
-            <div className="insight-tile">
-              <div className="insight-tile-value">{completionPct != null ? `${completionPct}%` : "—"}</div>
-              <div className="insight-tile-label">Overall completion ({data.total_passed} / {data.total_possible} assignments)</div>
-            </div>
-            {needsAttention > 0 ? (
-              <Link href="/instructor/pending" className="insight-tile insight-tile-attention">
-                <div className="insight-tile-value">{needsAttention}</div>
-                <div className="insight-tile-label">Needs attention ({data.total_pending} pending, {data.total_at_risk} at risk)</div>
-              </Link>
-            ) : (
-              <div className="insight-tile">
-                <div className="insight-tile-value">0</div>
-                <div className="insight-tile-label">Needs attention — all clear</div>
-              </div>
-            )}
-            <div className="insight-tile">
-              <div className="insight-tile-value">{activePct != null ? `${activePct}%` : "—"}</div>
-              <div className="insight-tile-label">Active this week ({data.active_this_week} / {data.total_students} students)</div>
-            </div>
+        {!data && !error && (
+          <div className="grid gap-4 sm:grid-cols-3">
+            {[1, 2, 3].map((i) => (
+              <Card key={i}>
+                <CardContent>
+                  <Skeleton className="h-8 w-1/2" />
+                  <Skeleton className="mt-2.5 h-3.5 w-4/5" />
+                </CardContent>
+              </Card>
+            ))}
           </div>
         )}
 
-        <AlertError message={error} className="mb-lg" />
-
-        {/* Student Search */}
-        <section className="section-block">
-          <h2>Student Search</h2>
-          <input
-            type="text"
-            placeholder="Find a student across all groups..."
-            value={studentSearch}
-            onChange={(e) => setStudentSearch(e.target.value)}
-            style={{ maxWidth: 400 }}
-          />
-          {debouncedStudentSearch.length >= 2 && students && (
-            studentMatches.length === 0 ? (
-              <div className="text-sm-muted" style={{ marginTop: "var(--sp-2)" }}>No students found.</div>
-            ) : (
-              <div className="panel" style={{ padding: 0, marginTop: "var(--sp-2)", overflow: "hidden" }}>
-                {studentMatches.map((s) => (
-                  <div
-                    key={s.student_id}
-                    style={{ padding: "0.6rem 0.75rem", borderBottom: "1px solid var(--border-light)" }}
-                  >
-                    <div style={{ fontWeight: 500, fontSize: "0.88rem" }}>{s.email || s.student_id}</div>
-                    {s.groups && s.groups.length > 0 ? (
-                      <div className="flex-center flex-wrap gap-sm" style={{ marginTop: "var(--sp-1)" }}>
-                        {s.groups.map((g) => (
-                          <Link
-                            key={g.id}
-                            href={`/instructor/groups/${g.id}/students/${s.student_id}`}
-                            className="btn btn-sm"
-                            style={{ height: 24, fontSize: "0.75rem", padding: "0 0.5rem" }}
-                          >
-                            {g.name} &rarr;
-                          </Link>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-xs-muted" style={{ marginTop: "var(--sp-1)" }}>Not enrolled in any group</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )
-          )}
-        </section>
-
-        {/* Groups */}
-        <section className="section-block">
-          <div className="section-header-row">
-            <h2 className="mb-0">Groups</h2>
-            <div className="flex-center gap-sm">
-              {filteredGroups.length > 3 && (
-                <input
-                  type="text"
-                  placeholder="Filter groups..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                  style={{ maxWidth: 200 }}
-                />
-              )}
-              <button className="btn btn-primary btn-sm" onClick={() => setNewGroupOpen(true)}>
-                <Plus size={14} style={{ marginRight: 4 }} /> New Group
-              </button>
-            </div>
+        {data && filteredGroups.length === 0 && (
+          <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+            {search ? "No groups match your filter." : "No groups yet. Create one to get started."}
           </div>
+        )}
 
-          {!data && !error && (
-            <div className="insight-grid mb-lg">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="insight-tile">
-                  <div className="skeleton" style={{ height: 30, width: "50%" }} />
-                  <div className="skeleton" style={{ height: 14, width: "80%", marginTop: 10 }} />
-                </div>
-              ))}
-            </div>
-          )}
-
-          {data && filteredGroups.length === 0 && (
-            <div className="empty-state">
-              {search ? "No groups match your filter." : "No groups yet. Create one to get started."}
-            </div>
-          )}
-
-          {filteredGroups.length > 0 && (
-            <div className="labs-grid">
-              {filteredGroups.map((g: Group) => (
-                <article
-                  key={g.id}
-                  className="lab-card clickable-row"
-                  role="link"
-                  tabIndex={0}
-                  onClick={() => navigate(`/instructor/groups/${g.id}`)}
-                  onKeyDown={(e) => handleGroupKeyDown(e, g.id)}
-                >
-                  <span className="lab-card-title">{g.name}</span>
-                  <div className="flex-center flex-wrap gap-sm">
-                    <span className="badge">{g.member_count} member{g.member_count !== 1 ? "s" : ""}</span>
-                    <span className="badge">{g.lab_count} lab{g.lab_count !== 1 ? "s" : ""}</span>
+        {filteredGroups.length > 0 && (
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {filteredGroups.map((g: Group) => (
+              <Card
+                key={g.id}
+                role="link"
+                tabIndex={0}
+                onClick={() => navigate(`/instructor/groups/${g.id}`)}
+                onKeyDown={(e) => handleGroupKeyDown(e, g.id)}
+                className="cursor-pointer transition-colors hover:bg-accent/40 hover:ring-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              >
+                <CardContent>
+                  <div className="font-medium text-foreground">{g.name}</div>
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    <Badge variant="outline">{g.member_count} member{g.member_count !== 1 ? "s" : ""}</Badge>
+                    <Badge variant="outline">{g.lab_count} lab{g.lab_count !== 1 ? "s" : ""}</Badge>
                     {g.pending_count > 0 && (
-                      <span className="badge badge-pending">
-                        {g.pending_count} pending
-                      </span>
+                      <Badge className="border-transparent bg-warning-bg text-warning">{g.pending_count} pending</Badge>
                     )}
                   </div>
                   {g.created_at && (
-                    <div className="text-sm-muted">
+                    <div className="mt-2 text-xs text-muted-foreground">
                       Created {new Date(g.created_at).toLocaleDateString()}
                     </div>
                   )}
-                </article>
-              ))}
-            </div>
-          )}
-        </section>
-      </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        )}
+      </section>
 
-      <Dialog.Root open={newGroupOpen} onOpenChange={setNewGroupOpen}>
-        <Dialog.Portal>
-          <Dialog.Overlay className="dialog-overlay" />
-          <Dialog.Content className="dialog-content">
-            <Dialog.Title className="dialog-title">New group</Dialog.Title>
-            <Dialog.Description className="dialog-description">
+      <Dialog open={newGroupOpen} onOpenChange={setNewGroupOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>New group</DialogTitle>
+            <DialogDescription>
               Create a group for a semester or cohort. Students request to join after signing up.
-            </Dialog.Description>
-            <form onSubmit={handleCreate}>
-              <input
-                type="text"
-                placeholder="e.g. WS 2026/27 — Security Lab"
-                value={newGroup}
-                onChange={(e) => setNewGroup(e.target.value)}
-                autoFocus
-                required
-              />
-              <div className="dialog-actions">
-                <button type="button" className="btn btn-sm" onClick={() => setNewGroupOpen(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary btn-sm" disabled={creating}>
-                  {creating ? "Creating..." : "Create group"}
-                </button>
-              </div>
-            </form>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+            </DialogDescription>
+          </DialogHeader>
+          <form onSubmit={handleCreate}>
+            <Input
+              type="text"
+              placeholder="e.g. WS 2026/27 — Security Lab"
+              value={newGroup}
+              onChange={(e) => setNewGroup(e.target.value)}
+              autoFocus
+              required
+            />
+            <DialogFooter className="mt-4">
+              <Button type="button" variant="outline" size="sm" onClick={() => setNewGroupOpen(false)}>Cancel</Button>
+              <Button type="submit" size="sm" disabled={creating}>
+                {creating ? "Creating…" : "Create group"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </InstructorLayout>
   );
 }

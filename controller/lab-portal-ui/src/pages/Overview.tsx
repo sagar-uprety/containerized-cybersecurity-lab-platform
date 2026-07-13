@@ -1,12 +1,18 @@
 import { useState, useEffect } from "react";
 import type { User, Lab, EnrollmentOption } from "../types";
-import Header from "../components/Header";
+import StudentLayout from "../components/StudentLayout";
 import StatusBadge from "../components/StatusBadge";
 import AlertError from "../components/AlertError";
+import PageHeader from "../components/PageHeader";
 import Link from "../components/Link";
 import { getLabs, getEnrollmentOptions, requestEnrollment } from "../api";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
 import { fmtTimestamp } from "../utils/time";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 export default function Overview({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [labs, setLabs] = useState<Lab[] | null>(null);
@@ -44,73 +50,64 @@ export default function Overview({ user, onLogout }: { user: User; onLogout: () 
     enrollments != null && enrollments.some((e) => e.status === "approved");
 
   return (
-    <>
-      <Header user={user} onLogout={onLogout} />
-      <div className="container">
-        <AlertError message={error} />
+    <StudentLayout user={user} onLogout={onLogout}>
+      <PageHeader title="My labs" description="Start, monitor, and submit feedback for your assigned labs." />
 
-        {/* Enrollment Options */}
-        {enrollments && enrollments.length > 0 && (
-          <>
-            <h1>Available Enrollments</h1>
-            <p className="text-sm-muted mb-md">
-              Request to join a group to access its labs. Your instructor will
-              approve your request.
-            </p>
-            <div className="labs-grid mb-lg">
-              {enrollments.map((group) => (
-                <article key={group.id} className="lab-card">
-                  <div className="lab-card-header">
-                    <span className="lab-card-title">{group.name}</span>
+      <AlertError message={error} className="mb-6" />
+
+      {enrollments && enrollments.length > 0 && (
+        <section className="mb-8">
+          <h2 className="mb-1 text-lg font-semibold text-foreground">Available enrollments</h2>
+          <p className="mb-3 text-sm text-muted-foreground">
+            Request to join a group to access its labs. Your instructor will approve your request.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {enrollments.map((group) => (
+              <Card key={group.id}>
+                <CardContent className="flex h-full flex-col gap-3">
+                  <div className="font-medium text-foreground">{group.name}</div>
+                  <div className="text-sm text-muted-foreground">
+                    {group.member_count} member{group.member_count !== 1 ? "s" : ""}
                   </div>
-                  <div className="text-sm-muted">
-                    {group.member_count} member
-                    {group.member_count !== 1 ? "s" : ""}
-                  </div>
-                  <div className="lab-card-actions">
+                  <div className="mt-auto">
                     {group.status === "approved" && (
-                      <span className="badge badge-enrolled">Enrolled</span>
+                      <Badge className="border-transparent bg-success-bg text-success">Enrolled</Badge>
                     )}
                     {group.status === "pending" && (
-                      <span className="badge badge-pending">Pending Approval</span>
+                      <Badge className="border-transparent bg-warning-bg text-warning">Pending approval</Badge>
                     )}
                     {!group.status && (
-                      <button
-                        className="btn btn-primary btn-sm"
-                        disabled={enrollLoading === group.id}
-                        onClick={() => handleEnroll(group.id)}
-                      >
-                        {enrollLoading === group.id
-                          ? "Requesting..."
-                          : "Request to Join"}
-                      </button>
+                      <Button size="sm" disabled={enrollLoading === group.id} onClick={() => handleEnroll(group.id)}>
+                        {enrollLoading === group.id ? "Requesting…" : "Request to join"}
+                      </Button>
                     )}
                   </div>
-                </article>
-              ))}
-            </div>
-          </>
-        )}
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
 
-        {/* Labs */}
-        <h1>
-          {hasApprovedGroup ? "Your Labs" : "Available Labs"}
-        </h1>
+      <section>
+        <h2 className="mb-3 text-lg font-semibold text-foreground">{hasApprovedGroup ? "Your labs" : "Available labs"}</h2>
 
         {!labs && !error && (
-          <div className="labs-grid">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="lab-card">
-                <div className="skeleton" style={{ height: 20, width: "60%" }} />
-                <div className="skeleton" style={{ height: 16, width: "40%" }} />
-                <div className="skeleton" style={{ height: 40, width: "100%" }} />
-              </div>
+              <Card key={i}>
+                <CardContent className="space-y-2">
+                  <Skeleton className="h-5 w-3/5" />
+                  <Skeleton className="h-4 w-2/5" />
+                  <Skeleton className="h-10 w-full" />
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}
 
         {labs && labs.length === 0 && (
-          <div className="empty-state">
+          <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
             {hasApprovedGroup
               ? "No labs have been assigned to your group yet."
               : "Join a group above to see available labs."}
@@ -118,34 +115,29 @@ export default function Overview({ user, onLogout }: { user: User; onLogout: () 
         )}
 
         {labs && labs.length > 0 && (
-          <div className="labs-grid">
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {labs.map((lab) => (
-              <article key={lab.id} className="lab-card">
-                <div className="lab-card-header">
-                  <span className="lab-card-title">{lab.title}</span>
-                  <StatusBadge status={lab.status} />
-                </div>
-                <div className="lab-card-meta">
-                  <span className="badge">{lab.difficulty}</span>
-                  {lab.deadline && (
-                    <DeadlineBadge deadline={lab.deadline} />
-                  )}
-                </div>
-                <p className="lab-card-story">{lab.story?.situation}</p>
-                <div className="lab-card-actions">
-                  <Link
-                    href={`/labs/${lab.id}`}
-                    className="btn btn-primary btn-sm btn-block-mobile"
-                  >
-                    Open Lab
-                  </Link>
-                </div>
-              </article>
+              <Card key={lab.id}>
+                <CardContent className="flex h-full flex-col gap-3">
+                  <div className="flex items-start justify-between gap-2">
+                    <span className="font-medium text-foreground">{lab.title}</span>
+                    <StatusBadge status={lab.status} />
+                  </div>
+                  <div className="flex flex-wrap gap-1.5">
+                    <Badge variant="outline">{lab.difficulty}</Badge>
+                    {lab.deadline && <DeadlineBadge deadline={lab.deadline} />}
+                  </div>
+                  <p className="line-clamp-3 text-sm text-muted-foreground">{lab.story?.situation}</p>
+                  <Button asChild size="sm" className="mt-auto">
+                    <Link href={`/labs/${lab.id}`}>Open lab</Link>
+                  </Button>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}
-      </div>
-    </>
+      </section>
+    </StudentLayout>
   );
 }
 
@@ -157,10 +149,8 @@ function DeadlineBadge({ deadline }: { deadline: string }) {
   const formatted = fmtTimestamp(deadline);
 
   return (
-    <span
-      className={`badge ${urgent ? "badge-deadline-urgent" : "badge-deadline"}`}
-    >
+    <Badge className={cn("border-transparent", urgent ? "bg-destructive-bg text-destructive" : "bg-muted text-muted-foreground")}>
       Due {formatted}
-    </span>
+    </Badge>
   );
 }
