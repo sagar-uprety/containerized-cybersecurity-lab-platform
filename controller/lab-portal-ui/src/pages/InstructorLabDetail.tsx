@@ -1,9 +1,8 @@
 import { useState, useEffect } from "react";
 import type { User, InstructorLabDetailData } from "../types";
-import Header from "../components/Header";
+import InstructorLayout from "../components/InstructorLayout";
 import AlertError from "../components/AlertError";
 import Breadcrumbs from "../components/Breadcrumbs";
-import Link from "../components/Link";
 import { getInstructorLabDetail } from "../api";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
 import { FileText, BookOpen, GraduationCap, MessageSquare, ExternalLink } from "lucide-react";
@@ -28,8 +27,7 @@ export default function InstructorLabDetail({ user, labId, onLogout }: Props) {
 
   if (error && !data) {
     return (
-      <>
-        <Header user={user} onLogout={onLogout} />
+      <InstructorLayout user={user} onLogout={onLogout}>
         <div className="container">
           <Breadcrumbs items={[
             { label: "Dashboard", href: "/instructor" },
@@ -37,19 +35,18 @@ export default function InstructorLabDetail({ user, labId, onLogout }: Props) {
           ]} />
           <AlertError message={error} />
         </div>
-      </>
+      </InstructorLayout>
     );
   }
 
   if (!data) {
     return (
-      <>
-        <Header user={user} onLogout={onLogout} />
+      <InstructorLayout user={user} onLogout={onLogout}>
         <div className="container">
           <div className="skeleton" style={{ height: 28, width: 200, marginBottom: 16 }} />
           <div className="skeleton" style={{ height: 200 }} />
         </div>
-      </>
+      </InstructorLayout>
     );
   }
 
@@ -63,8 +60,7 @@ export default function InstructorLabDetail({ user, labId, onLogout }: Props) {
   ];
 
   return (
-    <>
-      <Header user={user} onLogout={onLogout} />
+    <InstructorLayout user={user} onLogout={onLogout}>
       <div className="container">
         <Breadcrumbs items={[
           { label: "Dashboard", href: "/instructor" },
@@ -110,6 +106,6 @@ export default function InstructorLabDetail({ user, labId, onLogout }: Props) {
           )}
         </div>
       </div>
-    </>
+    </InstructorLayout>
   );
 }

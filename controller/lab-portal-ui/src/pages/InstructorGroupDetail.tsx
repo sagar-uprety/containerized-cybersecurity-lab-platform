@@ -1,18 +1,20 @@
-import { useState, useEffect, useCallback } from "react";
-import DatePicker from "react-datepicker";
-import "react-datepicker/dist/react-datepicker.css";
+import { useState, useEffect, useCallback, useMemo } from "react";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 import type { User, GroupDetail, InstructorLabInfo, GroupProgress } from "../types";
-import Header from "../components/Header";
+import InstructorLayout from "../components/InstructorLayout";
 import ConfirmModal from "../components/ConfirmModal";
 import AlertError from "../components/AlertError";
-import StatCard from "../components/StatCard";
-import ProgressBar from "../components/ProgressBar";
+import ProgressRing from "../components/ProgressRing";
 import LastActiveBadge from "../components/LastActiveBadge";
+import DeadlinePicker from "../components/DeadlinePicker";
+import IconButton from "../components/IconButton";
+import LabPassRateChart from "../components/LabPassRateChart";
 import Link from "../components/Link";
 import Breadcrumbs from "../components/Breadcrumbs";
 import { showToast } from "../components/Toast";
+import { Users, Layers, MoreHorizontal, Pencil, Trash2, ExternalLink, Plus, Terminal } from "lucide-react";
 import { navigate } from "../utils/navigate";
-import { fmtTime } from "../utils/time";
+import { fmtTime, timeAgo } from "../utils/time";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
 import {
   getGroupDetail,
@@ -31,6 +33,10 @@ interface InstructorGroupDetailProps {
   user: User;
   groupId: number;
   onLogout: () => void;
+}
+
+function initials(email: string): string {
+  return (email || "?").charAt(0).toUpperCase();
 }
 
 export default function InstructorGroupDetail({ user, groupId, onLogout }: InstructorGroupDetailProps) {
@@ -175,15 +181,20 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
     finally { setRenaming(false); }
   }
 
+  const progressByLab = useMemo(() => {
+    const m = new Map<string, GroupProgress["labs"][number]>();
+    (progress?.labs || []).forEach((l) => m.set(l.lab_id, l));
+    return m;
+  }, [progress]);
+
   if (!group && !error) {
     return (
-      <>
-        <Header user={user} onLogout={onLogout} />
+      <InstructorLayout user={user} onLogout={onLogout}>
         <div className="container">
           <div className="skeleton" style={{ height: 28, width: 200, marginBottom: 16 }} />
           <div className="skeleton" style={{ height: 300 }} />
         </div>
-      </>
+      </InstructorLayout>
     );
   }
 
@@ -193,42 +204,114 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
   const activeLabs = (group?.labs || []).filter((gl) => !gl.deadline || new Date(gl.deadline) >= now);
   const pastLabs = (group?.labs || []).filter((gl) => gl.deadline && new Date(gl.deadline) < now);
 
+  const completionPct = progress && progress.total_possible > 0
+    ? Math.round((progress.total_passed / progress.total_possible) * 100)
+    : null;
+  const attemptedLabTimes = (progress?.labs || []).filter((l) => l.students_attempted > 0);
+  const avgTimeMinutes = attemptedLabTimes.length > 0
+    ? attemptedLabTimes.reduce((acc, l) => acc + l.avg_time_minutes, 0) / attemptedLabTimes.length
+    : null;
+
+  function renderLabCard(labId: string, deadline: string | null, overdue: boolean) {
+    const meta = labs.find((l) => l.id === labId);
+    const stats = progressByLab.get(labId);
+    const totalStudents = progress?.total_students || 0;
+    const pct = stats && totalStudents > 0 ? Math.round((stats.students_passed / totalStudents) * 100) : 0;
+
+    return (
+      <div key={labId} className={`lab-perf-card${overdue ? " lab-perf-card-overdue" : ""}`} style={{ opacity: busy === `remove-${labId}` ? 0.5 : 1 }}>
+        <div className="lab-perf-card-header">
+          <div>
+            <div className="lab-perf-card-title">{meta?.title || labId}</div>
+            {meta?.difficulty && <span className="badge" style={{ marginTop: 4 }}>{meta.difficulty}</span>}
+          </div>
+          <div className="lab-perf-card-actions">
+            <IconButton icon={ExternalLink} label="View lab guides" href={`/instructor/labs/${labId}`} />
+            <IconButton icon={Trash2} label="Remove lab from group" danger disabled={!!busy} onClick={() => setRemoveConfirm(labId)} />
+          </div>
+        </div>
+
+        <div className="lab-perf-card-stats">
+          <ProgressRing pct={pct} size={52} strokeWidth={5} />
+          <div className="lab-perf-card-metrics">
+            <div><strong>{stats?.students_passed ?? 0}</strong> / {totalStudents} passed</div>
+            <div><strong>{stats?.students_attempted ?? 0}</strong> attempted</div>
+            <div>Avg <strong>{stats && stats.avg_time_minutes > 0 ? fmtTime(stats.avg_time_minutes * 60) : "—"}</strong></div>
+          </div>
+        </div>
+
+        <div className="lab-perf-card-footer">
+          {overdue ? (
+            <span className="badge badge-danger-subtle">Ended {deadline ? new Date(deadline).toLocaleDateString() : ""}</span>
+          ) : (
+            <DeadlinePicker
+              deadline={deadline}
+              busy={!!busy}
+              saving={busy === `deadline-${labId}`}
+              onSave={(iso) => handleUpdateDeadline(labId, iso)}
+            />
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <>
-      <Header user={user} onLogout={onLogout} />
+    <InstructorLayout user={user} onLogout={onLogout}>
       <div className="container">
         <Breadcrumbs items={[
           { label: "Dashboard", href: "/instructor" },
           { label: group?.name || "Group" },
         ]} />
 
-        <div className="page-title-row">
-          <h1 className="mb-0">{group?.name || "Group"}</h1>
-          <button
-            className="btn btn-sm"
-            style={{ fontSize: "0.78rem", height: 28 }}
-            onClick={() => { setRenameInput(group?.name || ""); setRenameOpen(true); }}
-          >
-            Rename
-          </button>
-          <button
-            className="btn btn-sm btn-danger-outline"
-            disabled={deleting}
-            onClick={() => setDeleteConfirm(true)}
-          >
-            {deleting ? "Deleting..." : "Delete"}
-          </button>
+        <div className="page-title-row-v2">
+          <div>
+            <h1>{group?.name || "Group"}</h1>
+            <div className="page-title-meta">
+              <span className="chip"><Users size={13} /> {progress?.total_students ?? 0} student{progress?.total_students !== 1 ? "s" : ""}</span>
+              <span className="chip"><Layers size={13} /> {progress?.total_labs ?? 0} lab{progress?.total_labs !== 1 ? "s" : ""}</span>
+            </div>
+          </div>
+          <DropdownMenu.Root>
+            <DropdownMenu.Trigger asChild>
+              <button className="icon-btn" style={{ border: "1px solid var(--border)" }} title="Group actions" aria-label="Group actions">
+                <MoreHorizontal size={17} />
+              </button>
+            </DropdownMenu.Trigger>
+            <DropdownMenu.Portal>
+              <DropdownMenu.Content className="dropdown-menu-content" align="end" sideOffset={6}>
+                <DropdownMenu.Item
+                  className="dropdown-menu-item"
+                  onSelect={() => { setRenameInput(group?.name || ""); setRenameOpen(true); }}
+                >
+                  <Pencil size={15} /> Rename group
+                </DropdownMenu.Item>
+                <DropdownMenu.Separator className="dropdown-menu-separator" />
+                <DropdownMenu.Item
+                  className="dropdown-menu-item dropdown-menu-item-danger"
+                  onSelect={() => setDeleteConfirm(true)}
+                >
+                  <Trash2 size={15} /> Delete group
+                </DropdownMenu.Item>
+              </DropdownMenu.Content>
+            </DropdownMenu.Portal>
+          </DropdownMenu.Root>
         </div>
 
         {progress && (
-          <div className="stat-grid stat-grid-3 mb-lg">
-            <StatCard value={progress.total_students} label="Students" />
-            <StatCard value={progress.total_labs} label="Labs" />
-            <StatCard
-              value={`${progress.total_passed} / ${progress.total_possible}`}
-              label="Completed"
-              color={progress.total_passed > 0 ? "var(--green)" : "var(--tum-blue)"}
-            />
+          <div className="insight-grid mb-lg">
+            <div className="insight-tile">
+              <div className="insight-tile-value">{completionPct != null ? `${completionPct}%` : "—"}</div>
+              <div className="insight-tile-label">Completion ({progress.total_passed} / {progress.total_possible} assignments)</div>
+            </div>
+            <div className={`insight-tile${progress.total_at_risk > 0 ? " insight-tile-attention" : ""}`}>
+              <div className="insight-tile-value">{progress.total_at_risk}</div>
+              <div className="insight-tile-label">At risk (overdue lab, not passed)</div>
+            </div>
+            <div className="insight-tile">
+              <div className="insight-tile-value">{avgTimeMinutes != null ? fmtTime(avgTimeMinutes * 60) : "—"}</div>
+              <div className="insight-tile-label">Avg session time</div>
+            </div>
           </div>
         )}
 
@@ -238,55 +321,12 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
         <section className="section-block">
           <h2>Lab Assignments</h2>
 
-          {activeLabs.length > 0 && (
-            <div className="lab-assignment-list">
-              {activeLabs.map((gl) => (
-                <LabAssignmentCard
-                  key={gl.lab_id}
-                  labId={gl.lab_id}
-                  labTitle={labs.find((l) => l.id === gl.lab_id)?.title || gl.lab_id}
-                  deadline={gl.deadline ?? null}
-                  busy={busy}
-                  onSaveDeadline={(d) => handleUpdateDeadline(gl.lab_id, d)}
-                  onRemove={() => setRemoveConfirm(gl.lab_id)}
-                />
-              ))}
+          {(activeLabs.length > 0 || pastLabs.length > 0) ? (
+            <div className="lab-perf-grid">
+              {activeLabs.map((gl) => renderLabCard(gl.lab_id, gl.deadline ?? null, false))}
+              {pastLabs.map((gl) => renderLabCard(gl.lab_id, gl.deadline ?? null, true))}
             </div>
-          )}
-
-          {pastLabs.length > 0 && (
-            <>
-              <div className="section-label mb-sm" style={{ marginTop: "var(--sp-4)" }}>
-                Past Deadline
-              </div>
-              <div className="lab-assignment-list lab-assignment-list--past">
-                {pastLabs.map((gl) => (
-                  <div key={gl.lab_id} className="panel" style={{ marginBottom: 0, padding: "0.75rem 1rem" }}>
-                    <div className="lab-assignment-row">
-                      <div className="lab-assignment-info">
-                        <span className="lab-assignment-title">
-                          {labs.find((l) => l.id === gl.lab_id)?.title || gl.lab_id}
-                        </span>
-                        <span className="badge badge-danger-subtle">
-                          Ended {new Date(gl.deadline!).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <button
-                        className="btn btn-sm"
-                        disabled={!!busy}
-                        onClick={() => setRemoveConfirm(gl.lab_id)}
-                        style={{ color: "var(--muted)", borderColor: "var(--border-light)", fontSize: "0.78rem" }}
-                      >
-                        {busy === `remove-${gl.lab_id}` ? "Removing..." : "Remove"}
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-
-          {activeLabs.length === 0 && pastLabs.length === 0 && (
+          ) : (
             <div className="panel mb-md text-center" style={{ color: "var(--muted)" }}>
               No labs assigned. Assign labs below to get started.
             </div>
@@ -313,7 +353,7 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
                 {unassignedLabs.map((l, i) => (
                   <div
                     key={l.id}
-                    className="available-lab-row"
+                    className="lab-available-row"
                     style={{
                       borderBottom: i < unassignedLabs.length - 1 ? "1px solid var(--border-light)" : "none",
                     }}
@@ -322,14 +362,7 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
                       <span style={{ fontWeight: 500, fontSize: "0.88rem" }}>{l.title}</span>
                       {l.difficulty && <span className="badge">{l.difficulty}</span>}
                     </div>
-                    <button
-                      className="btn btn-sm"
-                      disabled={!!busy || bulkAssigning}
-                      onClick={() => handleAssignLab(l.id)}
-                      style={{ fontSize: "0.78rem", height: 26, padding: "0 0.5rem", flexShrink: 0 }}
-                    >
-                      {busy === `assign-${l.id}` ? "..." : "+ Assign"}
-                    </button>
+                    <IconButton icon={Plus} label={`Assign ${l.title}`} disabled={!!busy || bulkAssigning} onClick={() => handleAssignLab(l.id)} />
                   </div>
                 ))}
               </div>
@@ -352,35 +385,20 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
                 Reject
               </button>
             </div>
-            <div className="panel" style={{ padding: 0, overflow: "hidden" }}>
-              <table className="data-table" style={{ width: "100%", marginBottom: 0 }}>
-                <thead>
-                  <tr>
-                    <th className="text-center" style={{ width: 40 }}>
-                      <input type="checkbox" checked={selected.size === group.pending_members.length} onChange={selectAll} />
-                    </th>
-                    <th>Email</th>
-                    <th>Semester</th>
-                    <th>Program</th>
-                    <th>Requested</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {group.pending_members.map((m) => (
-                    <tr key={m.user_id}>
-                      <td className="text-center">
-                        <input type="checkbox" checked={selected.has(m.user_id)} onChange={() => toggleSelect(m.user_id)} />
-                      </td>
-                      <td style={{ fontWeight: 500 }}>{m.email}</td>
-                      <td>{m.semester || "—"}</td>
-                      <td>{m.study_program || "—"}</td>
-                      <td className="text-sm-muted">
-                        {m.requested_at ? new Date(m.requested_at).toLocaleDateString() : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            <div className="panel" style={{ padding: "0.5rem" }}>
+              {group.pending_members.map((m) => (
+                <div key={m.user_id} className="student-row-card" style={{ cursor: "default" }} onClick={() => toggleSelect(m.user_id)}>
+                  <input type="checkbox" checked={selected.has(m.user_id)} onChange={() => toggleSelect(m.user_id)} onClick={(e) => e.stopPropagation()} />
+                  <div className="avatar-circle">{initials(m.email)}</div>
+                  <div className="student-row-identity">
+                    <div className="student-row-email">{m.email}</div>
+                    <div className="student-row-meta">{[m.semester, m.study_program].filter(Boolean).join(" · ") || "—"}</div>
+                  </div>
+                  <div className="text-sm-muted">
+                    {m.requested_at ? `Requested ${timeAgo(m.requested_at)}` : ""}
+                  </div>
+                </div>
+              ))}
             </div>
           </section>
         )}
@@ -395,11 +413,7 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
                   <Link href={`/instructor/students?group=${groupId}`} className="btn btn-sm">
                     Manage Students
                   </Link>
-                  <a
-                    href={getGroupExportCsvUrl(groupId)}
-                    className="btn btn-sm"
-                    download
-                  >
+                  <a href={getGroupExportCsvUrl(groupId)} className="btn btn-sm" download>
                     Export CSV
                   </a>
                 </>
@@ -413,100 +427,83 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
             <div className="panel text-center" style={{ color: "var(--muted)" }}>No students enrolled yet.</div>
           )}
           {progress && progress.students.length > 0 && (
-            <div className="panel" style={{ padding: 0, overflow: "auto" }}>
-              <table className="data-table" style={{ width: "100%", marginBottom: 0 }}>
-                <thead>
-                  <tr>
-                    <th>Student</th>
-                    <th className="text-center">Passed</th>
-                    <th className="text-center">Sessions</th>
-                    <th className="text-center">Time Spent</th>
-                    <th className="text-center">Last Active</th>
-                    <th className="text-center" style={{ width: 130 }}>Completion</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {progress.students.map((s) => {
-                    const pct = s.labs_assigned > 0
-                      ? Math.round((s.labs_passed / s.labs_assigned) * 100) : 0;
-                    const rowHref = `/instructor/groups/${groupId}/students/${s.student_id}`;
-                    return (
-                      <tr
-                        key={s.student_id}
-                        className="clickable-row"
-                        role="link"
-                        tabIndex={0}
-                        onClick={() => navigate(rowHref)}
-                        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate(rowHref); } }}
-                      >
-                        <td>
-                          <div style={{ fontWeight: 500 }}>{s.email}</div>
-                          <div className="text-sm-muted">
-                            {[s.semester, s.study_program].filter(Boolean).join(" · ") || "—"}
-                          </div>
-                        </td>
-                        <td className="text-center">
-                          <span className="mono-value" style={{
-                            color: s.labs_passed > 0 ? "var(--green)" : "var(--ink)",
-                          }}>
-                            {s.labs_passed} / {s.labs_assigned}
-                          </span>
-                        </td>
-                        <td className="mono-cell text-center text-sm-muted">
-                          {s.total_sessions}
-                        </td>
-                        <td className="mono-cell text-center text-sm-muted">
-                          {fmtTime(s.total_time_seconds)}
-                        </td>
-                        <td className="text-center text-sm-muted">
-                          <LastActiveBadge ts={s.last_active} />
-                        </td>
-                        <td className="text-center" style={{ width: 130 }}>
-                          <ProgressBar pct={pct} />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="panel student-row-list" style={{ padding: "0.5rem" }}>
+              {progress.students.map((s) => {
+                const pct = s.labs_assigned > 0 ? Math.round((s.labs_passed / s.labs_assigned) * 100) : 0;
+                return (
+                  <div
+                    key={s.student_id}
+                    className="student-row-card"
+                    role="link"
+                    tabIndex={0}
+                    onClick={() => navigate(`/instructor/groups/${groupId}/students/${s.student_id}`)}
+                    onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); navigate(`/instructor/groups/${groupId}/students/${s.student_id}`); } }}
+                  >
+                    <div className="avatar-circle">{initials(s.email)}</div>
+                    <div className="student-row-identity">
+                      <div className="flex-center gap-sm">
+                        <span className="student-row-email">{s.email}</span>
+                        {s.at_risk && <span className="badge badge-danger">At risk</span>}
+                      </div>
+                      <div className="student-row-meta">{[s.semester, s.study_program].filter(Boolean).join(" · ") || "—"}</div>
+                    </div>
+                    <div className="student-row-metrics">
+                      <div className="student-row-metric">
+                        <div className="student-row-metric-value">{s.total_sessions}</div>
+                        <div className="student-row-metric-label">Sessions</div>
+                      </div>
+                      <div className="student-row-metric">
+                        <div className="student-row-metric-value">{fmtTime(s.total_time_seconds)}</div>
+                        <div className="student-row-metric-label">Time</div>
+                      </div>
+                      <div className="student-row-metric">
+                        <LastActiveBadge ts={s.last_active} />
+                        <div className="student-row-metric-label">Active</div>
+                      </div>
+                      <ProgressRing pct={pct} size={44} strokeWidth={4} label={`${s.labs_passed}/${s.labs_assigned}`} />
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </section>
 
-        {/* -- 4. Lab Stats -- */}
+        {/* -- 4. Lab pass rates chart -- */}
         {progress?.labs && progress.labs.length > 0 && (
           <section className="section-block">
-            <h2>Lab Difficulty</h2>
-            <div className="panel" style={{ padding: 0, overflow: "auto" }}>
-              <table className="data-table" style={{ width: "100%", marginBottom: 0 }}>
-                <thead>
-                  <tr>
-                    <th>Lab</th>
-                    <th className="text-center">Passed</th>
-                    <th className="text-center">Avg Time</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {progress.labs.map((l) => (
-                    <tr key={l.lab_id}>
-                      <td style={{ fontWeight: 500 }}>{l.title}</td>
-                      <td className="text-center">
-                        <span className="mono-value" style={{
-                          color: l.students_passed > 0 ? "var(--green)" : "var(--ink)",
-                        }}>
-                          {l.students_passed} / {progress.total_students}
-                        </span>
-                      </td>
-                      <td className="mono-cell text-center text-sm-muted">
-                        {l.avg_time_minutes > 0 ? fmtTime(l.avg_time_minutes * 60) : "—"}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <h2>Lab Pass Rates</h2>
+            <LabPassRateChart labs={progress.labs} totalStudents={progress.total_students} />
           </section>
         )}
+
+        {/* -- 5. Recent Activity -- */}
+        <section className="section-block">
+          <h2>Recent Activity</h2>
+          {group?.recent_activity && group.recent_activity.length > 0 ? (
+            <div className="panel">
+              <div className="timeline">
+                {group.recent_activity.map((ev, i) => (
+                  <div key={i} className="timeline-row">
+                    <span className="timeline-text">
+                      <strong className="text-mono-data" style={{ fontSize: "0.78rem" }}>{ev.student_id}</strong>
+                      {" "}{ev.action}{" "}{ev.lab_title}
+                    </span>
+                    <span className="timeline-time">{timeAgo(ev.timestamp)}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="timeline-hint">
+                <Terminal size={13} />
+                For the full command/session audit log, a platform operator can run <code>labctl status &lt;lab&gt; &lt;student&gt;</code> on the lab worker.
+              </div>
+            </div>
+          ) : (
+            <div className="panel text-center" style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
+              No recent activity in this group.
+            </div>
+          )}
+        </section>
       </div>
 
       <ConfirmModal
@@ -546,79 +543,6 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
           style={{ width: "100%", marginBottom: "0.75rem" }}
         />
       </ConfirmModal>
-    </>
-  );
-}
-
-/* -- Sub-components -- */
-
-interface LabAssignmentCardProps {
-  labId: string;
-  labTitle: string;
-  deadline: string | null;
-  busy: string | null;
-  onSaveDeadline: (d: string | null) => void;
-  onRemove: () => void;
-}
-
-function LabAssignmentCard({ labId, labTitle, deadline, busy, onSaveDeadline, onRemove }: LabAssignmentCardProps) {
-  const parsed = deadline ? new Date(deadline) : null;
-  const origDate = parsed && !isNaN(parsed.getTime()) ? parsed : null;
-  const [localDate, setLocalDate] = useState<Date | null>(origDate);
-  const isSaving = busy === `deadline-${labId}`;
-  const isRemoving = busy === `remove-${labId}`;
-  const isOverdue = origDate && origDate < new Date();
-
-  // Sync when the prop changes externally (e.g. after save + refresh)
-  useEffect(() => {
-    const next = deadline ? new Date(deadline) : null;
-    setLocalDate(next && !isNaN(next.getTime()) ? next : null);
-  }, [deadline]);
-
-  const hasChanged = (localDate?.getTime() || 0) !== (origDate?.getTime() || 0);
-
-  function saveDate(): void {
-    onSaveDeadline(localDate ? localDate.toISOString().replace("Z", "+00:00") : null);
-  }
-
-  return (
-    <div className="panel lab-assignment-card" style={{ opacity: isRemoving ? 0.5 : 1 }}>
-      <div className="lab-assignment-row">
-        <div className="lab-assignment-info" style={{ flex: 1 }}>
-          <span className="lab-assignment-title">{labTitle}</span>
-          <Link href={`/instructor/labs/${labId}`} style={{ fontSize: "0.78rem", flexShrink: 0 }}>
-            View
-          </Link>
-        </div>
-        <div className="lab-assignment-controls">
-          <span className="text-xs" style={{ color: isOverdue ? "var(--red)" : "var(--muted)", fontWeight: 500 }}>Due</span>
-          <DatePicker
-            selected={localDate}
-            onChange={(date: Date | null) => setLocalDate(date)}
-            showTimeSelect
-            timeFormat="HH:mm"
-            timeIntervals={15}
-            dateFormat="MMM d, HH:mm"
-            placeholderText="None"
-            isClearable
-            className="datepicker-input datepicker-compact"
-            popperPlacement="bottom-end"
-          />
-          {hasChanged && (
-            <button className="btn btn-primary btn-sm" style={{ height: 26, fontSize: "0.75rem", padding: "0 0.4rem" }} disabled={!!busy} onClick={saveDate}>
-              {isSaving ? "..." : "Save"}
-            </button>
-          )}
-          <button
-            className="btn btn-sm btn-danger-outline"
-            style={{ height: 26, fontSize: "0.75rem", padding: "0 0.4rem" }}
-            disabled={!!busy}
-            onClick={onRemove}
-          >
-            {isRemoving ? "..." : "Remove"}
-          </button>
-        </div>
-      </div>
-    </div>
+    </InstructorLayout>
   );
 }

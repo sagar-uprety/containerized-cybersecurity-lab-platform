@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import type { User, SessionDetail, CheckResultData, Command } from "../types";
-import Header from "../components/Header";
+import InstructorLayout from "../components/InstructorLayout";
 import CheckResult from "../components/CheckResult";
 import AlertError from "../components/AlertError";
 import Breadcrumbs from "../components/Breadcrumbs";
-import { navigate } from "../utils/navigate";
 import { fmtTimestamp } from "../utils/time";
+import { outcomeStyle } from "../utils/outcome";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
 import { getInstructorSessionDetail } from "../api";
 
@@ -42,10 +42,6 @@ export default function InstructorGroupSessionDetail({ user, groupId, studentId,
       .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)));
   }, [labId, studentId]);
 
-  const backPath = groupId
-    ? `/instructor/groups/${groupId}/students/${studentId}`
-    : "/instructor";
-
   const breadcrumbs = groupId
     ? [
         { label: "Dashboard", href: "/instructor" },
@@ -60,25 +56,23 @@ export default function InstructorGroupSessionDetail({ user, groupId, studentId,
 
   if (error && !data) {
     return (
-      <>
-        <Header user={user} onLogout={onLogout} />
+      <InstructorLayout user={user} onLogout={onLogout}>
         <div className="container">
           <Breadcrumbs items={breadcrumbs} />
           <AlertError message={error} />
         </div>
-      </>
+      </InstructorLayout>
     );
   }
 
   if (!data) {
     return (
-      <>
-        <Header user={user} onLogout={onLogout} />
+      <InstructorLayout user={user} onLogout={onLogout}>
         <div className="container">
           <div className="skeleton" style={{ height: 28, width: 200, marginBottom: 16 }} />
           <div className="skeleton" style={{ height: 400 }} />
         </div>
-      </>
+      </InstructorLayout>
     );
   }
 
@@ -129,16 +123,17 @@ export default function InstructorGroupSessionDetail({ user, groupId, studentId,
         ? sessionChecks[sessionChecks.length - 1].check_result || sessionChecks[sessionChecks.length - 1] as unknown as CheckResultData
         : null;
 
-      sessionStatus = targetSession.outcome === "running" ? "running" : targetSession.outcome;
+      sessionStatus = targetSession.outcome;
       if (targetSession.ended_at) {
         sessionDuration = (sEnd.getTime() - sStart.getTime()) / 1000;
       }
     }
   }
 
+  const statusStyle = outcomeStyle(sessionStatus);
+
   return (
-    <>
-      <Header user={user} onLogout={onLogout} />
+    <InstructorLayout user={user} onLogout={onLogout}>
       <div className="container">
         <Breadcrumbs items={breadcrumbs} />
 
@@ -149,14 +144,12 @@ export default function InstructorGroupSessionDetail({ user, groupId, studentId,
         </div>
 
         <div className="flex-center flex-wrap gap-lg mb-lg">
-          <div className="panel inline-panel">
+          <div className="panel inline-panel flex-center gap-sm">
             <span className="status-label">Status</span>
-            <span className={`badge badge-${sessionStatus === "running" ? "running" : sessionStatus === "error" ? "error" : "stopped"}`}>
-              {(sessionStatus || "").replace("_", " ").toUpperCase()}
-            </span>
+            <span className={`badge ${statusStyle.badgeClass}`}>{statusStyle.label}</span>
           </div>
           {sessionDuration != null && (
-            <div className="panel inline-panel">
+            <div className="panel inline-panel flex-center gap-sm">
               <span className="status-label">Duration</span>
               <span>{Math.round(sessionDuration / 60)} min</span>
             </div>
@@ -181,7 +174,7 @@ export default function InstructorGroupSessionDetail({ user, groupId, studentId,
               {sessionCommands.map((cmd, i) => (
                 <div key={i} className="command-row">
                   <span className="command-timestamp">{fmtTimestamp(cmd.timestamp)}</span>
-                  <code className="command-text">{cmd.command}</code>
+                  <code className="command-text">{cmd.command?.trim() ? cmd.command : "(Enter)"}</code>
                 </div>
               ))}
             </div>
@@ -189,7 +182,28 @@ export default function InstructorGroupSessionDetail({ user, groupId, studentId,
             <p className="text-sm-muted">No commands recorded{sessionNum ? " for this session" : ""}.</p>
           )}
         </div>
+
+        {!sessionNum && lifecycle_events && lifecycle_events.length > 0 && (
+          <div className="panel mb-0">
+            <div className="panel-header">
+              <h2 className="mb-0">Lifecycle Events</h2>
+            </div>
+            <div className="event-list">
+              {lifecycle_events.map((event, i) => (
+                <div key={i} className="event-row">
+                  <span className="event-timestamp">{fmtTimestamp(event.timestamp)}</span>
+                  <span className="event-action">{event.action}</span>
+                  {event.result && (
+                    <span className={`event-result ${event.result === "success" ? "event-success" : "event-error"}`}>
+                      {event.result}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
-    </>
+    </InstructorLayout>
   );
 }

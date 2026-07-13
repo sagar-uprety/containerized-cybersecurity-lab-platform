@@ -75,6 +75,7 @@ export interface GroupDetail {
   labs: GroupLab[];
   approved_members: GroupMember[];
   pending_members: PendingMember[];
+  recent_activity?: ActivityEvent[];
 }
 
 export interface GroupLab {
@@ -99,6 +100,10 @@ export interface DashboardStats {
   total_students: number;
   total_labs: number;
   total_pending: number;
+  total_passed: number;
+  total_possible: number;
+  total_at_risk: number;
+  active_this_week: number;
   groups: Group[];
   recent_activity: ActivityEvent[];
 }
@@ -115,6 +120,7 @@ export interface GroupProgress {
   total_labs: number;
   total_passed: number;
   total_possible: number;
+  total_at_risk: number;
   students: StudentProgress[];
   labs: LabProgress[];
 }
@@ -129,12 +135,14 @@ export interface StudentProgress {
   total_sessions: number;
   total_time_seconds: number;
   last_active?: string;
+  at_risk?: boolean;
 }
 
 export interface LabProgress {
   lab_id: string;
   title: string;
   students_passed: number;
+  students_attempted: number;
   avg_time_minutes: number;
 }
 
@@ -189,6 +197,7 @@ export interface StudentsProgressEntry {
   total_sessions: number;
   total_time_seconds: number;
   last_active?: string;
+  at_risk?: boolean;
   groups?: Array<{ id: number; name: string }>;
 }
 

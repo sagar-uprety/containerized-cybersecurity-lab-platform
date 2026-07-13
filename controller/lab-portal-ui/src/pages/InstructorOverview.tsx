@@ -1,23 +1,14 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import Header from "../components/Header.jsx";
-import StatCard from "../components/StatCard";
+import * as Dialog from "@radix-ui/react-dialog";
+import InstructorLayout from "../components/InstructorLayout";
 import AlertError from "../components/AlertError";
 import Link from "../components/Link";
+import { Layers, BookMarked, Plus } from "lucide-react";
 import { getDashboardStats, createGroup, getInstructorStudents } from "../api.js";
 import { navigate } from "../utils/navigate";
-import { timeAgo } from "../utils/time";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
 import { useDebounce } from "../utils/useDebounce";
-import type { User, DashboardStats, ActivityEvent, Group, StudentsProgressEntry } from "../types";
-
-const ACTION_LABELS: Record<string, string> = {
-  start: "started",
-  stop: "stopped",
-  end: "ended",
-  check: "checked",
-  auto_stop: "auto-stopped",
-  retention_cleanup: "cleaned up",
-};
+import type { User, DashboardStats, Group, StudentsProgressEntry } from "../types";
 
 interface Props {
   user: User;
@@ -27,6 +18,7 @@ interface Props {
 export default function InstructorOverview({ user, onLogout }: Props) {
   const [data, setData] = useState<DashboardStats | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [newGroupOpen, setNewGroupOpen] = useState(false);
   const [newGroup, setNewGroup] = useState("");
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState("");
@@ -61,6 +53,7 @@ export default function InstructorOverview({ user, onLogout }: Props) {
     try {
       await createGroup(newGroup.trim());
       setNewGroup("");
+      setNewGroupOpen(false);
       await refresh();
     } catch (err: unknown) {
       setError((err as Error).message);
@@ -88,27 +81,48 @@ export default function InstructorOverview({ user, onLogout }: Props) {
     }
   }
 
+  const completionPct = data && data.total_possible > 0
+    ? Math.round((data.total_passed / data.total_possible) * 100)
+    : null;
+  const needsAttention = data ? data.total_pending + data.total_at_risk : 0;
+  const activePct = data && data.total_students > 0
+    ? Math.round((data.active_this_week / data.total_students) * 100)
+    : null;
+
   return (
-    <>
-      <Header user={user} onLogout={onLogout} />
+    <InstructorLayout user={user} onLogout={onLogout}>
       <div className="container">
-        <h1>Instructor Dashboard</h1>
+        <div className="page-title-row">
+          <h1 className="mb-0">Instructor Dashboard</h1>
+          {data && (
+            <div className="chip-row" style={{ marginLeft: "auto" }}>
+              <span className="chip"><Layers size={13} /> {data.total_groups} group{data.total_groups !== 1 ? "s" : ""}</span>
+              <span className="chip"><BookMarked size={13} /> {data.total_labs} lab{data.total_labs !== 1 ? "s" : ""}</span>
+            </div>
+          )}
+        </div>
 
         {data && (
-          <div className="stat-grid mb-lg">
-            <StatCard value={data.total_groups} label="Groups" />
-            <StatCard
-              value={data.total_students}
-              label="Students"
-              href="/instructor/students"
-            />
-            <StatCard value={data.total_labs} label="Labs" />
-            <StatCard
-              value={data.total_pending}
-              label="Pending Approvals"
-              highlight={data.total_pending > 0}
-              href={data.total_pending > 0 ? "/instructor/pending" : undefined}
-            />
+          <div className="insight-grid mb-lg">
+            <div className="insight-tile">
+              <div className="insight-tile-value">{completionPct != null ? `${completionPct}%` : "—"}</div>
+              <div className="insight-tile-label">Overall completion ({data.total_passed} / {data.total_possible} assignments)</div>
+            </div>
+            {needsAttention > 0 ? (
+              <Link href="/instructor/pending" className="insight-tile insight-tile-attention">
+                <div className="insight-tile-value">{needsAttention}</div>
+                <div className="insight-tile-label">Needs attention ({data.total_pending} pending, {data.total_at_risk} at risk)</div>
+              </Link>
+            ) : (
+              <div className="insight-tile">
+                <div className="insight-tile-value">0</div>
+                <div className="insight-tile-label">Needs attention — all clear</div>
+              </div>
+            )}
+            <div className="insight-tile">
+              <div className="insight-tile-value">{activePct != null ? `${activePct}%` : "—"}</div>
+              <div className="insight-tile-label">Active this week ({data.active_this_week} / {data.total_students} students)</div>
+            </div>
           </div>
         )}
 
@@ -162,38 +176,28 @@ export default function InstructorOverview({ user, onLogout }: Props) {
         <section className="section-block">
           <div className="section-header-row">
             <h2 className="mb-0">Groups</h2>
-            <form onSubmit={handleCreate} className="flex-center" style={{ gap: "0.35rem" }}>
-              <input
-                type="text"
-                placeholder="New group..."
-                value={newGroup}
-                onChange={(e) => setNewGroup(e.target.value)}
-                required
-                style={{ width: 140, fontSize: "0.82rem", padding: "0.3rem 0.5rem", height: 30 }}
-              />
-              <button type="submit" className="btn btn-sm" disabled={creating} style={{ height: 30, fontSize: "0.78rem" }}>
-                {creating ? "..." : "+ Create"}
+            <div className="flex-center gap-sm">
+              {filteredGroups.length > 3 && (
+                <input
+                  type="text"
+                  placeholder="Filter groups..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  style={{ maxWidth: 200 }}
+                />
+              )}
+              <button className="btn btn-primary btn-sm" onClick={() => setNewGroupOpen(true)}>
+                <Plus size={14} style={{ marginRight: 4 }} /> New Group
               </button>
-            </form>
+            </div>
           </div>
 
-          {filteredGroups.length > 3 && (
-            <input
-              type="text"
-              placeholder="Filter groups..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="mb-md"
-              style={{ maxWidth: 220 }}
-            />
-          )}
-
           {!data && !error && (
-            <div className="labs-grid">
-              {[1, 2].map((i) => (
-                <div key={i} className="lab-card">
-                  <div className="skeleton" style={{ height: 20, width: "60%" }} />
-                  <div className="skeleton" style={{ height: 16, width: "40%", marginTop: 8 }} />
+            <div className="insight-grid mb-lg">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="insight-tile">
+                  <div className="skeleton" style={{ height: 30, width: "50%" }} />
+                  <div className="skeleton" style={{ height: 14, width: "80%", marginTop: 10 }} />
                 </div>
               ))}
             </div>
@@ -236,34 +240,35 @@ export default function InstructorOverview({ user, onLogout }: Props) {
             </div>
           )}
         </section>
-
-        {/* Recent Activity */}
-        <section className="section-block">
-          <h2>Recent Activity</h2>
-          {data?.recent_activity && data.recent_activity.length > 0 ? (
-            <div className="flex-col gap-sm">
-              {data.recent_activity.map((ev: ActivityEvent, i: number) => (
-                <div key={i} style={{ padding: "0.5rem 0.75rem", borderRadius: "var(--radius)", background: "var(--surface)", border: "1px solid var(--border-light)", fontSize: "0.82rem" }}>
-                  <div className="flex-between">
-                    <span>
-                      <strong className="text-mono-data" style={{ fontSize: "0.78rem" }}>{ev.student_id}</strong>
-                      {" "}{ACTION_LABELS[ev.action] || ev.action}{" "}
-                      <span style={{ color: "var(--ink-secondary)" }}>{ev.lab_title}</span>
-                    </span>
-                    <span className="text-sm-muted" style={{ fontSize: "0.72rem", flexShrink: 0, marginLeft: "var(--sp-4)" }}>
-                      {timeAgo(ev.timestamp)}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="panel text-center" style={{ color: "var(--muted)", fontSize: "0.85rem" }}>
-              No recent activity.
-            </div>
-          )}
-        </section>
       </div>
-    </>
+
+      <Dialog.Root open={newGroupOpen} onOpenChange={setNewGroupOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="dialog-overlay" />
+          <Dialog.Content className="dialog-content">
+            <Dialog.Title className="dialog-title">New group</Dialog.Title>
+            <Dialog.Description className="dialog-description">
+              Create a group for a semester or cohort. Students request to join after signing up.
+            </Dialog.Description>
+            <form onSubmit={handleCreate}>
+              <input
+                type="text"
+                placeholder="e.g. WS 2026/27 — Security Lab"
+                value={newGroup}
+                onChange={(e) => setNewGroup(e.target.value)}
+                autoFocus
+                required
+              />
+              <div className="dialog-actions">
+                <button type="button" className="btn btn-sm" onClick={() => setNewGroupOpen(false)}>Cancel</button>
+                <button type="submit" className="btn btn-primary btn-sm" disabled={creating}>
+                  {creating ? "Creating..." : "Create group"}
+                </button>
+              </div>
+            </form>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </InstructorLayout>
   );
 }
