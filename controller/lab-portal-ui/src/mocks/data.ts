@@ -183,12 +183,13 @@ function buildStore() {
     }
   }
 
-  // Lab assignments per group — every group gets 3-5 labs, some with deadlines
-  // (a mix of future, overdue, and none) so at-risk/overdue UI states populate.
+  // Lab assignments per group — every group gets 2 to (all but one) labs, so
+  // every group's "Available Labs" (unassigned) section always has at least
+  // one entry to test, never fully empty and never fully assigned.
   const groupLabs: MockGroupLab[] = [];
   const now = Date.now();
   groups.forEach((g, gi) => {
-    const labCount = randInt(rand, 3, LABS.length);
+    const labCount = randInt(rand, 2, LABS.length - 1);
     const shuffled = [...LABS].sort(() => rand() - 0.5).slice(0, labCount);
     shuffled.forEach((lab, li) => {
       let deadline: string | null = null;
@@ -210,14 +211,23 @@ function buildStore() {
   const checkResults: MockCheckResult[] = [];
   const commandEvents: MockCommandEvent[] = [];
 
+  const approvedUserIds = memberships.filter((m) => m.status === "approved").map((m) => m.user_id);
+  // A handful of students who never started anything (exercises "Never" last-active,
+  // 0/N completion) and a handful of "star" students who pass everything they touch
+  // (exercises 100% completion, no at-risk despite overdue deadlines).
+  const neverActiveIds = new Set([approvedUserIds[2], approvedUserIds[9], approvedUserIds[33]].filter(Boolean));
+  const starStudentIds = new Set([approvedUserIds[0], approvedUserIds[20]].filter(Boolean));
+
   for (const membership of memberships) {
     if (membership.status !== "approved") continue;
+    if (neverActiveIds.has(membership.user_id)) continue;
     const user = users.find((u) => u.id === membership.user_id)!;
+    const isStar = starStudentIds.has(membership.user_id);
     const assignedLabIds = groupLabs.filter((gl) => gl.group_id === membership.group_id).map((gl) => gl.lab_id);
 
     for (const labId of assignedLabIds) {
       // A minority of assignments are untouched (not attempted) — realistic spread.
-      if (rand() < 0.12) continue;
+      if (!isStar && rand() < 0.12) continue;
 
       const sessionCount = weighted(rand, [[1, 5], [2, 4], [3, 3], [4, 1]]);
       let latestPassed = false;
@@ -232,15 +242,20 @@ function buildStore() {
         lifecycleEvents.push({ student_id: user.internal_id, lab_id: labId, action: "start", timestamp: startDate.toISOString() });
 
         const commands = COMMAND_POOL[labId] || [];
-        const cmdCount = randInt(rand, 3, Math.min(8, commands.length));
+        // 8% of sessions record zero commands (e.g. student opened the
+        // terminal and closed it) — exercises the "No commands recorded" state.
+        const cmdCount = rand() < 0.08 ? 0 : randInt(rand, 3, Math.min(8, commands.length));
         for (let c = 0; c < cmdCount; c++) {
           const cmdTime = new Date(startDate.getTime() + (c + 1) * ((durationMin * 60000) / (cmdCount + 1)));
-          commandEvents.push({ student_id: user.internal_id, lab_id: labId, timestamp: cmdTime.toISOString(), command: pick(rand, commands) });
+          // Occasionally a bare Enter keypress with no command text — exercises
+          // the "(Enter)" placeholder instead of a truly blank row.
+          const command = rand() < 0.06 ? "" : pick(rand, commands);
+          commandEvents.push({ student_id: user.internal_id, lab_id: labId, timestamp: cmdTime.toISOString(), command });
         }
 
         // Weighted outcome: passing gets more likely on later attempts (realistic learning curve).
         const passChance = 0.42 + s * 0.22;
-        const passed = rand() < passChance;
+        const passed = isStar ? true : rand() < passChance;
         latestPassed = isLast ? passed : latestPassed;
 
         const checkDefs = CHECKS_POOL[labId] || [];
