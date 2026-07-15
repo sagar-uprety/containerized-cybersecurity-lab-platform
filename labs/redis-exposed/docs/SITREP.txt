@@ -5,9 +5,9 @@ The cache holds customer data, order state, session tokens, and internal configu
 Your mission:
 
 1. Use the browser terminal to inspect the lab network.
-2. Identify the cache service, check its network binding, and determine whether it requires credentials.
+2. Identify the cache service, compare its client-facing and application-facing network paths, and determine whether it requires credentials.
 3. Demonstrate the impact using only the fake demo data — show that both read and write access are possible.
-4. Hardened the cache with layered controls (network + access) without breaking the order application.
+4. Harden the cache without breaking the order application or administrative access.
 5. Run the portal check and record the result.
 6. Complete the mandatory feedback form after ending the lab.
 

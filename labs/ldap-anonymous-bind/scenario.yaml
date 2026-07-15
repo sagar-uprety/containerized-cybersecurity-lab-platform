@@ -11,7 +11,7 @@ story:
 
 documentation:
   student_guide_url: /docs/labs/ldap-anonymous-bind/
-  solution_guide_url: /docs/labs/ldap-anonymous-bind-solution/
+  solution_notes_url: /docs/labs/ldap-anonymous-bind-solution/
   instructor_guide_url: /docs/labs/ldap-anonymous-bind-instructor/
 
 access:
@@ -25,35 +25,61 @@ lifecycle:
   retention_after_stop_minutes: 180
 
 checker:
-  version: 1
+  version: 2
   states:
     - vulnerable
     - fixed
   checks:
     - name: ldap_anonymous_search
-      label: "Anonymous LDAP searches are blocked"
+      label: "Anonymous LDAP read/search access is blocked"
       kind: objective
       exec_in: workstation
-      run: "ldapsearch -x -H ldap://ldap-host -b 'dc=lab,dc=local' '(objectClass=posixAccount)' cn 2>&1"
+      run: >
+        OUT=$(LDAPTLS_REQCERT=never ldapsearch -x -ZZ -H ldap://ldap-host
+        -b 'dc=lab,dc=local' '(objectClass=posixAccount)' cn 2>&1); RC=$?;
+        if [ "$RC" -eq 0 ] && echo "$OUT" | grep -q '^cn:'; then echo ANONYMOUS_READABLE;
+        elif echo "$OUT" | grep -q 'Insufficient access'; then echo ANONYMOUS_BLOCKED;
+        else
+          OUT=$(ldapsearch -x -H ldap://ldap-host -b 'dc=lab,dc=local'
+          '(objectClass=posixAccount)' cn 2>&1); RC=$?;
+          if [ "$RC" -eq 0 ] && echo "$OUT" | grep -q '^cn:'; then echo ANONYMOUS_READABLE;
+          elif echo "$OUT" | grep -q 'Insufficient access'; then echo ANONYMOUS_BLOCKED;
+          else echo CHECK_ERROR; fi;
+        fi
       states:
-        vulnerable: "output_contains: cn:"
-        fixed: "output_contains: Insufficient access"
+        vulnerable: "output_eq: ANONYMOUS_READABLE"
+        fixed: "output_eq: ANONYMOUS_BLOCKED"
     - name: ldap_tls_enforced
-      label: "LDAP encryption (TLS) is enforced"
+      label: "Authenticated plaintext LDAP is rejected"
       kind: objective
       exec_in: workstation
-      run: "LDAPTLS_REQCERT=never ldapsearch -x -ZZ -H ldap://ldap-host -b '' -s base namingContexts 2>&1"
+      run: >
+        OUT=$(ldapsearch -x -H ldap://ldap-host -D 'cn=admin,dc=lab,dc=local'
+        -w dummypassword -b 'dc=lab,dc=local' '(objectClass=posixAccount)' cn 2>&1); RC=$?;
+        if [ "$RC" -eq 0 ] && echo "$OUT" | grep -q '^cn:'; then echo PLAINTEXT_ALLOWED;
+        elif echo "$OUT" | grep -q 'Confidentiality required'; then echo PLAINTEXT_REJECTED;
+        else echo CHECK_ERROR; fi
       states:
-        vulnerable: "output_contains: Protocol error"
-        fixed: "output_contains: namingContexts"
+        vulnerable: "output_eq: PLAINTEXT_ALLOWED"
+        fixed: "output_eq: PLAINTEXT_REJECTED"
     - name: ldap_authenticated_search
-      label: "Authenticated LDAP searches are allowed"
+      label: "Authenticated directory access remains available"
       kind: guardrail
       exec_in: workstation
-      run: "ldapsearch -x -H ldap://ldap-host -D 'cn=admin,dc=lab,dc=local' -w dummypassword -b 'dc=lab,dc=local' '(objectClass=posixAccount)' cn 2>&1 | head -20"
+      run: >
+        OUT=$(LDAPTLS_REQCERT=never ldapsearch -x -ZZ -H ldap://ldap-host
+        -D 'cn=admin,dc=lab,dc=local' -w dummypassword -b 'dc=lab,dc=local'
+        '(objectClass=posixAccount)' cn 2>&1); RC=$?;
+        if [ "$RC" -eq 0 ] && echo "$OUT" | grep -q '^cn:'; then echo AUTH_OK_STARTTLS;
+        else
+          OUT=$(ldapsearch -x -H ldap://ldap-host -D 'cn=admin,dc=lab,dc=local'
+          -w dummypassword -b 'dc=lab,dc=local' '(objectClass=posixAccount)' cn 2>&1); RC=$?;
+          if [ "$RC" -eq 0 ] && echo "$OUT" | grep -q '^cn:'; then echo AUTH_OK_PLAINTEXT;
+          else echo AUTH_FAILED; fi;
+        fi
       states:
-        vulnerable: "output_contains: cn:"
-        fixed: "output_contains: cn:"
+        vulnerable: "output_contains: AUTH_OK_"
+        fixed: "output_contains: AUTH_OK_"
 
 build:
   images:
@@ -89,6 +115,9 @@ workstation:
     LDAP_PORT: "389"
   depends_on:
     - ldap-host
+  shared_volumes:
+    - name: ldap_access
+      target: /lab/access
   cap_add:
     - NET_RAW
 
@@ -114,6 +143,8 @@ containers:
         target: /var/lib/ldap
       - name: ldap_config
         target: /etc/ldap/slapd.d
+      - name: ldap_access
+        target: /lab/access
     healthcheck:
       command:
         - CMD-SHELL

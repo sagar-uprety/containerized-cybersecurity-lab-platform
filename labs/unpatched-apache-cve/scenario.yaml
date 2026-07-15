@@ -12,7 +12,7 @@ story:
 
 documentation:
   student_guide_url: /docs/labs/unpatched-apache-cve/
-  solution_guide_url: /docs/labs/unpatched-apache-cve-solution/
+  solution_notes_url: /docs/labs/unpatched-apache-cve-solution/
   instructor_guide_url: /docs/labs/unpatched-apache-cve-instructor/
 
 access:
@@ -26,30 +26,43 @@ lifecycle:
   retention_after_stop_minutes: 180
 
 checker:
-  version: 1
+  version: 2
   states:
     - vulnerable
     - fixed
   checks:
     - name: apache_exploit
-      label: "Path-traversal vulnerability is patched"
+      label: "Compensating mitigation blocks path traversal"
       kind: objective
       exec_in: workstation
       run: >
-        OUT=$(curl --path-as-is -s http://apache-host/cgi-bin/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd 2>/dev/null);
-        EC=$?;
-        if [ "$EC" -ne 0 ]; then echo DOWN;
-        elif echo "$OUT" | grep -q '^root:'; then echo EXPLOITABLE;
-        else echo SAFE;
+        CONF=/lab/apache/httpd.conf; BODY=$(mktemp);
+        ACTIVE_CGI=0; ACTIVE_ALIAS=0; ACTIVE_CGI_DIR=0; ROOT_DENIED=0;
+        grep -Eq '^[[:space:]]*LoadModule[[:space:]]+cgi_module' "$CONF" && ACTIVE_CGI=1;
+        grep -Eq '^[[:space:]]*Alias[[:space:]]+/cgi-bin/' "$CONF" && ACTIVE_ALIAS=1;
+        grep -Eq '^[[:space:]]*<Directory[[:space:]]+"/usr/local/apache2/cgi-bin/">' "$CONF" && ACTIVE_CGI_DIR=1;
+        sed -n '/^[[:space:]]*<Directory \/>/,/^[[:space:]]*<\/Directory>/p' "$CONF"
+        | grep -Eq '^[[:space:]]*Require[[:space:]]+all[[:space:]]+denied' && ROOT_DENIED=1;
+        if ! STATUS=$(curl --path-as-is -sS -o "$BODY" -w '%{http_code}'
+        --connect-timeout 5 http://apache-host/cgi-bin/.%2e/%2e%2e/%2e%2e/%2e%2e/etc/passwd); then
+          rm -f "$BODY"; echo SERVICE_DOWN;
+        elif grep -q '^root:' "$BODY"; then
+          rm -f "$BODY"; echo EXPLOITABLE;
+        elif [ "$STATUS" != 403 ] && [ "$STATUS" != 404 ]; then
+          rm -f "$BODY"; echo HTTP_ERROR_$STATUS;
+        elif [ "$ACTIVE_CGI" -ne 0 ] || [ "$ACTIVE_ALIAS" -ne 0 ] || [ "$ACTIVE_CGI_DIR" -ne 0 ] || [ "$ROOT_DENIED" -ne 1 ]; then
+          rm -f "$BODY"; echo INCOMPLETE_MITIGATION;
+        else
+          rm -f "$BODY"; echo MITIGATED;
         fi
       states:
         vulnerable: "output_eq: EXPLOITABLE"
-        fixed: "output_eq: SAFE"
+        fixed: "output_eq: MITIGATED"
     - name: apache_home
       label: "Apache web server is reachable"
       kind: guardrail
       exec_in: workstation
-      run: "if curl -s -o /dev/null -w '' --connect-timeout 5 http://apache-host/ 2>/dev/null; then echo 200; else echo DOWN; fi"
+      run: "if STATUS=$(curl -sS -o /dev/null -w '%{http_code}' --connect-timeout 5 http://apache-host/); then echo \"$STATUS\"; else echo DOWN; fi"
       states:
         vulnerable: "output_eq: 200"
         fixed: "output_eq: 200"

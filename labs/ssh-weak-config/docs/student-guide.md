@@ -41,13 +41,9 @@ Your lab environment includes a workstation and the target SSH server on an
 isolated lab network. Use the portal to **Start Lab**, **Run Check**, **Reset**,
 or **End Lab** as needed.
 
-**SSH access:** Use the lab key to connect to the target server:
-
-```bash
-ssh -i /lab/keys/lab_key lab-user@ssh-host
-```
-
-When prompted for a password (for `sudo`), use: `demo-ssh-pass`
+The browser terminal opens on the workstation. The target hostname and
+legitimate lab key are available in the lab environment; use standard SSH
+client help to determine how to connect.
 
 ## Investigation
 
@@ -72,8 +68,9 @@ provides - do not introduce real credentials or external resources.
 
 Now fix the issues.
 
-**Goal:** Harden the SSH server so that only key-based authentication is
-accepted, root login is restricted, and brute-force attempts are blocked.
+**Goal:** Harden the SSH server so that only the intended key remains usable,
+direct root login and weak-password access are removed, authentication attempts
+are limited, and repeated failures are blocked from the SSH authentication log.
 
 **Constraints:** Your legitimate key-based access must continue to work after
 your changes. Changes must survive a service restart.
@@ -81,15 +78,13 @@ your changes. Changes must survive a service restart.
 **References:**
 
 -   Official documentation: <https://man.openbsd.org/sshd_config>
--   Local: `man sshd_config`, `sshd -T | grep -i <setting>`
--   Brute-force protection: `man fail2ban`, `man jail.local`
+-   Local: `man sshd_config`, `sshd -T`, `man fail2ban`, `man jail.conf`
 
-**Need a hint?**
+**Hints if you're stuck:**
 
 -   What principle requires verifying identity before granting access to a system?
--   Look for the authentication-related settings in the SSH daemon configuration file.
--   The `sshd_config` man page has a section on authentication - check the default values and what they allow.
--   The server has an intrusion-prevention framework installed. Look for a service that monitors authentication logs and can temporarily block sources of repeated failed login attempts.
+-   Review both account/key state and the authentication and logging areas of the SSH daemon and intrusion-prevention configuration.
+-   Use the authentication sections of `sshd_config(5)` and the SSH jail, log-source, and action sections of `jail.conf(5)` to identify what must change and how to prove it works.
 
 ## Verify
 
@@ -97,7 +92,7 @@ After applying your fix, confirm that:
 
 1. The vulnerability is no longer exploitable
 2. Your legitimate access still works
-3. Brute-force protection is active
+3. Brute-force protection consumes SSH events and can impose a ban
 
 Use the same tools from your investigation to re-check. When satisfied,
 click **Run Check** in the portal.

@@ -6,6 +6,8 @@ PasswordAuthentication yes
 PubkeyAuthentication yes
 PermitEmptyPasswords no
 MaxAuthTries 6
+SyslogFacility AUTH
+LogLevel VERBOSE
 
 ChallengeResponseAuthentication no
 UsePAM yes

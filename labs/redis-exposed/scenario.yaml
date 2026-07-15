@@ -11,7 +11,7 @@ story:
 
 documentation:
   student_guide_url: /docs/labs/redis-exposed/
-  solution_guide_url: /docs/labs/redis-exposed-solution/
+  solution_notes_url: /docs/labs/redis-exposed-solution/
   instructor_guide_url: /docs/labs/redis-exposed-instructor/
 
 access:
@@ -26,7 +26,7 @@ lifecycle:
   retention_after_stop_minutes: 180
 
 checker:
-  version: 1
+  version: 2
   states:
     - vulnerable
     - fixed
@@ -34,27 +34,113 @@ checker:
     - name: redis_unauth_blocked
       label: "Unauthorized Redis access is blocked"
       kind: objective
-      exec_in: workstation
-      run: "redis-cli -h redis-host ping 2>&1"
+      exec_in: redis-host
+      run: >-
+        response=$(redis-cli -h 127.0.0.1 ping 2>&1);
+        if printf '%s\n' "$response" | grep -qx PONG; then
+          echo unauth_allowed;
+        elif printf '%s\n' "$response" | grep -q NOAUTH; then
+          echo unauth_blocked;
+        else
+          echo unauth_unexpected;
+        fi
       states:
-        vulnerable: "output_contains: PONG"
-        fixed: "output_contains: NOAUTH"
-    - name: redis_acl_enforced
-      label: "Redis access controls are enforced"
+        vulnerable: "output_eq: unauth_allowed"
+        fixed: "output_eq: unauth_blocked"
+    - name: redis_bind_restricted
+      label: "Redis is unreachable from the client network"
       kind: objective
       exec_in: workstation
-      run: "redis-cli -h redis-host --user app --pass app-demo-password SET lab-test checker-value 2>&1"
+      run: >-
+        response=$(redis-cli -h redis-host ping 2>&1);
+        if printf '%s\n' "$response" | grep -qx PONG; then
+          echo client_network_exposed;
+        elif printf '%s\n' "$response" | grep -q 'Could not connect'; then
+          echo client_network_restricted;
+        else
+          echo client_network_unexpected;
+        fi
       states:
-        vulnerable: "output_contains: OK"
-        fixed: "output_contains: NOPERM"
-    - name: demo_app_healthy
-      label: "Demo application is reachable"
+        vulnerable: "output_eq: client_network_exposed"
+        fixed: "output_eq: client_network_restricted"
+    - name: app_least_privilege
+      label: "Application reads continue and writes are denied"
+      kind: objective
+      exec_in: workstation
+      run: "curl -fsS http://demo-app:8080/security-check"
+      states:
+        vulnerable: "output_eq: read=false write=allowed"
+        fixed: "output_eq: read=false write=denied"
+    - name: redis_admin_access
+      label: "Redis administrator can authenticate and administer data"
+      kind: objective
+      exec_in: redis-host
+      run: >-
+        result=$(REDISCLI_AUTH=admin-demo-password redis-cli -h 127.0.0.1
+        --user admin --raw ACL WHOAMI 2>/dev/null);
+        if [ "$result" = admin ] &&
+        REDISCLI_AUTH=admin-demo-password redis-cli -h 127.0.0.1 --user admin
+        SET checker:admin-write ok >/dev/null 2>&1 &&
+        [ "$(REDISCLI_AUTH=admin-demo-password redis-cli -h 127.0.0.1
+        --user admin --raw GET checker:admin-write 2>/dev/null)" = ok ]; then
+          REDISCLI_AUTH=admin-demo-password redis-cli -h 127.0.0.1 --user admin
+          DEL checker:admin-write >/dev/null 2>&1;
+          echo admin_operational;
+        else
+          echo admin_unavailable;
+        fi
+      states:
+        vulnerable: "output_eq: admin_unavailable"
+        fixed: "output_eq: admin_operational"
+    - name: redis_runtime_config
+      label: "Restarted Redis uses the hardened runtime configuration"
+      kind: objective
+      exec_in: redis-host
+      run: >-
+        vulnerable_bind=$(redis-cli -h 127.0.0.1 --raw CONFIG GET bind
+        2>/dev/null | sed -n '2p');
+        fixed_bind=$(REDISCLI_AUTH=admin-demo-password redis-cli -h 127.0.0.1
+        --user admin --raw CONFIG GET bind 2>/dev/null | sed -n '2p');
+        aclfile=$(REDISCLI_AUTH=admin-demo-password redis-cli -h 127.0.0.1
+        --user admin --raw CONFIG GET aclfile 2>/dev/null | sed -n '2p');
+        if [ "$vulnerable_bind" = 0.0.0.0 ]; then
+          echo runtime_vulnerable;
+        elif [ "$fixed_bind" = 'redis-app 127.0.0.1' ] &&
+        [ "$aclfile" = /usr/local/etc/redis/users.acl ]; then
+          echo runtime_hardened;
+        else
+          echo runtime_unexpected;
+        fi
+      states:
+        vulnerable: "output_eq: runtime_vulnerable"
+        fixed: "output_eq: runtime_hardened"
+    - name: demo_app_behavior
+      label: "Demo application reads expected cache data"
       kind: guardrail
       exec_in: workstation
-      run: "curl -s -o /dev/null -w '%{http_code}' http://demo-app:8080/health"
+      run: >-
+        if [ "$(curl -fsS http://demo-app:8080/)" =
+        'Order cache is reachable. admin_mode=false' ]; then
+          echo app_operational;
+        else
+          echo app_broken;
+        fi
       states:
-        vulnerable: "output_eq: 200"
-        fixed: "output_eq: 200"
+        vulnerable: "output_eq: app_broken"
+        fixed: "output_eq: app_operational"
+    - name: demo_app_healthy
+      label: "Demo application health check passes"
+      kind: guardrail
+      exec_in: workstation
+      run: >-
+        if [ "$(curl -fsS http://demo-app:8080/health)" = ok ]; then
+          echo app_healthy;
+        else
+          echo app_unhealthy;
+        fi
+      states:
+        vulnerable: "output_eq: app_unhealthy"
+        fixed: "output_eq: app_healthy"
 
 build:
   images:
@@ -85,6 +171,10 @@ services:
     internal_ports:
       http: 8080
 
+networks:
+  - name: client-net
+  - name: app-net
+
 resources:
   workstation:
     cpus: "0.50"
@@ -104,7 +194,7 @@ workstation:
   shared_volumes:
     - name: redis_config
       target: /lab/redis
-    - name: redis_config
+    - name: demo_app_config
       target: /lab/demo-app
   depends_on:
     - redis-host
@@ -113,6 +203,11 @@ workstation:
 containers:
   - service: redis-host
     hostname: redis-host
+    networks:
+      - app-net
+      - client-net
+    network_aliases:
+      - redis-app
     init: true
     restart: unless-stopped
     environment:
@@ -123,7 +218,9 @@ containers:
       LAB_DATA_DIR: /data
       LAB_DATA_USER: redis
       LAB_SEED_FILE: /opt/lab/seed/seed.txt
-      LAB_SEED_CMD: "redis-cli -h 127.0.0.1"
+      LAB_SEED_CMD: >-
+        redis-cli -h 127.0.0.1 ping | grep -qx PONG &&
+        redis-cli -h 127.0.0.1
       LAB_LOG_FILE: /var/log/redis-server.log
       SERVICE_ADMIN_PASSWORD: "$platform.student_password"
     expose:
@@ -149,19 +246,22 @@ containers:
 
   - service: demo-app
     hostname: demo-app
+    networks:
+      - app-net
+      - client-net
     init: true
     restart: unless-stopped
     user: "appuser"
     read_only: true
     environment:
-      REDIS_HOST: redis-host
+      REDIS_HOST: redis-app
       REDIS_PORT: "6379"
     ports:
       - host_ip: "$platform.host_bind_ip"
         host_port: "$platform.app_port"
         container_port: 8080
     volumes:
-      - name: redis_config
+      - name: demo_app_config
         target: /lab/demo-app
     depends_on:
       - redis-host

@@ -2,6 +2,12 @@
 set -eu
 
 touch /var/log/auth.log
+chmod 0640 /var/log/auth.log
+
+# The container has no systemd journal, so route sshd's AUTH messages to the
+# file consumed by the fail2ban polling backend.
+rm -f /run/rsyslogd.pid
+rsyslogd
 
 # Create weak passwords for test accounts
 echo "lab-user:demo-ssh-pass" | chpasswd
@@ -36,6 +42,6 @@ groupadd -r student 2>/dev/null || true
 usermod -aG student lab-user
 usermod -aG student svc-user
 cat > /etc/sudoers.d/student-lab <<'EOF'
-%student ALL=(root) NOPASSWD: /usr/bin/fail2ban-client, /usr/bin/sed, /usr/bin/systemctl, /usr/bin/truncate, /bin/cp, /bin/chown, /bin/chmod, /bin/kill, /usr/bin/pkill, /usr/bin/vi
+%student ALL=(root) NOPASSWD: /usr/bin/fail2ban-client, /usr/bin/grep, /usr/bin/install, /usr/bin/passwd, /usr/bin/sed, /usr/bin/tee, /usr/sbin/sshd, /usr/bin/truncate, /bin/cp, /bin/chown, /bin/chmod, /bin/kill, /usr/bin/pkill, /usr/bin/vi
 EOF
 chmod 0440 /etc/sudoers.d/student-lab

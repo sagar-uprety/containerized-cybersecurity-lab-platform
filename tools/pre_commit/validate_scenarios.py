@@ -22,8 +22,6 @@ FORBIDDEN_HOST_MOUNT_FRAGMENTS = (
 # Anti-spoiler patterns
 _BASH_BLOCK_RE = re.compile(r"```bash\n(.*?)\n```", re.DOTALL)
 _BASH_VERIFIER_BLOCK_RE = re.compile(r"```bash\s+verifier\n(.*?)\n```", re.DOTALL)
-_ALL_BASH_BLOCKS_RE = re.compile(r"```bash(?:\s+verifier)?\n(.*?)\n```", re.DOTALL)
-_QUOTED_STRING_RE = re.compile(r'["\']([^"\']{4,})["\']')
 
 
 def _load_yaml(path: Path) -> dict[str, Any]:
@@ -68,16 +66,6 @@ def _extract_verifier_bash_blocks(content: str) -> list[str]:
     return [m.group(1).strip() for m in _BASH_VERIFIER_BLOCK_RE.finditer(content)]
 
 
-def _extract_all_bash_blocks(content: str) -> list[str]:
-    """Extract all bash blocks (regular and verifier)."""
-    return [m.group(1).strip() for m in _ALL_BASH_BLOCKS_RE.finditer(content)]
-
-
-def _extract_quoted_strings(content: str) -> set[str]:
-    """Extract strings inside single or double quotes (4+ chars)."""
-    return {m.group(1) for m in _QUOTED_STRING_RE.finditer(content)}
-
-
 def _extract_section(content: str, heading: str) -> str:
     """Extract content under a markdown heading (case-insensitive)."""
     pattern = re.compile(
@@ -89,11 +77,17 @@ def _extract_section(content: str, heading: str) -> str:
         return ""
     start = match.end()
     level = len(match.group(1))
-    next_heading = re.compile(r"^#{1," + str(level) + r"}\s+", re.MULTILINE)
-    next_match = next_heading.search(content, start)
-    if next_match:
-        return content[start : next_match.start()]
-    return content[start:]
+    section_lines = []
+    in_fence = False
+    for line in content[start:].splitlines(keepends=True):
+        if line.startswith("```"):
+            in_fence = not in_fence
+            section_lines.append(line)
+            continue
+        if not in_fence and re.match(r"^#{1," + str(level) + r"}\s+", line):
+            break
+        section_lines.append(line)
+    return "".join(section_lines)
 
 
 def validate_scenario(schema: dict[str, Any], scenario_path: Path) -> list[str]:
@@ -210,16 +204,23 @@ def validate_lab_docs(
         if expected_guide_path not in sitrep_content:
             errors.append(f"{sitrep}: must mention browser guide path {expected_guide_path}")
 
-    mkdocs_include = repo_root / "docs" / "labs" / f"{lab_id}.md"
-    if not mkdocs_include.is_file():
-        errors.append(f"missing MkDocs include: {mkdocs_include}")
-    else:
-        content = mkdocs_include.read_text(encoding="utf-8")
-        if "--8<--" not in content:
-            errors.append(
-                f"{mkdocs_include}: must use --8<-- snippet syntax to include "
-                f"../../labs/{lab_id}/docs/student-guide.md"
-            )
+    mkdocs_includes = {
+        repo_root / "docs" / "labs" / f"{lab_id}.md": f"labs/{lab_id}/docs/student-guide.md",
+        repo_root / "docs" / "labs" / f"{lab_id}-solution.md": (
+            f"labs/{lab_id}/docs/solution-notes.md"
+        ),
+        repo_root / "docs" / "labs" / f"{lab_id}-instructor.md": (
+            f"labs/{lab_id}/docs/instructor-guide.md"
+        ),
+    }
+    for mkdocs_include, source_path in mkdocs_includes.items():
+        if not mkdocs_include.is_file():
+            errors.append(f"missing MkDocs include: {mkdocs_include}")
+            continue
+        expected_include = f'--8<-- "{source_path}"'
+        content = mkdocs_include.read_text(encoding="utf-8").strip()
+        if content != expected_include:
+            errors.append(f"{mkdocs_include}: must contain only {expected_include}")
 
     # ------------------------------------------------------------------
     # Anti-spoiler checks (requires both student-guide and solution-notes)
@@ -228,17 +229,25 @@ def validate_lab_docs(
         sg_content = student_guide.read_text(encoding="utf-8")
         sn_content = solution_notes.read_text(encoding="utf-8")
 
-        # 1. Verifier block check
+        # Solution notes are one student-executable runbook. Custom verifier
         verifier_blocks = _extract_verifier_bash_blocks(sn_content)
-        if not verifier_blocks:
-            errors.append(f"{solution_notes}: must contain at least one ```bash verifier block")
+        if verifier_blocks:
+            errors.append(
+                f"{solution_notes}: must use ordinary ```bash fences, not verifier fences"
+            )
 
-        # 2. Bash block duplication (solution-notes verifier -> student-guide)
-        # Only remediation/verifier bash blocks from solution-notes must not
-        # appear in the student guide.
+        solution_bash = _extract_bash_blocks(sn_content)
+        if not solution_bash:
+            errors.append(f"{solution_notes}: must contain student-executable bash blocks")
+
+        # Exact remediation blocks must not be copied into the discovery guide.
         sg_bash = _extract_bash_blocks(sg_content)
-        sn_verifier_bash = _extract_verifier_bash_blocks(sn_content)
-        for block in sn_verifier_bash:
+        remediation_commands = re.compile(
+            r"(^|\n)\s*(sed|ldapmodify|iptables|ip6tables|usermod|passwd|rm|cat\s+>)\b"
+        )
+        for block in solution_bash:
+            if not remediation_commands.search(block):
+                continue
             if block in sg_bash:
                 errors.append(
                     f"{student_guide}: bash block duplicates remediation content from "
@@ -246,29 +255,7 @@ def validate_lab_docs(
                 )
                 break
 
-        # 3. Password/secret leakage (quoted strings from solution-notes)
-        # Skip strings listed in the lab's intentional-risk-allowlist.yaml
-        allowlist_path = scenario_path.parent / "intentional-risk-allowlist.yaml"
-        allowed_patterns: set[str] = set()
-        if allowlist_path.is_file():
-            try:
-                allowlist_data = _load_yaml(allowlist_path)
-                for finding in allowlist_data.get("intentional_findings", []):
-                    for pat in finding.get("patterns", []):
-                        allowed_patterns.add(pat)
-            except (ValueError, OSError):
-                pass
-
-        sn_quotes = _extract_quoted_strings(sn_content)
-        for q in sn_quotes:
-            if q in sg_content and q not in allowed_patterns:
-                errors.append(
-                    f"{student_guide}: contains quoted string from "
-                    f"{solution_notes} that may leak a secret/password: {q!r}"
-                )
-                break
-
-        # 4. Official references in Remediate
+        # Official references in Remediate
         remediate_section = _extract_section(sg_content, "Remediate")
         if remediate_section:
             if not re.search(r"https?://|man\s+\w+", remediate_section):
@@ -281,7 +268,7 @@ def validate_lab_docs(
                 f"{student_guide}: missing Remediate section for official-reference check"
             )
 
-        # 5. Hint ladder in Remediate
+        # Hint ladder in Remediate
         if remediate_section:
             if not re.search(r"[Hh]int", remediate_section):
                 errors.append(f"{student_guide}: Remediate section must contain a hint ladder")

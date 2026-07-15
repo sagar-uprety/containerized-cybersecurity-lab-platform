@@ -7,19 +7,7 @@ intentional_findings:
       - config.vulnerable
     patterns:
       - "--sport 80"
-      - "--sport 53"
     reason: >
       Stateless firewall rules that match on source port are the intentional
       vulnerability. Students discover and replace these with stateful
       conntrack-based rules during remediation.
-
-  - id: fw-open-ip6tables
-    tool: shellcheck
-    files:
-      - rules.empty-v6
-    patterns:
-      - "FORWARD ACCEPT"
-    reason: >
-      IPv6 firewall is intentionally left with ACCEPT-all policy to demonstrate
-      the dual-stack security gap. Students discover this during investigation
-      and write equivalent IPv6 rules during remediation.

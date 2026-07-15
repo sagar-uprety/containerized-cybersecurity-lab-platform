@@ -8,8 +8,6 @@ RUN apt-get update \
 
 COPY nginx.conf /opt/lab/baseline/nginx.conf
 COPY seed.html /var/www/html/index.html
-COPY setup-route.sh /opt/lab/hooks/pre-start.sh
-RUN chmod 0755 /opt/lab/hooks/pre-start.sh
 
 RUN mkdir -p /var/www/html /var/log/nginx \
     && touch /var/log/nginx/access.log /var/log/nginx/error.log \

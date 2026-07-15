@@ -1,1 +1,1 @@
---8<-- "labs/ssh-weak-config/docs/solution-guide.md"
+--8<-- "labs/ssh-weak-config/docs/solution-notes.md"

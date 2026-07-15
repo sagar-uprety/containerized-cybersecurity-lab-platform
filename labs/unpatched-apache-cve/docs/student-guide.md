@@ -63,27 +63,38 @@ introduce real credentials or external resources.
 
 Now fix the issue.
 
-**Goal:** Block the attack path by removing the configuration entry point that
-allows the path traversal to succeed.
+**Goal:** Apply a compensating configuration mitigation that prevents crafted
+paths from escaping the intended web content while keeping normal requests
+available. Reduce unnecessary exposure and restore least-privilege access around
+the affected request path. The Apache 2.4.49 binary remains vulnerable and still
+needs a production upgrade; this lab does not claim to patch it.
 
-**Constraints:** Changes must survive a service restart.
+**Constraints:** Changes must survive a service restart. Editing alone isn't
+enough - Apache only picks up configuration changes when it restarts.
+
+**Where to work:** The server's configuration directory is mounted directly
+into your workstation at `/lab/apache`, so you can edit it in place with any
+editor. Reloading the service requires the server's administrative account,
+`apacheadmin`. Its password is your lab password, and its privileges are
+deliberately limited to the supported service-management path. Inspect those
+privileges and use that path after saving a valid configuration.
 
 **References:**
 
 -   Official documentation: <https://httpd.apache.org/docs/2.4/mod/mod_alias.html>
 -   Local: `man httpd.conf`, `/usr/local/apache2/bin/httpd -V`
--   Restart: `sudo /usr/local/sbin/restart-apache` (reload the server after configuration changes)
 
 **If you're stuck, here are hints to help without giving away the answer:**
 
 -   Think about how a web server decides which directories are allowed to execute scripts.
--   Look for the module and alias configuration that enables script execution in a specific directory.
--   Check the official Apache module documentation for how to disable a loaded module and remove a directory alias.
+-   Compare the filesystem-root policy with loaded features and URL mappings around the affected path.
+-   Check Apache's core authorization, CGI, and URL-mapping documentation for the least-privilege configuration.
 
 ## Verify
 
-After applying your fix, confirm that the vulnerability is no longer
-exploitable and that the server still serves normal web requests.
+After applying your mitigation, confirm that the crafted request no longer
+returns sensitive file content. Also confirm that the normal home page still
+serves successfully; connection success alone is not enough.
 
 Use the same tools from your investigation to re-check. When satisfied,
 click **Run Check** in the portal.

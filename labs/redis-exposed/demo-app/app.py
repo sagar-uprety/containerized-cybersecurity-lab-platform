@@ -32,14 +32,28 @@ def encode_command(*parts):
     return payload.encode("utf-8")
 
 
-def read_resp_line(sock):
+def read_resp(sock):
     data = b""
     while not data.endswith(b"\r\n"):
         chunk = sock.recv(1)
         if not chunk:
             break
         data += chunk
-    return data.decode("utf-8", errors="replace").strip()
+    line = data.decode("utf-8", errors="replace").strip()
+    if line.startswith("+"):
+        return line[1:]
+    if line.startswith("$"):
+        length = int(line[1:])
+        if length == -1:
+            return None
+        payload = b""
+        while len(payload) < length + 2:
+            chunk = sock.recv(length + 2 - len(payload))
+            if not chunk:
+                break
+            payload += chunk
+        return payload[:length].decode("utf-8", errors="replace")
+    return line
 
 
 def redis_request(*command):
@@ -52,11 +66,11 @@ def redis_request(*command):
         elif password:
             sock.sendall(encode_command("AUTH", password))
         if username or password:
-            auth_response = read_resp_line(sock)
-            if not auth_response.startswith("+OK"):
+            auth_response = read_resp(sock)
+            if auth_response != "OK":
                 raise RuntimeError(f"Redis AUTH failed: {auth_response}")
         sock.sendall(encode_command(*command))
-        return read_resp_line(sock)
+        return read_resp(sock)
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -75,7 +89,7 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/health":
             try:
                 response = redis_request("PING")
-                if response not in ("+PONG",):
+                if response != "PONG":
                     raise RuntimeError(f"unexpected Redis PING response: {response}")
                 self.send_text(200, "ok\n")
             except Exception as exc:
@@ -85,9 +99,28 @@ class Handler(BaseHTTPRequestHandler):
         if self.path == "/":
             try:
                 flag = redis_request("GET", "feature_flag:admin_mode")
+                if flag is None or str(flag).startswith("-"):
+                    raise RuntimeError(f"unexpected Redis GET response: {flag}")
                 self.send_text(200, f"Order cache is reachable. admin_mode={flag}\n")
             except Exception as exc:
                 self.send_text(503, f"Order cache unavailable: {exc}\n")
+            return
+
+        if self.path == "/security-check":
+            try:
+                flag = redis_request("GET", "feature_flag:admin_mode")
+                write_response = redis_request("SET", "checker:app-write", "blocked")
+                if flag is None or str(flag).startswith("-"):
+                    raise RuntimeError(f"unexpected Redis GET response: {flag}")
+                if write_response == "OK":
+                    write_state = "allowed"
+                elif str(write_response).startswith("-NOPERM"):
+                    write_state = "denied"
+                else:
+                    raise RuntimeError(f"unexpected Redis SET response: {write_response}")
+                self.send_text(200, f"read={flag} write={write_state}\n")
+            except Exception as exc:
+                self.send_text(503, f"security check failed: {exc}\n")
             return
 
         self.send_text(404, "not found\n")

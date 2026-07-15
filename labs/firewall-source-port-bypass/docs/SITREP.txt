@@ -1,4 +1,4 @@
-The organization's perimeter firewall was configured by a previous administrator to allow outbound web and DNS traffic. Management wants you to verify that internal services are properly protected from external access.
+The previous firewall administrator used a source-port shortcut to identify reply traffic. Management wants you to verify that a new external connection cannot reach the internal web server.
 
 Your mission:
 
@@ -7,17 +7,18 @@ Your mission:
 3. Test whether the internal server is reachable from the external network.
 4. Inspect the firewall rules to understand how they work.
 5. Determine whether the firewall actually blocks access as intended.
-6. Fix any firewall rule issues you find on both IPv4 and IPv6.
-7. Verify that outbound web browsing and DNS still work after your changes.
+6. Fix any unsafe IPv4 firewall rule you find.
+7. Verify that the persistent rules reload and the internal service remains healthy.
 8. Run the portal check and record the result.
 9. Complete the mandatory feedback form after ending the lab.
 
 Useful paths:
 
-- /etc/iptables/rules.v4 (IPv4 firewall rules)
-- /etc/iptables/rules.v6 (IPv6 firewall rules)
-- /lab/config/fw_internal_ip.txt (firewall internal IP)
+- /lab/config/fw_external_ip.txt (firewall address, on the workstation)
 - ~/SITREP.txt
+
+The IPv4 rule file (/etc/iptables/rules.v4) lives on the firewall host, not the
+workstation. SSH there as user "firewall" using your own lab password.
 
 Full browser guide:
 

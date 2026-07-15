@@ -1,19 +1,65 @@
 #!/bin/sh
 set -eu
 
+# This hook runs on every container start (lab-service-base/entrypoint.sh has
+# no built-in guard for LAB_SETUP_SCRIPT). Re-applying the vulnerable ACL on a
+# restart would silently revert a student's fix, so gate provisioning behind a
+# sentinel on the persistent ldap_data volume (mirrors the idempotency guard
+# used in other labs, e.g. firewall-source-port-bypass/setup-firewall.sh).
+PROVISIONED_FLAG=/var/lib/ldap/.lab-provisioned
+
+# Publish credentials only inside this student's isolated lab network/volume.
+# Rewrite on every start so the file follows the injected lab password.
+mkdir -p /lab/access
+umask 077
+cat > /lab/access/credentials.txt <<EOF
+LDAP host: ldap-host
+SSH user: root
+SSH password: ${SERVICE_ADMIN_PASSWORD}
+Directory bind DN: cn=admin,dc=lab,dc=local
+Directory password: dummypassword
+EOF
+chmod 0644 /lab/access/credentials.txt
+
+# Certificate files live in the container filesystem rather than the LDAP
+# volumes. Recreate them only when absent so a container replacement with
+# retained data/config volumes remains start-safe.
+if [ ! -s /etc/ldap/tls/ldap-server.crt ] || [ ! -s /etc/ldap/tls/ldap-server.key ]; then
+    mkdir -p /etc/ldap/tls
+    openssl req -new -x509 -nodes -days 365 \
+        -keyout /etc/ldap/tls/ldap-server.key \
+        -out /etc/ldap/tls/ldap-server.crt \
+        -subj "/CN=ldap-host/O=Lab Org/C=US" \
+        -batch 2>/dev/null
+fi
+chown -R openldap:openldap /etc/ldap/tls
+chmod 600 /etc/ldap/tls/ldap-server.key
+chmod 644 /etc/ldap/tls/ldap-server.crt
+
 # ── Start slapd temporarily for configuration and seeding ─────────────
 /usr/sbin/slapd -h "ldap:/// ldapi:///" -u openldap -g openldap -F /etc/ldap/slapd.d
 
 # Wait for slapd to accept connections
+READY=0
 for _ in 1 2 3 4 5 6 7 8 9 10; do
     if ldapsearch -x -H ldapi:// -b "" -s base "(objectClass=*)" >/dev/null 2>&1; then
+        READY=1
         break
     fi
     sleep 1
 done
+[ "${READY}" -eq 1 ] || { echo "slapd did not become ready" >&2; exit 1; }
+
+if [ -f "${PROVISIONED_FLAG}" ]; then
+    # Already provisioned on a prior boot - don't clobber any student fix.
+    killall slapd 2>/dev/null || true
+    sleep 2
+    rm -f /var/run/slapd/ldapi
+    exit 0
+fi
 
 # ── Apply vulnerable ACL ─────────────────────────────────────────────
-ldapmodify -Y EXTERNAL -H ldapi:// -f /opt/lab/baseline/slapd-config.ldif 2>/dev/null || true
+ldapmodify -Y EXTERNAL -H ldapi:// -f /opt/lab/baseline/slapd-config.ldif
 
 # ── Create base DIT ──────────────────────────────────────────────────
 ldapadd -x -H ldapi:// -c -D "cn=admin,dc=lab,dc=local" -w dummypassword <<'EOF' || true
@@ -207,16 +253,8 @@ gidNumber: 10003
 memberUid: ldapadmin
 EOF
 
-# ── Generate self-signed TLS certificates (pre-provisioned) ──────────
-mkdir -p /etc/ldap/tls
-openssl req -new -x509 -nodes -days 365 \
-    -keyout /etc/ldap/tls/ldap-server.key \
-    -out /etc/ldap/tls/ldap-server.crt \
-    -subj "/CN=ldap-host/O=Lab Org/C=US" \
-    -batch 2>/dev/null
-chown -R openldap:openldap /etc/ldap/tls
-chmod 600 /etc/ldap/tls/ldap-server.key
-chmod 644 /etc/ldap/tls/ldap-server.crt
+# ── Mark provisioning complete so future restarts skip re-seeding ─────
+touch "${PROVISIONED_FLAG}"
 
 # ── Stop temporary slapd ─────────────────────────────────────────────
 killall slapd 2>/dev/null || true

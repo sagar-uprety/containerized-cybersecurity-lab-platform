@@ -1,1 +1,1 @@
---8<-- "labs/ldap-anonymous-bind/docs/solution-guide.md"
+--8<-- "labs/ldap-anonymous-bind/docs/solution-notes.md"

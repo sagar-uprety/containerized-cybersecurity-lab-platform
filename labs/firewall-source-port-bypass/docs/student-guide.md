@@ -1,10 +1,9 @@
 # Firewall Rule Misconfiguration - Source-Port Bypass
 
-The organization's perimeter firewall was configured by a previous administrator
-to allow outbound web and DNS traffic. Management wants you to verify that
-internal services are properly protected from external access. The firewall sits
-between the external network and an internal web server that should not be
-reachable from outside.
+You are auditing a firewall whose previous administrator used packet port
+numbers to identify reply traffic. Management wants you to determine whether a
+new connection from the external network can reach an internal web server, fix
+the policy, and verify that the protected service remains healthy.
 
 ## Objectives
 
@@ -42,6 +41,12 @@ that separates the external and internal networks, and an internal web server
 behind the firewall. Use the portal to **Start Lab**, **Run Check**, **Reset**,
 or **End Lab** as needed.
 
+The browser terminal starts on the external workstation. The firewall's rule
+file lives on `firewall-host`; connect there as user `firewall` with your lab
+password when you need to inspect or change it. Keep track of which host each
+shell prompt belongs to. The firewall account can inspect, save, restore, and
+reload the IPv4 rules through its limited passwordless `sudo` permissions.
+
 ## Investigation
 
 Before fixing anything, understand the environment and confirm the problem is
@@ -51,9 +56,9 @@ real.
 
 -   What hosts are reachable from the workstation on the lab network?
 -   Does the internal web server respond when you connect from a random high port?
--   What happens when you connect from a specific source port like 80 or 53?
--   Are the firewall rules the same for IPv4 and IPv6?
--   What is the difference between allowing "return traffic" and allowing "any traffic from a port"?
+-   What changes when a new connection uses source port 80?
+-   Which packets does the firewall rule actually match, regardless of connection history?
+-   What is the difference between recognizing a reply and trusting any packet from a service port?
 
 Use network scanners, HTTP clients, and standard Linux utilities to explore the
 environment. The workstation has `nmap`, `curl`, `ncat`, and access to the
@@ -67,12 +72,12 @@ environment provides - do not introduce real credentials or external resources.
 
 Now fix the issue.
 
-**Goal:** Replace the flawed firewall rules with proper stateful connection
-tracking so that only legitimate return traffic is allowed, and apply the same
-protection to both IPv4 and IPv6.
+**Goal:** Replace the source-port shortcut with IPv4 connection-state tracking
+so that reply traffic can be identified without admitting a new connection.
 
-**Constraints:** Changes must survive a service restart. Outbound web browsing
-and DNS resolution must continue to work after your changes.
+**Constraints:** The active rules and `/etc/iptables/rules.v4` must agree after
+using the firewall's reload helper. The internal web service must remain healthy
+from the firewall's internal side.
 
 **References:**
 
@@ -90,8 +95,8 @@ and DNS resolution must continue to work after your changes.
 After applying your fix, confirm:
 
 1. The source-port bypass no longer works
-2. Outbound web browsing and DNS still function
-3. Both IPv4 and IPv6 are protected
+2. The active and persistent rules use connection state rather than source port 80
+3. The internal web service still responds from the firewall's internal side
 
 Use the same tools from your investigation to re-test. When satisfied, click
 **Run Check** in the portal.

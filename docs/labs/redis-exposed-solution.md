@@ -1,1 +1,1 @@
---8<-- "labs/redis-exposed/docs/solution-guide.md"
+--8<-- "labs/redis-exposed/docs/solution-notes.md"

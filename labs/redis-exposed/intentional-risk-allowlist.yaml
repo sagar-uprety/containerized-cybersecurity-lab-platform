@@ -17,7 +17,7 @@ intentional_findings:
     patterns:
       - admin-demo-password
       - app-demo-password
-    reason: Instructor solution notes use obvious demo passwords (admin-demo-password, app-demo-password) to document the expected ACL remediation workflow.
+    reason: Instructor-only solution notes use obvious demo passwords (admin-demo-password, app-demo-password) to document the expected ACL remediation workflow.
 
   - id: redis-demo-app-container-bind
     tool: bandit

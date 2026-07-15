@@ -12,7 +12,7 @@ story:
 
 documentation:
   student_guide_url: /docs/labs/ssh-weak-config/
-  solution_guide_url: /docs/labs/ssh-weak-config-solution/
+  solution_notes_url: /docs/labs/ssh-weak-config-solution/
   instructor_guide_url: /docs/labs/ssh-weak-config-instructor/
 
 access:
@@ -26,32 +26,40 @@ lifecycle:
   retention_after_stop_minutes: 180
 
 checker:
-  version: 1
+  version: 2
   states:
     - vulnerable
     - fixed
   checks:
     - name: ssh_password_auth
-      label: "Password-based SSH authentication is disabled"
+      label: "Weak password login is rejected by the effective SSH configuration"
       kind: objective
       exec_in: workstation
-      run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key lab-user@ssh-host 'grep -i ^PasswordAuthentication /etc/ssh/sshd_config 2>&1'"
+      run: >-
+        if sshpass -p 'demo-ssh-pass' ssh -o StrictHostKeyChecking=no
+        -o PreferredAuthentications=password -o PubkeyAuthentication=no
+        -o ConnectTimeout=5 lab-user@ssh-host true >/dev/null 2>&1; then
+        echo VULN_PASSWORD_ACCEPTED; else echo PASSWORD_REJECTED; fi
       states:
-        vulnerable: "output_contains: PasswordAuthentication yes"
-        fixed: "output_contains: PasswordAuthentication no"
-    - name: ssh_fail2ban_active
-      label: "SSH brute-force protection is active"
+        vulnerable: "output_contains: VULN_PASSWORD_ACCEPTED"
+        fixed: "output_contains: PASSWORD_REJECTED"
+    - name: ssh_config_valid
+      label: "SSH configuration is valid and disables password authentication"
       kind: objective
       exec_in: workstation
-      run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key lab-user@ssh-host 'sudo fail2ban-client status sshd 2>&1 || echo FAIL2BAN_NOT_ACTIVE'"
+      run: >-
+        ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5
+        -i /lab/keys/lab_key lab-user@ssh-host
+        'if sudo sshd -t && sudo sshd -T | grep -q "^passwordauthentication no$";
+        then echo CONFIG_OK; else echo VULN_CONFIG; fi'
       states:
-        vulnerable: "output_contains: FAIL2BAN_NOT_ACTIVE"
-        fixed: "output_contains: Status for the jail:"
+        vulnerable: "output_contains: VULN_CONFIG"
+        fixed: "output_contains: CONFIG_OK"
     - name: ssh_permit_root_login
-      label: "Direct password-based root login is blocked"
+      label: "Direct root SSH login is disabled"
       kind: objective
       exec_in: workstation
-      run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key lab-user@ssh-host 'sudo sshd -T 2>&1 | grep -q \"^permitrootlogin yes$\" && echo VULN_ROOT || echo ROOT_OK'"
+      run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key lab-user@ssh-host 'sudo sshd -t && sudo sshd -T 2>/dev/null | grep -q \"^permitrootlogin no$\" && echo ROOT_OK || echo VULN_ROOT'"
       states:
         vulnerable: "output_contains: VULN_ROOT"
         fixed: "output_contains: ROOT_OK"
@@ -79,6 +87,44 @@ checker:
       states:
         vulnerable: "output_contains: VULN_TRIES"
         fixed: "output_contains: TRIES_OK"
+    - name: ssh_weak_accounts_locked
+      label: "Accounts with planted weak passwords are locked"
+      kind: objective
+      exec_in: workstation
+      run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key lab-user@ssh-host 'for user in root lab-user svc-user; do sudo passwd -S \"$user\"; done | grep -vc \" L \" | grep -q ^0$ && echo ACCOUNTS_LOCKED || echo VULN_ACCOUNTS'"
+      states:
+        vulnerable: "output_contains: VULN_ACCOUNTS"
+        fixed: "output_contains: ACCOUNTS_LOCKED"
+    - name: ssh_auth_log
+      label: "OpenSSH authentication events reach the fail2ban log"
+      kind: guardrail
+      exec_in: workstation
+      run: "ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5 -i /lab/keys/lab_key lab-user@ssh-host 'sudo grep -Eq \"sshd.*(Accepted publickey|Failed password|Connection closed)\" /var/log/auth.log && echo AUTH_LOG_OK || echo AUTH_LOG_MISSING'"
+      states:
+        vulnerable: "output_contains: AUTH_LOG_OK"
+        fixed: "output_contains: AUTH_LOG_OK"
+    - name: ssh_fail2ban_effective
+      label: "fail2ban consumes SSH logs and performs a safe test ban"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        ssh -o StrictHostKeyChecking=no -o BatchMode=yes -o ConnectTimeout=5
+        -i /lab/keys/lab_key lab-user@ssh-host
+        'test_ip=192.0.2.123;
+        sudo fail2ban-client set sshd unbanip "$test_ip" >/dev/null 2>&1 || true;
+        for attempt in 1 2 3; do
+        printf "%s %s sshd[9999]: Failed password for invalid user checker from %s port 4242 ssh2\n"
+        "$(date "+%b %e %T")" "$(hostname)" "$test_ip"; done |
+        sudo tee -a /var/log/auth.log >/dev/null;
+        sleep 3;
+        status=$(sudo fail2ban-client status sshd 2>&1 || true);
+        if printf "%s\n" "$status" | grep -q "$test_ip"; then
+        echo FAIL2BAN_BAN_OBSERVED;
+        sudo fail2ban-client set sshd unbanip "$test_ip" >/dev/null;
+        else echo FAIL2BAN_NO_BAN; printf "%s\n" "$status"; fi'
+      states:
+        vulnerable: "output_contains: FAIL2BAN_NO_BAN"
+        fixed: "output_contains: FAIL2BAN_BAN_OBSERVED"
     - name: ssh_key_auth
       label: "SSH key authentication works"
       kind: guardrail
@@ -137,7 +183,7 @@ containers:
       LAB_ADMIN_USER: root
       LAB_CONFIG_SRC: /opt/lab/baseline/sshd_config
       LAB_CONFIG_DST: /etc/ssh/sshd_config
-      LAB_SERVICE_CMD: "/usr/sbin/sshd -D -e"
+      LAB_SERVICE_CMD: "sleep infinity"
       LAB_DATA_DIR: /var/run/sshd
       LAB_DATA_USER: root
       LAB_SETUP_SCRIPT: /opt/lab/hooks/pre-start.sh
@@ -163,3 +209,4 @@ containers:
       host_network: false
       cap_add:
         - AUDIT_WRITE
+        - NET_ADMIN

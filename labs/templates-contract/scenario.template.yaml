@@ -28,10 +28,11 @@ story:
     Describe the observed symptom here. What does monitoring see?
     What is unusual? Why does it matter?
 
-# REQUIRED. Link to the student guide rendered in the MkDocs site.
+# REQUIRED. Links to MkDocs guides. Solution notes and instructor guide are
+# protected by Nginx instructor authorization.
 documentation:
   student_guide_url: /docs/labs/my-new-lab/
-  solution_guide_url: /docs/labs/my-new-lab-solution/
+  solution_notes_url: /docs/labs/my-new-lab-solution/
   instructor_guide_url: /docs/labs/my-new-lab-instructor/
 
 # ── Access: per-student port allocation ────────────────────────────────

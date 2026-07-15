@@ -15,6 +15,9 @@ RUN apt-get update \
 
 WORKDIR /usr/src
 RUN wget -q https://archive.apache.org/dist/httpd/httpd-2.4.49.tar.gz \
+    && printf '%s  %s\n' '345d3b9b218b1974d1cebd5ae72f6a661d83b52d839310222ff9ec94abb62205' 'httpd-2.4.49.tar.gz' > httpd.sha256 \
+    && sha256sum -c httpd.sha256 \
+    && rm httpd.sha256 \
     && tar -xzf httpd-2.4.49.tar.gz
 
 WORKDIR /usr/src/httpd-2.4.49
@@ -48,9 +51,9 @@ RUN useradd -m -s /bin/bash apacheadmin \
     && echo "apacheadmin ALL=(root) NOPASSWD: /usr/local/sbin/restart-apache" > /etc/sudoers.d/apacheadmin \
     && chmod 0440 /etc/sudoers.d/apacheadmin
 
-# Restart script — $H expands at runtime, not build time
+# Validate first, then ask the existing foreground master to reload in place.
 # hadolint ignore=SC2016
-RUN printf '#!/bin/sh\nset -e\nH=$(pgrep -f "httpd.*DFOREGROUND" || true)\nif [ -n "$H" ]; then kill "$H" 2>/dev/null || true; while pgrep -f "httpd.*DFOREGROUND" > /dev/null 2>&1; do sleep 0.1; done; fi\n/usr/local/apache2/bin/httpd -f /usr/local/apache2/conf/httpd.conf -DFOREGROUND 2>/usr/local/apache2/logs/error_log &\necho "Apache restarted"\n' > /usr/local/sbin/restart-apache \
+RUN printf '#!/bin/sh\nset -eu\nCONF=/usr/local/apache2/conf/httpd.conf\n/usr/local/apache2/bin/httpd -f "$CONF" -t\n/usr/local/apache2/bin/httpd -f "$CONF" -k graceful\ni=0\nwhile [ "$i" -lt 20 ]; do\n  code=$(curl -sS -o /dev/null -w "%%{http_code}" http://127.0.0.1/ || true)\n  [ "$code" = 200 ] && { echo "Apache restarted"; exit 0; }\n  i=$((i + 1))\n  sleep 0.25\ndone\necho "Apache failed health check after reload" >&2\nexit 1\n' > /usr/local/sbin/restart-apache \
     && chmod 0755 /usr/local/sbin/restart-apache
 
 COPY config.vulnerable /opt/lab/baseline/httpd.conf

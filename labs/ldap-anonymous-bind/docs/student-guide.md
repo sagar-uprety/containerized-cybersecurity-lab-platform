@@ -51,8 +51,25 @@ is real.
 -   Does the directory service require authentication before responding to queries?
 -   What kind of organizational data can you extract without providing credentials?
 -   What does the directory structure reveal about the organization?
+-   Does an accepted anonymous bind mean the same thing as permission to read or search directory entries?
 
 LDAP client tools and network scanners are available on the workstation.
+
+Run investigation commands from the student workstation. The lab-local access
+file supplies credentials needed later without exposing operator tooling:
+
+```bash
+# Context: student workstation
+cat /lab/access/credentials.txt
+ldapwhoami -x -H ldap://ldap-host
+LDAP_BASE=dc=lab,dc=local
+ldapsearch -x -H ldap://ldap-host -b "$LDAP_BASE" "(objectClass=posixAccount)" cn mail telephoneNumber uid uidNumber gidNumber homeDirectory userPassword
+ldapsearch -x -H ldap://ldap-host -b "ou=groups,$LDAP_BASE" "(objectClass=posixGroup)" cn gidNumber memberUid
+```
+
+An anonymous bind can remain available for authentication workflows while ACLs
+deny anonymous read/search access. Treat returned entries and attributes, not
+bind acceptance alone, as evidence of exposure.
 
 **Proving impact:** Once you've identified the issue, demonstrate that it has
 real consequences. Show what an attacker could learn about the organization
@@ -68,6 +85,15 @@ entries, and encrypt connections with TLS.
 
 **Constraints:** Authenticated queries must still work after your changes.
 Changes must survive a service restart.
+
+**Where to work:** The directory's runtime configuration backend isn't
+reachable from your workstation over the network - you'll need to connect
+to the directory server itself as its administrative account (`root`).
+Read `/lab/access/credentials.txt` from the workstation for SSH and directory
+bind credentials, then use SSH from that workstation. Do not use platform
+operator commands.
+Note that the portal's **Reset** action restores the vulnerable baseline,
+so it isn't the right tool for reloading a fix.
 
 **References:**
 
@@ -86,8 +112,9 @@ Changes must survive a service restart.
 
 After applying your fix, confirm:
 
-1. The vulnerability is no longer exploitable
-2. Encrypted connections work correctly
+1. Anonymous read/search is denied, even though anonymous bind may still be accepted
+2. Authenticated plaintext LDAP is rejected
+3. The same authenticated query succeeds with required StartTLS
 
 Use the same tools from your investigation to re-check. When satisfied,
 click **Run Check** in the portal.

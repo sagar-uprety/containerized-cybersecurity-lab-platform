@@ -3,20 +3,9 @@
 :FORWARD DROP [0:0]
 :OUTPUT ACCEPT [0:0]
 
-# Rule 1: Allow outbound HTTP to external hosts
--A FORWARD -p tcp --dport 80 -j ACCEPT
-
-# Rule 2: Allow return HTTP traffic from external web servers
-# NOTE: This matches ANY traffic coming FROM source port 80 — not just replies!
-# Combined with DNAT on the firewall, this allows inbound connections from source port 80
-# to reach the internal web server on port 8080 — the source-port bypass vulnerability.
+# Intended as a shortcut for recognizing HTTP reply traffic.
+# It actually accepts every forwarded TCP packet with source port 80, including
+# a new connection sent through the lab's DNAT path to the internal server.
 -A FORWARD -p tcp --sport 80 -j ACCEPT
-
-# Rule 3: Allow outbound DNS queries to external resolvers
--A FORWARD -p udp --dport 53 -j ACCEPT
-
-# Rule 4: Allow return DNS responses from external resolvers
-# NOTE: Same problem — matches ANY traffic FROM source port 53
--A FORWARD -p udp --sport 53 -j ACCEPT
 
 COMMIT

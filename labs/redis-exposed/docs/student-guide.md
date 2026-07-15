@@ -1,4 +1,4 @@
-# Unauthenticated NoSQL Database Exposure
+# The Exposed Order Cache
 
 You've been assigned as the junior administrator for a small order-processing
 application. Monitoring has flagged unusual direct connections to the
@@ -43,9 +43,16 @@ Read the incident brief to understand your mission:
 cat ~/SITREP.txt
 ```
 
-Your lab environment includes a workstation, the cache server, and the demo
-order application on an isolated lab network. Use the portal to **Start Lab**,
-**Run Check**, **Reset**, or **End Lab** as needed.
+Your lab environment includes a workstation, a dual-homed cache server, and the
+demo order application. The workstation reaches the cache server through a
+client network, while the order application uses a separate application
+network. Use the portal to **Start Lab**, **Run Check**, **Reset**, or **End
+Lab** as needed.
+
+If you need to log in to the cache server directly (for example, to restart
+its service after a configuration change), an admin account is available over
+SSH. When prompted for that account's password, use your own workstation/lab
+login password.
 
 ## Investigation
 
@@ -55,8 +62,8 @@ real - and worse than it might first appear.
 **Guiding questions:**
 
 -   What services are reachable from the workstation inside the lab network?
--   Which network interfaces does the cache service listen on, and why does
-    that matter even inside an isolated lab network?
+-   Which cache-server network should carry application traffic, and does the
+    service also listen on the client-facing network where it is not needed?
 -   Does the cache service require any form of authentication before accepting
     commands?
 -   Can someone who is not the application read or change data? How sensitive
@@ -77,9 +84,9 @@ modification of application state. Use only what the lab environment provides.
 
 Now fix the issue with layered controls - one layer alone is not enough.
 
-**Goal:** Restrict network exposure, require authentication with the Redis ACL
-system, and enforce least-privilege access so that the application can still
-read data but an unauthenticated attacker cannot do anything.
+**Goal:** Keep Redis traffic on the application-facing network, require
+authentication with the Redis ACL system, and enforce least-privilege access
+so that the application can still read data but cannot write it.
 
 **Constraints:** Changes must survive a service restart. The order application
 depends on the cache, so your fix must not break normal application behavior.
@@ -94,9 +101,8 @@ administrative access.
 
 **Need a hint?**
 
--   Network isolation inside the lab is a starting point, but it is not
-    authorization. Think about what an attacker on the same network segment
-    could still reach, and what controls would stop them at the network level.
+-   Separate network paths only help when each service listens on the path it
+    needs. Decide which cache-server interface the application actually uses.
 -   Redis supports two authentication mechanisms. The newer one lets you create
     named users with different permission sets - including read-only users for
     applications. Look for how to define and load user permissions.
@@ -110,8 +116,11 @@ administrative access.
 After applying your fixes, confirm:
 
 1. Unauthenticated access is blocked
-2. The application user can still read data but cannot write
-3. The order application still works as expected
+2. Direct Redis traffic is unavailable on the client-facing network
+3. The application user can still read data but cannot write
+4. The administrator can still perform authenticated maintenance
+5. The order application still works and the hardened settings are active
+   after restart
 
 Use the same tools from your investigation to re-check each layer. When
 satisfied, click **Run Check** in the portal.
