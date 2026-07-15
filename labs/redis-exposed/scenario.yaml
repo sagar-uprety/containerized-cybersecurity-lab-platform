@@ -83,11 +83,11 @@ checker:
         SET checker:admin-write ok >/dev/null 2>&1 &&
         [ "$(REDISCLI_AUTH=admin-demo-password redis-cli -h 127.0.0.1
         --user admin --raw GET checker:admin-write 2>/dev/null)" = ok ]; then
-          REDISCLI_AUTH=admin-demo-password redis-cli -h 127.0.0.1 --user admin
-          DEL checker:admin-write >/dev/null 2>&1;
-          echo admin_operational;
+        REDISCLI_AUTH=admin-demo-password redis-cli -h 127.0.0.1 --user admin
+        DEL checker:admin-write >/dev/null 2>&1;
+        echo admin_operational;
         else
-          echo admin_unavailable;
+        echo admin_unavailable;
         fi
       states:
         vulnerable: "output_eq: admin_unavailable"
