@@ -37,6 +37,7 @@ RUN apt-get update \
       jq \
       ldap-utils \
       less \
+      libcap2-bin \
       mariadb-client \
       nano \
       netcat-openbsd \
@@ -76,7 +77,8 @@ RUN useradd --create-home --shell /bin/bash --uid 1000 student \
     && chmod 0644 /usr/local/lib/thesis-command-logger.bash \
     && chmod 0755 /usr/local/bin/ttyd \
     && chmod -R a+rX /opt/lab/student \
-    && chmod u+s /usr/bin/ping
+    && chmod u+s /usr/bin/ping \
+    && setcap 'cap_net_bind_service=+ep' /usr/bin/curl
 
 EXPOSE 22 19000
 WORKDIR /home/student
