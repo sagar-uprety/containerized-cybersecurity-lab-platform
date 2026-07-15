@@ -125,6 +125,18 @@ repos:
         files: ^(labs/.*/scenario\.yaml|labs/.*/docs/.*\.md|labs/.*/docs/SITREP\.txt|labs/templates-contract/.*\.md|labs/templates-contract/scenario\.schema\.json|docs/labs/.*\.md)$
         pass_filenames: false
 
+      # Catch YAML '>' folded-scalar indentation bugs that silently split
+      # a checker `run:` shell command across two commands (see
+      # ldap-anonymous-bind / redis-exposed incidents, 2026-07-15)
+      - id: thesis-scenario-checker-shell-validation
+        name: Validate scenario.yaml checker run scripts for YAML folding bugs
+        entry: python tools/pre_commit/check_scenario_checker_shell.py
+        language: python
+        additional_dependencies:
+          - pyyaml==6.0.2
+        files: ^labs/.*/scenario\.yaml$
+        pass_filenames: false
+
       # Validate per-lab intentional scanner findings and teaching-purpose risks
       - id: thesis-intentional-risk-validation
         name: Validate lab intentional-risk allowlists
