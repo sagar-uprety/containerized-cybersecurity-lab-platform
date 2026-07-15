@@ -8,4 +8,12 @@
 # a new connection sent through the lab's DNAT path to the internal server.
 -A FORWARD -p tcp --sport 80 -j ACCEPT
 
+# Companion "reply" shortcut for the internal server's own responses (source
+# port 8080). Without this, the attacker's forged source-port-80 SYN is
+# admitted but the internal server's SYN-ACK has no matching rule and is
+# dropped by the default policy, so the bypassed connection never completes -
+# this rule is what makes the source-port shortcut a real, exploitable bypass
+# rather than a one-way SYN admitted into a black hole.
+-A FORWARD -p tcp --sport 8080 -j ACCEPT
+
 COMMIT

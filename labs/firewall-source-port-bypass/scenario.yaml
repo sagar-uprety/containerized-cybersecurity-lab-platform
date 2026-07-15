@@ -154,6 +154,10 @@ workstation:
     - internal-server
   cap_add:
     - NET_RAW
+    # NET_BIND_SERVICE lets the non-root student bind curl to source port 80,
+    # required to demonstrate/verify the source-port bypass documented in
+    # solution-notes.md (`curl --local-port 80 ...`).
+    - NET_BIND_SERVICE
 
 containers:
   - service: firewall-host
