@@ -53,19 +53,11 @@ is real.
 -   What does the directory structure reveal about the organization?
 -   Does an accepted anonymous bind mean the same thing as permission to read or search directory entries?
 
-LDAP client tools and network scanners are available on the workstation.
-
-Run investigation commands from the student workstation. The lab-local access
-file supplies credentials needed later without exposing operator tooling:
-
-```bash
-# Context: student workstation
-cat /lab/access/credentials.txt
-ldapwhoami -x -H ldap://ldap-host
-LDAP_BASE=dc=lab,dc=local
-ldapsearch -x -H ldap://ldap-host -b "$LDAP_BASE" "(objectClass=posixAccount)" cn mail telephoneNumber uid uidNumber gidNumber homeDirectory userPassword
-ldapsearch -x -H ldap://ldap-host -b "ou=groups,$LDAP_BASE" "(objectClass=posixGroup)" cn gidNumber memberUid
-```
+LDAP client tools (including `ldapwhoami` and `ldapsearch`) and network
+scanners are available on the workstation. The lab-local access file at
+`/lab/access/credentials.txt` supplies credentials you will need later for
+the remediation phase - reading it now is fine, but hold off on using those
+credentials until you get there.
 
 An anonymous bind can remain available for authentication workflows while ACLs
 deny anonymous read/search access. Treat returned entries and attributes, not
