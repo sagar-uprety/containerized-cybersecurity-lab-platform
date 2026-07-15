@@ -61,12 +61,12 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
   }, [fetchDetail]);
 
   useEffect(() => {
-    if (!data || data.status !== "running") return;
+    if (!data || data.status !== "running" || data.group?.is_active === false) return;
     const interval = setInterval(() => {
       sendHeartbeat(labId).catch(() => {});
     }, 60000);
     return () => clearInterval(interval);
-  }, [data?.status, labId]);
+  }, [data?.group?.is_active, data?.status, labId]);
 
   // Split pane drag
   useEffect(() => {
@@ -204,9 +204,10 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
     );
   }
 
-  const { scenario, status, endpoints, deadline } = data;
+  const { scenario, status, endpoints, deadline, group } = data;
   const isRunning = status === "running";
-  const canStart = status === "not_created" || status === "stopped" || status === "error" || status === "ended";
+  const groupInactive = group?.is_active === false;
+  const canStart = !groupInactive && (status === "not_created" || status === "stopped" || status === "error" || status === "ended");
 
   const deadlineDate = deadline ? new Date(deadline) : null;
   const hoursLeft = deadlineDate ? (deadlineDate.getTime() - Date.now()) / 3600000 : null;
@@ -227,6 +228,12 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
             <span className="text-xs text-muted-foreground">State</span>
             <StatusBadge status={status} />
           </div>
+
+          {groupInactive && (
+            <div className="mb-3 rounded-md border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
+              This group is inactive. You can review this lab and stop or end an existing runtime, but cannot start, reset, or run checks.
+            </div>
+          )}
 
           {deadlineDate && (
             <div
@@ -254,20 +261,24 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
             )}
             {isRunning && (
               <>
-                <Button
-                  variant="outline"
-                  className="border-warning/30 text-warning hover:bg-warning-bg"
-                  onClick={doCheck}
-                  disabled={!!actionLoading}
-                >
-                  {actionLoading === "check" ? "Checking…" : "Run check"}
-                </Button>
+                {!groupInactive && (
+                  <Button
+                    variant="outline"
+                    className="border-warning/30 text-warning hover:bg-warning-bg"
+                    onClick={doCheck}
+                    disabled={!!actionLoading}
+                  >
+                    {actionLoading === "check" ? "Checking…" : "Run check"}
+                  </Button>
+                )}
                 <Button variant="outline" onClick={() => doAction("stop")} disabled={!!actionLoading}>
                   {actionLoading === "stop" ? "Stopping…" : "Stop"}
                 </Button>
-                <Button variant="outline" onClick={() => doAction("reset")} disabled={!!actionLoading}>
-                  {actionLoading === "reset" ? "Resetting…" : "Reset"}
-                </Button>
+                {!groupInactive && (
+                  <Button variant="outline" onClick={() => doAction("reset")} disabled={!!actionLoading}>
+                    {actionLoading === "reset" ? "Resetting…" : "Reset"}
+                  </Button>
+                )}
               </>
             )}
             {status !== "not_created" && status !== "ended" && (

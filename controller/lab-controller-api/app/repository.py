@@ -463,13 +463,18 @@ def visible_labs(session: Session, user: User) -> set[str]:
 
 
 def assigned_labs_detail(session: Session, user: User) -> dict[str, dict]:
-    """All approved-group lab assignments, including expired ones."""
+    """All approved-group lab assignments, including expired and inactive ones."""
     return _labs_detail(session, user, include_expired=True, include_inactive=True)
 
 
 def active_labs_detail(session: Session, user: User) -> dict[str, dict]:
     """Approved active-group assignments, including expired ones."""
     return _labs_detail(session, user, include_expired=True, include_inactive=False)
+
+
+def readable_labs_detail(session: Session, user: User) -> dict[str, dict]:
+    """Approved assignments within deadline, including inactive groups."""
+    return _labs_detail(session, user, include_expired=False, include_inactive=True)
 
 
 def visible_labs_detail(session: Session, user: User) -> dict[str, dict]:
@@ -487,7 +492,14 @@ def _labs_detail(
 ) -> dict[str, dict]:
     now = datetime.now(timezone.utc)
     query = (
-        select(GroupLab.lab_id, GroupLab.deadline, Group.id, Group.name, Group.semester)
+        select(
+            GroupLab.lab_id,
+            GroupLab.deadline,
+            Group.id,
+            Group.name,
+            Group.semester,
+            Group.is_active,
+        )
         .join(GroupMember, GroupMember.group_id == GroupLab.group_id)
         .join(Group, Group.id == GroupLab.group_id)
         .where(
@@ -501,18 +513,28 @@ def _labs_detail(
         query = query.where(Group.is_active.is_(True))
     rows = session.execute(query).all()
     result: dict[str, dict] = {}
-    for lab_id, deadline, group_id, group_name, semester in rows:
+    for lab_id, deadline, group_id, group_name, semester, is_active in rows:
         candidate = {
             "deadline": deadline.isoformat() if deadline else None,
             "group_id": group_id,
             "group_name": group_name,
             "semester": semester,
+            "is_active": is_active,
         }
         current = result.get(lab_id)
         replaces_current = (
             current is None
-            or candidate["deadline"] is None
-            or (current["deadline"] is not None and candidate["deadline"] > current["deadline"])
+            or (candidate["is_active"] and not current["is_active"])
+            or (
+                candidate["is_active"] == current["is_active"]
+                and (
+                    candidate["deadline"] is None
+                    or (
+                        current["deadline"] is not None
+                        and candidate["deadline"] > current["deadline"]
+                    )
+                )
+            )
         )
         if replaces_current:
             result[lab_id] = candidate

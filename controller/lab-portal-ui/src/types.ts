@@ -12,7 +12,7 @@ export interface Lab {
   status?: string;
   story?: { situation?: string; role?: string };
   deadline?: string;
-  group?: { id: number | null; name: string | null; semester?: string | null };
+  group?: { id: number | null; name: string | null; semester?: string | null; is_active?: boolean };
 }
 
 export interface LabDetail {
@@ -21,7 +21,7 @@ export interface LabDetail {
   endpoints?: LabEndpoints;
   csrf_token: string;
   deadline?: string;
-  group?: { id: number | null; name: string | null; semester?: string | null };
+  group?: { id: number | null; name: string | null; semester?: string | null; is_active?: boolean };
 }
 
 export interface Scenario {

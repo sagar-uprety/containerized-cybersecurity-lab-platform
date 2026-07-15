@@ -95,7 +95,7 @@ def get_visible_lab_ids(username: str) -> set:
 
 
 def get_assigned_labs_detail(username: str) -> dict:
-    """All approved-group lab assignments, including expired ones."""
+    """All approved-group assignments, including expired and inactive ones."""
     with SessionLocal() as session:
         user = repo.get_user_by_email(session, username)
         if user is None or user.role != "student":
@@ -110,6 +110,15 @@ def get_active_labs_detail(username: str) -> dict:
         if user is None or user.role != "student":
             return {}
         return repo.active_labs_detail(session, user)
+
+
+def get_readable_labs_detail(username: str) -> dict:
+    """Approved assignments within deadline, including inactive groups."""
+    with SessionLocal() as session:
+        user = repo.get_user_by_email(session, username)
+        if user is None or user.role != "student":
+            return {}
+        return repo.readable_labs_detail(session, user)
 
 
 def get_visible_labs_detail(username: str) -> dict:

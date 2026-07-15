@@ -27,11 +27,10 @@ from app import repository as repo
 from app.auth import (
     authenticate_credentials,
     change_password,
-    get_active_labs_detail,
     get_assigned_labs_detail,
+    get_readable_labs_detail,
     get_student_users,
     get_visible_lab_ids,
-    get_visible_labs_detail,
     lookup_user,
 )
 from app.config import settings
@@ -378,7 +377,7 @@ def api_me(user: dict = Depends(get_authenticated_user)):
 @app.get("/api/labs")
 def api_labs(user: dict = Depends(get_authenticated_user)):
     require_student(user)
-    assignments = get_active_labs_detail(user["username"])
+    assignments = get_assigned_labs_detail(user["username"])
     labs = [lab for lab in list_scenarios() if lab["id"] in assignments]
     student_id = user_student_id(user)
     runtime_states = dict(tracked_runtime_items())
@@ -400,6 +399,7 @@ def api_labs(user: dict = Depends(get_authenticated_user)):
                     "id": detail.get("group_id"),
                     "name": detail.get("group_name"),
                     "semester": detail.get("semester"),
+                    "is_active": detail.get("is_active"),
                 },
             }
         )
@@ -410,8 +410,8 @@ def api_labs(user: dict = Depends(get_authenticated_user)):
 def api_lab_detail(lab_id: str, _request: Request, user: dict = Depends(get_authenticated_user)):
     require_student(user)
     validate_lab_id(lab_id)
-    visible = get_visible_labs_detail(user["username"])
-    if lab_id not in visible:
+    assignments = get_readable_labs_detail(user["username"])
+    if lab_id not in assignments:
         raise HTTPException(status_code=404, detail="Lab not found")
     scenario = load_scenario_metadata(lab_id)
     if not scenario:
@@ -430,11 +430,12 @@ def api_lab_detail(lab_id: str, _request: Request, user: dict = Depends(get_auth
         "check_result": check_result,
         "endpoints": endpoints,
         "csrf_token": generate_token(user),
-        "deadline": visible.get(lab_id, {}).get("deadline"),
+        "deadline": assignments.get(lab_id, {}).get("deadline"),
         "group": {
-            "id": visible.get(lab_id, {}).get("group_id"),
-            "name": visible.get(lab_id, {}).get("group_name"),
-            "semester": visible.get(lab_id, {}).get("semester"),
+            "id": assignments.get(lab_id, {}).get("group_id"),
+            "name": assignments.get(lab_id, {}).get("group_name"),
+            "semester": assignments.get(lab_id, {}).get("semester"),
+            "is_active": assignments.get(lab_id, {}).get("is_active"),
         },
     }
 
@@ -897,10 +898,12 @@ def api_enrollment_options(user: dict = Depends(get_authenticated_user)):
         db_user = repo.get_user_by_email(session, user["username"])
         if db_user is None:
             raise HTTPException(status_code=404, detail="User not found")
-        groups = [group for group in repo.list_groups(session) if group.is_active]
+        groups = repo.list_groups(session)
         result = []
         for g in groups:
             my_membership = next((m for m in g.members if m.user_id == db_user.id), None)
+            if not g.is_active and my_membership is None:
+                continue
             result.append(
                 {
                     "id": g.id,

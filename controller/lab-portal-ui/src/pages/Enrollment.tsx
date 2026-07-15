@@ -77,7 +77,12 @@ export default function Enrollment({ user, onLogout }: { user: User; onLogout: (
               <CardContent className="flex h-full flex-col gap-3">
                 <div className="flex items-start justify-between gap-2">
                   <div className="font-medium text-foreground">{group.name}</div>
-                  {group.semester && <Badge variant="outline">{group.semester}</Badge>}
+                  <div className="flex flex-wrap justify-end gap-1.5">
+                    {group.semester && <Badge variant="outline">{group.semester}</Badge>}
+                    {group.is_active === false && (
+                      <Badge className="border-transparent bg-muted text-muted-foreground">Inactive</Badge>
+                    )}
+                  </div>
                 </div>
                 <div className="text-sm text-muted-foreground">
                   {group.member_count} member{group.member_count !== 1 ? "s" : ""}
@@ -89,12 +94,12 @@ export default function Enrollment({ user, onLogout }: { user: User; onLogout: (
                   {group.status === "pending" && (
                     <Badge className="border-transparent bg-warning-bg text-warning">Pending approval</Badge>
                   )}
-                  {!group.status && group.semester && occupiedSemesters.has(group.semester) && (
+                  {group.is_active !== false && !group.status && group.semester && occupiedSemesters.has(group.semester) && (
                     <Badge className="border-transparent bg-muted text-muted-foreground">
                       Another group selected for {group.semester}
                     </Badge>
                   )}
-                  {!group.status && (!group.semester || !occupiedSemesters.has(group.semester)) && (
+                  {group.is_active !== false && !group.status && (!group.semester || !occupiedSemesters.has(group.semester)) && (
                     <Button size="sm" disabled={enrollLoading === group.id} onClick={() => handleEnroll(group.id)}>
                       {enrollLoading === group.id ? "Requesting…" : "Request to join"}
                     </Button>

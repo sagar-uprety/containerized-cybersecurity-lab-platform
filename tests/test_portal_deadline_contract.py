@@ -33,6 +33,7 @@ def main() -> None:
 
     init_db()
     lab_id = "redis-exposed"
+    inactive_lab_id = "ldap-anonymous-bind"
     email = "deadline-test@example.invalid"
     password = "deadline-test-password"
     with SessionLocal() as session:
@@ -44,19 +45,25 @@ def main() -> None:
             number=999,
             lab_password="workstation-test-password",
         )
-        group = Group(name="Deadline contract group")
-        session.add_all([student, group])
+        group = Group(name="Deadline contract group", semester="SS 2026")
+        inactive_group = Group(
+            name="Inactive contract group", semester="WS 2026/27", is_active=False
+        )
+        session.add_all([student, group, inactive_group])
         session.flush()
         session.add_all(
             [
                 GroupMember(group_id=group.id, user_id=student.id, status="approved"),
+                GroupMember(group_id=inactive_group.id, user_id=student.id, status="approved"),
                 GroupLab(
                     group_id=group.id,
                     lab_id=lab_id,
                     deadline=datetime(2000, 1, 1, tzinfo=timezone.utc),
                 ),
+                GroupLab(group_id=inactive_group.id, lab_id=inactive_lab_id),
             ]
         )
+        inactive_group_id = inactive_group.id
         session.commit()
 
     with TestClient(app) as client:
@@ -67,10 +74,26 @@ def main() -> None:
         assert labs.status_code == 200, labs.text
         expired = next(item for item in labs.json() if item["id"] == lab_id)
         assert expired["deadline"].startswith("2000-01-01")
+        inactive = next(item for item in labs.json() if item["id"] == inactive_lab_id)
+        assert inactive["group"]["is_active"] is False
 
         assert client.get(f"/api/labs/{lab_id}").status_code == 404
+        inactive_detail = client.get(f"/api/labs/{inactive_lab_id}")
+        assert inactive_detail.status_code == 200, inactive_detail.text
+        assert inactive_detail.json()["group"]["is_active"] is False
+
+        enrollment = client.get("/api/enrollment-options")
+        assert enrollment.status_code == 200, enrollment.text
+        inactive_option = next(
+            item for item in enrollment.json() if item["id"] == inactive_group_id
+        )
+        assert inactive_option["status"] == "approved"
+        assert inactive_option["is_active"] is False
+
         denied_start = client.post(f"/api/labs/{lab_id}/start")
         assert denied_start.status_code == 403, denied_start.text
+        denied_inactive_start = client.post(f"/api/labs/{inactive_lab_id}/start")
+        assert denied_inactive_start.status_code == 403, denied_inactive_start.text
 
 
 if __name__ == "__main__":

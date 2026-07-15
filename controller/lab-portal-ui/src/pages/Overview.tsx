@@ -61,8 +61,9 @@ export default function Overview({ user, onLogout }: { user: User; onLogout: () 
               const deadlinePassed = Boolean(
                 lab.deadline && new Date(lab.deadline).getTime() < Date.now(),
               );
+              const groupInactive = lab.group?.is_active === false;
               return (
-                <Card key={lab.id} className={cn(deadlinePassed && "bg-muted/40")}>
+                <Card key={lab.id} className={cn((deadlinePassed || groupInactive) && "bg-muted/40")}>
                   <CardContent className="flex h-full flex-col items-start gap-3">
                     <div className="flex w-full items-start justify-between gap-2">
                       <span className="font-medium text-foreground">{lab.title}</span>
@@ -73,6 +74,11 @@ export default function Overview({ user, onLogout }: { user: User; onLogout: () 
                       {(lab.group?.semester || lab.group?.name) && (
                         <Badge className="border-transparent bg-muted text-muted-foreground">
                           {lab.group?.semester ?? lab.group?.name}
+                        </Badge>
+                      )}
+                      {groupInactive && (
+                        <Badge className="border-transparent bg-muted text-muted-foreground">
+                          Group inactive
                         </Badge>
                       )}
                       {lab.deadline && <DeadlineBadge deadline={lab.deadline} />}
