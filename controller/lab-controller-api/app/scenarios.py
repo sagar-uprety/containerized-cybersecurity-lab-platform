@@ -91,9 +91,9 @@ def student_guide_url(scenario: dict) -> str:
     return documentation.get("student_guide_url") or f"/docs/labs/{scenario['id']}/"
 
 
-def solution_guide_url(scenario: dict) -> str:
+def solution_notes_url(scenario: dict) -> str:
     documentation = scenario.get("documentation", {})
-    return documentation.get("solution_guide_url") or f"/docs/labs/{scenario['id']}-solution/"
+    return documentation.get("solution_notes_url") or f"/docs/labs/{scenario['id']}-solution/"
 
 
 def instructor_guide_url(scenario: dict) -> str:

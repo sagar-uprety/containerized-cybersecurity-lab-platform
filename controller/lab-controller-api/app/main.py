@@ -67,7 +67,7 @@ from app.scenarios import (
     instructor_guide_url,
     list_scenarios,
     load_scenario_metadata,
-    solution_guide_url,
+    solution_notes_url,
     student_guide_url,
     terminal_owner_for_port,
     user_student_id,
@@ -1000,7 +1000,7 @@ def api_instructor_labs(user: dict = Depends(get_authenticated_user)):
                 "active_sessions": active_count,
                 "total_students": total_students,
                 "student_guide_url": student_guide_url(scenario),
-                "solution_guide_url": solution_guide_url(scenario),
+                "solution_notes_url": solution_notes_url(scenario),
                 "instructor_guide_url": instructor_guide_url(scenario),
             }
         )

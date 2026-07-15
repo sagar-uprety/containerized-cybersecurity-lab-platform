@@ -50,7 +50,7 @@ export default function InstructorLabDetail({ user, labId, onLogout }: Props) {
 
   const docLinks = [
     { url: docs.student_guide_url, icon: BookOpen, title: "Lab guide", desc: "Student-facing guide with discovery steps and hints" },
-    { url: docs.solution_guide_url, icon: FileText, title: "Solution guide", desc: "Full remediation steps (instructor only)" },
+    { url: docs.solution_notes_url, icon: FileText, title: "Solution notes", desc: "Exact remediation steps (instructor only)" },
     { url: docs.instructor_guide_url, icon: GraduationCap, title: "Instructor guide", desc: "Teaching notes, common mistakes, hint policy" },
   ];
 

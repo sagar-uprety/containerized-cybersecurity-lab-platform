@@ -30,7 +30,7 @@ export interface Scenario {
   checker?: { checks?: CheckerCheck[] };
   documentation?: {
     student_guide_url?: string;
-    solution_guide_url?: string;
+    solution_notes_url?: string;
     instructor_guide_url?: string;
   };
 }

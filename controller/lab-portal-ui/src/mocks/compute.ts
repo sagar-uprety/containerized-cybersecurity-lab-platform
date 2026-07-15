@@ -536,7 +536,7 @@ export function sessionDetail(labId: string, studentId: string) {
       checker: { checks: (CHECKS_POOL[labId] || []).map((c) => ({ name: c.name, label: c.label })) },
       documentation: {
         student_guide_url: `https://docs.example.invalid/labs/${labId}`,
-        solution_guide_url: `https://docs.example.invalid/labs/${labId}-solution`,
+        solution_notes_url: `https://docs.example.invalid/labs/${labId}-solution`,
         instructor_guide_url: `https://docs.example.invalid/labs/${labId}-instructor`,
       },
     },

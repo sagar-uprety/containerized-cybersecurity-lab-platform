@@ -381,7 +381,7 @@ export const handlers = [
         story: lab.story,
         documentation: {
           student_guide_url: `https://docs.example.invalid/labs/${lab.id}`,
-          solution_guide_url: `https://docs.example.invalid/labs/${lab.id}-solution`,
+          solution_notes_url: `https://docs.example.invalid/labs/${lab.id}-solution`,
           instructor_guide_url: `https://docs.example.invalid/labs/${lab.id}-instructor`,
         },
       },
