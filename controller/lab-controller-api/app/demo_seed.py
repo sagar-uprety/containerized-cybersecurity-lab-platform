@@ -111,6 +111,8 @@ def replace_with_demo_data(data_path: Path, credentials_path: Path) -> dict:
             group = Group(
                 id=item["id"],
                 name=item["name"],
+                semester=item["semester"],
+                is_active=bool(item.get("is_active", True)),
                 created_at=_dt(item["created_at"]),
                 synthetic=True,
             )
@@ -240,8 +242,8 @@ def replace_with_demo_data(data_path: Path, credentials_path: Path) -> dict:
                     student_id=item["student_id"],
                     lab_id=item["lab_id"],
                     section_a=item["section_a"],
-                    section_b_rating=item["section_b_rating"],
-                    section_b=item["section_b"],
+                    rating=item["section_b_rating"],
+                    comment=item["section_b"],
                     issue_category=item.get("issue_category"),
                     occurred_at=_dt(item["occurred_at"]),
                     synthetic=True,

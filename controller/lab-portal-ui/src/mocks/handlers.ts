@@ -94,21 +94,76 @@ export const handlers = [
   http.post(`${API}/password`, () => HttpResponse.json({ ok: true })),
   http.get(`${API}/instructor/csrf`, () => HttpResponse.json({ csrf_token: "mock-csrf-token" })),
 
-  http.get(`${API}/enrollment-options`, () =>
-    HttpResponse.json(
-      store.groups.slice(0, 3).map((g, i) => ({
-        id: g.id,
-        name: g.name,
-        member_count: 10 + i * 7,
-        status: i === 0 ? "approved" : i === 1 ? "pending" : null,
-      }))
-    )
-  ),
-  http.post(`${API}/enroll/:groupId`, () => HttpResponse.json({ ok: true })),
+  http.get(`${API}/enrollment-options`, () => {
+    const student = store.users.find((item) => item.internal_id === STUDENT_USER.student_id);
+    return HttpResponse.json(
+      store.groups.filter((group) => group.is_active).map((group) => {
+        const membership = store.memberships.find(
+          (item) => item.group_id === group.id && item.user_id === student?.id,
+        );
+        return {
+          id: group.id,
+          name: group.name,
+          semester: group.semester,
+          is_active: group.is_active,
+          member_count: store.memberships.filter(
+            (item) => item.group_id === group.id && item.status === "approved",
+          ).length,
+          status: membership?.status ?? null,
+        };
+      }),
+    );
+  }),
+  http.post(`${API}/enroll/:groupId`, ({ params }) => {
+    const groupId = Number(params.groupId);
+    const group = store.groups.find((item) => item.id === groupId);
+    const student = store.users.find((item) => item.internal_id === STUDENT_USER.student_id);
+    if (!group || !student) {
+      return HttpResponse.json({ detail: "Group not found" }, { status: 404 });
+    }
+    if (!group.is_active) {
+      return HttpResponse.json({ detail: "group is not open for enrollment" }, { status: 409 });
+    }
+    const existing = store.memberships.find(
+      (item) => item.group_id === groupId && item.user_id === student.id,
+    );
+    if (existing) return HttpResponse.json({ status: existing.status, group_id: groupId });
+    const conflict = store.memberships.some((membership) => {
+      if (membership.user_id !== student.id) return false;
+      const existingGroup = store.groups.find((item) => item.id === membership.group_id);
+      return existingGroup?.semester === group.semester;
+    });
+    if (conflict) {
+      return HttpResponse.json(
+        { detail: `already enrolled or pending in another group for ${group.semester}` },
+        { status: 409 },
+      );
+    }
+    store.memberships.push({
+      group_id: groupId,
+      user_id: student.id,
+      status: "pending",
+      requested_at: new Date().toISOString(),
+    });
+    return HttpResponse.json({ status: "pending", group_id: groupId });
+  }),
 
   http.get(`${API}/labs`, () =>
     HttpResponse.json(
-      LABS.map((l) => ({
+      LABS.filter((lab) => {
+        const student = store.users.find((item) => item.internal_id === STUDENT_USER.student_id);
+        return store.groupLabs.some(
+          (assignment) =>
+            assignment.lab_id === lab.id &&
+            store.groups.some((group) => group.id === assignment.group_id && group.is_active) &&
+            store.memberships.some(
+              (membership) =>
+                membership.group_id === assignment.group_id &&
+                membership.user_id === student?.id &&
+                membership.status === "approved",
+            ),
+        );
+      }).map((l) => ({
         id: l.id,
         title: l.title,
         difficulty: l.difficulty,
@@ -123,6 +178,9 @@ export const handlers = [
     const lab = LABS.find((l) => l.id === params.id);
     if (!lab) return HttpResponse.json({ detail: "Lab not found" }, { status: 404 });
     const state = studentLabState[lab.id] ?? { status: "not_created" as const, deadline: null };
+    if (state.deadline && new Date(state.deadline).getTime() < Date.now()) {
+      return HttpResponse.json({ detail: "Lab not found" }, { status: 404 });
+    }
     const isRunning = state.status === "running";
     return HttpResponse.json({
       scenario: {
@@ -143,6 +201,10 @@ export const handlers = [
 
   http.post(`${API}/labs/:id/start`, ({ params }) => {
     const labId = String(params.id);
+    const deadline = studentLabState[labId]?.deadline;
+    if (deadline && new Date(deadline).getTime() < Date.now()) {
+      return HttpResponse.json({ detail: "Lab not assigned" }, { status: 403 });
+    }
     if (!currentSession(labId)) startSession(labId);
     studentLabState[labId] = { status: "running", deadline: studentLabState[labId]?.deadline ?? null };
     return HttpResponse.json({ ok: true });
@@ -286,9 +348,18 @@ export const handlers = [
   http.get(`${API}/instructor/groups`, () => HttpResponse.json(store.groups.map((g) => groupSummary(g.id)))),
 
   http.post(`${API}/instructor/groups`, async ({ request }) => {
-    const body = (await request.json()) as { name: string };
+    const body = (await request.json()) as { name: string; semester?: string; is_active?: boolean };
+    if (!body.semester?.trim()) {
+      return HttpResponse.json({ detail: "group semester is required" }, { status: 400 });
+    }
     const id = allocGroupId();
-    store.groups.push({ id, name: body.name, created_at: new Date().toISOString() });
+    store.groups.push({
+      id,
+      name: body.name,
+      semester: body.semester.trim(),
+      is_active: body.is_active ?? true,
+      created_at: new Date().toISOString(),
+    });
     return HttpResponse.json({ ok: true, id });
   }),
 
@@ -302,9 +373,13 @@ export const handlers = [
 
   http.post(`${API}/instructor/groups/:id/rename`, async ({ params, request }) => {
     const id = Number(params.id);
-    const body = (await request.json()) as { name: string };
+    const body = (await request.json()) as { name: string; semester?: string; is_active?: boolean };
     const g = store.groups.find((x) => x.id === id);
-    if (g) g.name = body.name;
+    if (g) {
+      g.name = body.name;
+      if (body.semester != null) g.semester = body.semester;
+      if (body.is_active != null) g.is_active = body.is_active;
+    }
     return HttpResponse.json({ ok: true });
   }),
 

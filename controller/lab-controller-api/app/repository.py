@@ -223,20 +223,31 @@ def set_password(session: Session, user: User, new_password: str) -> None:
 # --------------------------------------------------------------------------- #
 # Groups
 # --------------------------------------------------------------------------- #
-def create_group(session: Session, name: str) -> Group:
+def create_group(
+    session: Session, name: str, semester: str | None = None, is_active: bool = True
+) -> Group:
     name = (name or "").strip()
+    semester = (semester or "").strip()
     if not name:
         raise ValueError("group name is required")
+    if not semester:
+        raise ValueError("group semester is required")
     existing = session.execute(select(Group).where(Group.name == name)).scalar_one_or_none()
     if existing is not None:
         raise ValueError(f"group {name} already exists")
-    group = Group(name=name)
+    group = Group(name=name, semester=semester, is_active=is_active)
     session.add(group)
     session.flush()
     return group
 
 
-def rename_group(session: Session, group_id: int, new_name: str) -> Group | None:
+def rename_group(
+    session: Session,
+    group_id: int,
+    new_name: str,
+    semester: str | None = None,
+    is_active: bool | None = None,
+) -> Group | None:
     new_name = (new_name or "").strip()
     if not new_name:
         raise ValueError("group name is required")
@@ -249,6 +260,10 @@ def rename_group(session: Session, group_id: int, new_name: str) -> Group | None
     if existing is not None:
         raise ValueError(f"group {new_name} already exists")
     group.name = new_name
+    if semester is not None:
+        group.semester = semester.strip() or None
+    if is_active is not None:
+        group.is_active = is_active
     session.flush()
     return group
 
@@ -273,6 +288,29 @@ def get_group(session: Session, group_id: int) -> Group | None:
 # --------------------------------------------------------------------------- #
 # Membership
 # --------------------------------------------------------------------------- #
+def _semester_membership_conflict(session: Session, user_id: int, group_id: int) -> str | None:
+    """Reject a second pending/approved membership in the same semester."""
+    target = session.get(Group, group_id)
+    if target is None:
+        return None
+    semester = (target.semester or "").strip()
+    if not semester:
+        return "group semester is required before enrollment"
+    conflict = session.execute(
+        select(GroupMember)
+        .join(Group, Group.id == GroupMember.group_id)
+        .where(
+            GroupMember.user_id == user_id,
+            GroupMember.group_id != group_id,
+            GroupMember.status.in_(("pending", "approved")),
+            Group.semester == semester,
+        )
+    ).scalar_one_or_none()
+    if conflict is not None:
+        return f"already enrolled or pending in another group for {semester}"
+    return None
+
+
 def add_member(session: Session, group_id: int, user_id: int) -> GroupMember:
     if session.get(Group, group_id) is None:
         raise ValueError("group not found")
@@ -283,6 +321,9 @@ def add_member(session: Session, group_id: int, user_id: int) -> GroupMember:
     ).scalar_one_or_none()
     if existing is not None:
         return existing
+    conflict = _semester_membership_conflict(session, user_id, group_id)
+    if conflict is not None:
+        raise ValueError(conflict)
     member = GroupMember(group_id=group_id, user_id=user_id, status="approved")
     session.add(member)
     session.flush()
@@ -290,8 +331,11 @@ def add_member(session: Session, group_id: int, user_id: int) -> GroupMember:
 
 
 def request_membership(session: Session, group_id: int, user_id: int) -> GroupMember:
-    if session.get(Group, group_id) is None:
+    group = session.get(Group, group_id)
+    if group is None:
         raise ValueError("group not found")
+    if not group.is_active:
+        raise ValueError("group is not open for enrollment")
     if session.get(User, user_id) is None:
         raise ValueError("user not found")
     existing = session.execute(
@@ -299,6 +343,9 @@ def request_membership(session: Session, group_id: int, user_id: int) -> GroupMe
     ).scalar_one_or_none()
     if existing is not None:
         return existing
+    conflict = _semester_membership_conflict(session, user_id, group_id)
+    if conflict is not None:
+        raise ValueError(conflict)
     member = GroupMember(group_id=group_id, user_id=user_id, status="pending")
     session.add(member)
     session.flush()
@@ -412,34 +459,61 @@ def visible_labs(session: Session, user: User) -> set[str]:
     """Lab ids a student may see/run = union of assignments across their
     approved groups, excluding labs past their deadline.
     """
-    return set(visible_labs_with_deadlines(session, user).keys())
+    return set(visible_labs_detail(session, user).keys())
 
 
-def visible_labs_with_deadlines(session: Session, user: User) -> dict[str, str | None]:
-    """Lab id → earliest deadline (ISO string) or None if no deadline.
+def assigned_labs_detail(session: Session, user: User) -> dict[str, dict]:
+    """All approved-group lab assignments, including expired ones."""
+    return _labs_detail(session, user, include_expired=True, include_inactive=True)
 
-    When a lab is assigned to multiple groups, the latest deadline wins
-    (gives the student the most time).
+
+def active_labs_detail(session: Session, user: User) -> dict[str, dict]:
+    """Approved active-group assignments, including expired ones."""
+    return _labs_detail(session, user, include_expired=True, include_inactive=False)
+
+
+def visible_labs_detail(session: Session, user: User) -> dict[str, dict]:
+    """Lab id → {"deadline": iso|None, "group_id", "group_name", "semester"}.
+
+    When a lab is assigned to multiple groups, the assignment with the
+    latest deadline wins (gives the student the most time and attributes
+    the lab to that group).
     """
+    return _labs_detail(session, user, include_expired=False, include_inactive=False)
+
+
+def _labs_detail(
+    session: Session, user: User, include_expired: bool, include_inactive: bool
+) -> dict[str, dict]:
     now = datetime.now(timezone.utc)
-    rows = session.execute(
-        select(GroupLab.lab_id, GroupLab.deadline)
+    query = (
+        select(GroupLab.lab_id, GroupLab.deadline, Group.id, Group.name, Group.semester)
         .join(GroupMember, GroupMember.group_id == GroupLab.group_id)
+        .join(Group, Group.id == GroupLab.group_id)
         .where(
             GroupMember.user_id == user.id,
             GroupMember.status == "approved",
-            (GroupLab.deadline.is_(None)) | (GroupLab.deadline >= now),
         )
-    ).all()
-    result: dict[str, str | None] = {}
-    for lab_id, deadline in rows:
-        if lab_id not in result:
-            result[lab_id] = deadline.isoformat() if deadline else None
-        elif deadline is None:
-            result[lab_id] = None
-        elif result[lab_id] is not None:
-            existing = result[lab_id]
-            candidate = deadline.isoformat()
-            if candidate > existing:
-                result[lab_id] = candidate
+    )
+    if not include_expired:
+        query = query.where((GroupLab.deadline.is_(None)) | (GroupLab.deadline >= now))
+    if not include_inactive:
+        query = query.where(Group.is_active.is_(True))
+    rows = session.execute(query).all()
+    result: dict[str, dict] = {}
+    for lab_id, deadline, group_id, group_name, semester in rows:
+        candidate = {
+            "deadline": deadline.isoformat() if deadline else None,
+            "group_id": group_id,
+            "group_name": group_name,
+            "semester": semester,
+        }
+        current = result.get(lab_id)
+        replaces_current = (
+            current is None
+            or candidate["deadline"] is None
+            or (current["deadline"] is not None and candidate["deadline"] > current["deadline"])
+        )
+        if replaces_current:
+            result[lab_id] = candidate
     return result

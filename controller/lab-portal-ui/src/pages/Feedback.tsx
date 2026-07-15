@@ -28,17 +28,20 @@ export default function Feedback({ user, labId, onLogout }: FeedbackProps) {
   const [info, setInfo] = useState<FeedbackInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [sectionA, setSectionA] = useState("");
-  const [sectionBRating, setSectionBRating] = useState(3);
-  const [sectionB, setSectionB] = useState("");
+  const [rating, setRating] = useState(3);
+  const [comment, setComment] = useState("");
   const [issueCategory, setIssueCategory] = useState("none");
 
   useDocumentTitle("Lab Feedback");
 
   useEffect(() => {
+    let cancelled = false;
+    setInfo(null);
+    setError(null);
     getLabFeedback(labId)
-      .then((data: FeedbackInfo) => setInfo(data))
-      .catch((err: Error) => setError(err.message));
+      .then((data: FeedbackInfo) => { if (!cancelled) setInfo(data); })
+      .catch((err: Error) => { if (!cancelled) setError(err.message); });
+    return () => { cancelled = true; };
   }, [labId]);
 
   async function handleSubmit(e: React.FormEvent) {
@@ -48,9 +51,8 @@ export default function Feedback({ user, labId, onLogout }: FeedbackProps) {
       await submitFeedback(labId, {
         csrfToken: info!.csrf_token,
         sessionId: info!.session_id,
-        sectionA,
-        sectionBRating,
-        sectionB,
+        rating,
+        comment,
         issueCategory: issueCategory === "none" ? undefined : issueCategory,
       });
       navigate("/");
@@ -90,10 +92,9 @@ export default function Feedback({ user, labId, onLogout }: FeedbackProps) {
           <Alert className="mb-6 border-primary/20 bg-accent">
             <Info className="text-primary" />
             <AlertDescription className="text-foreground">
-              This feedback form is part of the thesis evaluation process. Your responses are used
-              to improve the lab platform and are <strong>not linked to your grade</strong>.
-              Participation is mandatory so we can measure learning outcomes, but individual
-              responses are de-identified before instructor review. Identity is retained only to prevent duplicate submissions.
+              Quick feedback helps us make this lab better. It's <strong>not linked to your grade</strong>,
+              and totally optional. We keep your identity attached only briefly, to stop duplicate
+              submissions, then your answers are reviewed without your name on them.
             </AlertDescription>
           </Alert>
 
@@ -101,30 +102,12 @@ export default function Feedback({ user, labId, onLogout }: FeedbackProps) {
             <Card>
               <CardContent className="space-y-3">
                 <div>
-                  <h2 className="text-sm font-semibold text-foreground">Section A — Reflection</h2>
-                  <p className="text-sm text-muted-foreground">Free-text reflection on what you learned during this lab.</p>
-                </div>
-                <Textarea
-                  rows={6}
-                  value={sectionA}
-                  onChange={(e) => setSectionA(e.target.value)}
-                  placeholder="What was the most surprising thing you discovered? What would you do differently next time?"
-                  required
-                  minLength={4}
-                  maxLength={4000}
-                />
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardContent className="space-y-3">
-                <div>
-                  <h2 className="text-sm font-semibold text-foreground">Section B — Evaluation</h2>
+                  <h2 className="text-sm font-semibold text-foreground">Your feedback</h2>
                   <p className="text-sm text-muted-foreground">Rate the clarity of the lab guide and instructions.</p>
                 </div>
                 <div className="space-y-1.5">
                   <Label>Rating (1 = very unclear, 5 = very clear)</Label>
-                  <RatingInput value={sectionBRating} onChange={setSectionBRating} />
+                  <RatingInput value={rating} onChange={setRating} />
                 </div>
                 <div className="space-y-1.5">
                   <Label htmlFor="feedback-category">Primary issue, if any</Label>
@@ -142,8 +125,8 @@ export default function Feedback({ user, labId, onLogout }: FeedbackProps) {
                 <p className="text-sm text-muted-foreground">Free-text feedback on what was confusing or could be improved.</p>
                 <Textarea
                   rows={4}
-                  value={sectionB}
-                  onChange={(e) => setSectionB(e.target.value)}
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
                   placeholder="Which step was hardest to follow? What additional hint would have helped?"
                   required
                   minLength={4}

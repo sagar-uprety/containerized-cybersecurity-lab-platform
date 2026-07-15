@@ -159,7 +159,7 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
                       <TableHead className="w-24">Runtime</TableHead>
                       <TableHead className="w-28">Saved results</TableHead>
                       <TableHead className="w-28">Result</TableHead>
-                      <TableHead className="w-28">Outcome</TableHead>
+                      <TableHead className="w-28">Session status</TableHead>
                       <TableHead className="w-24" />
                     </TableRow>
                   </TableHeader>
@@ -167,7 +167,7 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
                     {orderedSessions.map((sess, i) => {
                       const sessionIndex = (lab.sessions || []).length - (lab.sessions || []).indexOf(sess);
                       const rowHref = `/instructor/groups/${groupId}/students/${studentId}/labs/${lab.lab_id}?session=${sessionIndex}`;
-                      const style = outcomeStyle(sess.outcome);
+                      const style = outcomeStyle(sess.outcome, sess.close_reason);
                       return (
                         <TableRow
                           key={i}

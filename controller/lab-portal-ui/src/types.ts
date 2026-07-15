@@ -12,6 +12,7 @@ export interface Lab {
   status?: string;
   story?: { situation?: string; role?: string };
   deadline?: string;
+  group?: { id: number | null; name: string | null; semester?: string | null };
 }
 
 export interface LabDetail {
@@ -20,6 +21,7 @@ export interface LabDetail {
   endpoints?: LabEndpoints;
   csrf_token: string;
   deadline?: string;
+  group?: { id: number | null; name: string | null; semester?: string | null };
 }
 
 export interface Scenario {
@@ -55,6 +57,8 @@ export interface CheckResultData {
 export interface EnrollmentOption {
   id: number;
   name: string;
+  semester?: string | null;
+  is_active?: boolean;
   member_count: number;
   status?: "approved" | "pending" | null;
 }
@@ -62,6 +66,8 @@ export interface EnrollmentOption {
 export interface Group {
   id: number;
   name: string;
+  semester?: string | null;
+  is_active?: boolean;
   member_count: number;
   lab_count: number;
   pending_count: number;
@@ -71,6 +77,8 @@ export interface Group {
 export interface GroupDetail {
   id: number;
   name: string;
+  semester?: string | null;
+  is_active?: boolean;
   csrf_token: string;
   labs: GroupLab[];
   approved_members: GroupMember[];
@@ -181,6 +189,7 @@ export interface SessionSummary {
   student_check_count: number;
   automatic_check_count: number;
   outcome?: string;
+  close_reason?: string | null;
   passed?: boolean | null;
 }
 
@@ -203,6 +212,7 @@ export interface LifecycleEvent {
   action: string;
   timestamp: string;
   result?: string;
+  reason?: string | null;
 }
 
 export interface StudentsProgressEntry {

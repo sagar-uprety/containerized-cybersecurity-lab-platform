@@ -54,7 +54,7 @@ function initials(email: string): string {
 }
 
 function activityLabel(event: ActivityEvent): string {
-  if (event.action !== "check") return outcomeStyle(event.action).label;
+  if (event.action !== "check") return outcomeStyle(event.action, event.reason).label;
   let label = "Automatic check";
   if (event.actor_type === "student") label = "Student check";
   else if (event.reason === "baseline") label = "Automatic baseline check";
@@ -77,7 +77,10 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
   const [deleting, setDeleting] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
   const [renameInput, setRenameInput] = useState("");
+  const [renameSemester, setRenameSemester] = useState("");
   const [renaming, setRenaming] = useState(false);
+  const [togglingActive, setTogglingActive] = useState(false);
+  const [activeConfirm, setActiveConfirm] = useState(false);
 
   useDocumentTitle(group?.name ?? "Group");
 
@@ -191,18 +194,30 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
   }
 
   async function handleRename(): Promise<void> {
-    if (!renameInput.trim() || renameInput.trim() === group?.name) {
+    if (!renameInput.trim()) {
       setRenameOpen(false);
       return;
     }
     setRenaming(true);
     try {
-      await renameGroup(groupId, renameInput.trim());
+      await renameGroup(groupId, renameInput.trim(), renameSemester.trim(), group?.is_active);
       setRenameOpen(false);
       await refresh();
-      showToast("Group renamed");
+      showToast("Group updated");
     } catch (err: unknown) { setError(err instanceof Error ? err.message : String(err)); }
     finally { setRenaming(false); }
+  }
+
+  async function handleToggleActive(): Promise<void> {
+    if (!group) return;
+    setActiveConfirm(false);
+    setTogglingActive(true);
+    try {
+      await renameGroup(groupId, group.name, group.semester ?? undefined, !group.is_active);
+      await refresh();
+      showToast(group.is_active ? "Group marked inactive" : "Group marked active");
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : String(err)); }
+    finally { setTogglingActive(false); }
   }
 
   const progressByLab = useMemo(() => {
@@ -288,6 +303,16 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
     <InstructorLayout user={user} onLogout={onLogout} groupContext={{ id: groupId, name: group?.name, hasPending }}>
       <PageHeader
         title={group?.name || "Group"}
+        description={
+          group ? (
+            <span className="flex items-center gap-2">
+              {group.semester && <Badge variant="outline">{group.semester}</Badge>}
+              <Badge className={cn("border-transparent", group.is_active ? "bg-success-bg text-success" : "bg-muted text-muted-foreground")}>
+                {group.is_active ? "Active" : "Inactive"}
+              </Badge>
+            </span>
+          ) : undefined
+        }
         breadcrumbs={[{ label: "Dashboard", href: "/instructor" }, { label: group?.name || "Group" }]}
         actions={
           <>
@@ -303,8 +328,11 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="whitespace-nowrap">
-                <DropdownMenuItem onSelect={() => { setRenameInput(group?.name || ""); setRenameOpen(true); }}>
+                <DropdownMenuItem onSelect={() => { setRenameInput(group?.name || ""); setRenameSemester(group?.semester || ""); setRenameOpen(true); }}>
                   <Pencil /> Rename
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled={togglingActive} onSelect={() => setActiveConfirm(true)}>
+                  {group?.is_active ? "Mark inactive" : "Mark active"}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="destructive" onSelect={() => setDeleteConfirm(true)}>
@@ -439,7 +467,7 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
               <Card>
                 <CardContent className="flex flex-col gap-2">
                   {group.recent_activity.map((ev, i) => {
-                    const style = outcomeStyle(ev.action);
+                    const style = outcomeStyle(ev.action, ev.reason);
                     return (
                       <div key={i} className="flex flex-col gap-2 border-b border-border py-2 last:border-0 sm:flex-row sm:items-center sm:justify-between">
                         <div className="flex min-w-0 flex-wrap items-center gap-2 text-sm text-foreground">
@@ -464,6 +492,20 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
             )}
           </section>
       </div>
+
+      <ConfirmModal
+        open={activeConfirm}
+        title={group?.is_active ? "Mark group inactive?" : "Mark group active?"}
+        message={
+          group?.is_active
+            ? "Students will no longer be able to enroll or start, reset, or check assigned labs. Existing runtimes can still be stopped or ended, and historical results remain available."
+            : "Students will be able to enroll in this group and start assigned labs that are still within their deadlines."
+        }
+        confirmLabel={group?.is_active ? "Mark inactive" : "Mark active"}
+        confirmDanger={group?.is_active}
+        onConfirm={handleToggleActive}
+        onCancel={() => setActiveConfirm(false)}
+      />
 
       <ConfirmModal
         open={!!removeConfirm}
@@ -500,6 +542,13 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
           autoFocus
           placeholder="New group name"
           className="mb-3"
+        />
+        <Input
+          type="text"
+          value={renameSemester}
+          onChange={(e) => setRenameSemester(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleRename(); } }}
+          placeholder="Semester, e.g. WS 2026/27"
         />
       </ConfirmModal>
     </InstructorLayout>

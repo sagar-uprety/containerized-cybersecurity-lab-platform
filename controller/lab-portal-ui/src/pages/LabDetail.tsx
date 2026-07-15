@@ -41,15 +41,22 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
 
   useDocumentTitle(data?.scenario?.title ?? "Lab");
 
+  const labIdRef = useRef(labId);
+  useEffect(() => { labIdRef.current = labId; }, [labId]);
+
   const fetchDetail = useCallback(() => {
+    const requestedLabId = labId;
     getLabDetail(labId)
       .then((d: LabDetailData) => {
-        setData(d);
+        if (requestedLabId === labIdRef.current) setData(d);
       })
-      .catch((err: Error) => setError(err.message));
+      .catch((err: Error) => {
+        if (requestedLabId === labIdRef.current) setError(err.message);
+      });
   }, [labId]);
 
   useEffect(() => {
+    setData(null);
     fetchDetail();
   }, [fetchDetail]);
 
@@ -199,7 +206,7 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
 
   const { scenario, status, endpoints, deadline } = data;
   const isRunning = status === "running";
-  const canStart = status === "not_created" || status === "stopped" || status === "error";
+  const canStart = status === "not_created" || status === "stopped" || status === "error" || status === "ended";
 
   const deadlineDate = deadline ? new Date(deadline) : null;
   const hoursLeft = deadlineDate ? (deadlineDate.getTime() - Date.now()) / 3600000 : null;
@@ -263,7 +270,7 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
                 </Button>
               </>
             )}
-            {status !== "not_created" && (
+            {status !== "not_created" && status !== "ended" && (
               <Button
                 variant="outline"
                 className="border-destructive/30 text-destructive hover:bg-destructive-bg"

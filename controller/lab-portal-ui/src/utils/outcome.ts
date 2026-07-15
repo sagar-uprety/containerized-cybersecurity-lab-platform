@@ -15,12 +15,20 @@ const OUTCOME_MAP: Record<string, OutcomeStyle> = {
   end: { label: "Ended", badgeClass: NEUTRAL },
   stop: { label: "Stopped", badgeClass: WARNING },
   auto_stop: { label: "Auto-stopped", badgeClass: WARNING },
+  reset: { label: "Reset", badgeClass: NEUTRAL },
+  interrupted: { label: "Interrupted", badgeClass: WARNING },
   destroy: { label: "Destroyed", badgeClass: DANGER },
   start: { label: "Running", badgeClass: SUCCESS },
   running: { label: "Running", badgeClass: SUCCESS },
 };
 
-export function outcomeStyle(outcome?: string | null): OutcomeStyle {
+export function outcomeStyle(outcome?: string | null, closeReason?: string | null): OutcomeStyle {
+  if (outcome === "auto_stop" && closeReason === "idle") {
+    return { label: "Idle timeout", badgeClass: WARNING };
+  }
+  if (outcome === "auto_stop" && closeReason === "max_runtime") {
+    return { label: "Maximum runtime", badgeClass: WARNING };
+  }
   if (outcome && OUTCOME_MAP[outcome]) return OUTCOME_MAP[outcome];
   return { label: outcome || "—", badgeClass: NEUTRAL };
 }

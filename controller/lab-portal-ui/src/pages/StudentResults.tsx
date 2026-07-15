@@ -69,7 +69,6 @@ export default function StudentResults({ user, onLogout }: Props) {
               <TableHeader>
                 <TableRow className="hover:bg-transparent">
                   <TableHead>Lab</TableHead>
-                  <TableHead>Difficulty</TableHead>
                   <TableHead>Result</TableHead>
                   <TableHead>Sessions</TableHead>
                   <TableHead>Recorded runtime</TableHead>
@@ -87,7 +86,6 @@ export default function StudentResults({ user, onLogout }: Props) {
                     onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); navigate(`/results/${lab.lab_id}`); } }}
                   >
                     <TableCell className="font-medium text-foreground">{lab.lab_title}</TableCell>
-                    <TableCell><Badge variant="outline" className="capitalize">{lab.difficulty}</Badge></TableCell>
                     <TableCell>
                       {RESULT_BADGE[lab.result] ? (
                         <Badge className={RESULT_BADGE[lab.result]}>{RESULT_LABEL[lab.result]}</Badge>

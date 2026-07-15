@@ -146,9 +146,8 @@ export function submitFeedback(
   opts: {
     csrfToken: string;
     sessionId?: string;
-    sectionA: string;
-    sectionBRating: number;
-    sectionB: string;
+    rating: number;
+    comment: string;
     issueCategory?: string;
   }
 ): Promise<unknown> {
@@ -157,9 +156,8 @@ export function submitFeedback(
     body: JSON.stringify({
       csrf_token: opts.csrfToken,
       session_id: opts.sessionId,
-      section_a: opts.sectionA,
-      section_b_rating: opts.sectionBRating,
-      section_b: opts.sectionB,
+      rating: opts.rating,
+      comment: opts.comment,
       issue_category: opts.issueCategory,
     }),
     headers: { "Content-Type": "application/json" },
@@ -298,8 +296,8 @@ export function getGroups(): Promise<Group[]> {
   return request("/instructor/groups");
 }
 
-export function createGroup(name: string): Promise<unknown> {
-  return instructorPost("/instructor/groups", { name });
+export function createGroup(name: string, semester?: string, isActive = true): Promise<unknown> {
+  return instructorPost("/instructor/groups", { name, semester, is_active: isActive });
 }
 
 export function deleteGroup(groupId: number): Promise<unknown> {
@@ -378,8 +376,17 @@ export function getGroupProgress(groupId: number): Promise<GroupProgress> {
   return request(`/instructor/groups/${groupId}/progress`);
 }
 
-export function renameGroup(groupId: number, name: string): Promise<unknown> {
-  return instructorPost(`/instructor/groups/${groupId}/rename`, { name });
+export function renameGroup(
+  groupId: number,
+  name: string,
+  semester?: string,
+  isActive?: boolean,
+): Promise<unknown> {
+  return instructorPost(`/instructor/groups/${groupId}/rename`, {
+    name,
+    semester,
+    is_active: isActive,
+  });
 }
 
 export function getStudentsProgress(): Promise<StudentsProgressEntry[]> {

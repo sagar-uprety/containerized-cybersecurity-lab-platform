@@ -3,7 +3,7 @@ import Breadcrumbs, { type Crumb } from "./Breadcrumbs";
 
 interface PageHeaderProps {
   title: string;
-  description?: string;
+  description?: ReactNode;
   breadcrumbs?: Crumb[];
   actions?: ReactNode;
 }

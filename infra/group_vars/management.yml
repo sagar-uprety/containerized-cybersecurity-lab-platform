@@ -2,6 +2,7 @@
 management_controller_root: "{{ thesis_runtime_root }}/controller"
 management_docs_root: "{{ thesis_runtime_root }}/docs"
 management_backup_root: "{{ thesis_state_root }}/backups"
+thesis_portal_backup_retain_count: 5
 management_controller_ssh_key_path: "{{ management_controller_root }}/controller_key"
 management_controller_ssh_key_type: ed25519
 management_controller_ssh_key_comment: "thesis-labs-controller@{{ inventory_hostname }}"

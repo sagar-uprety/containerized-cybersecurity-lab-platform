@@ -1,0 +1,230 @@
+<mxGraphModel dx="1400" dy="900" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2000" pageHeight="2450" math="0" shadow="0" adaptiveColors="auto">
+  <root>
+    <mxCell id="0" />
+    <mxCell id="1" parent="0" />
+
+    <mxCell id="operators" value="Platform Operators" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="60" y="40" width="200" height="50" as="geometry" />
+    </mxCell>
+
+    <mxCell id="students" value="Students / Instructors" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+      <mxGeometry x="1660" y="40" width="220" height="50" as="geometry" />
+    </mxCell>
+
+    <mxCell id="iac" value="Infrastructure as Code: infra/" style="swimlane;startSize=30;fillColor=#f5f5f5;strokeColor=#666666;html=1;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+      <mxGeometry x="60" y="130" width="360" height="110" as="geometry" />
+    </mxCell>
+    <mxCell id="ansible" value="Ansible Roles:&#10;common, podman, lab-runtime,&#10;management-services" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;" vertex="1" parent="iac">
+      <mxGeometry x="20" y="40" width="320" height="55" as="geometry" />
+    </mxCell>
+
+    <mxCell id="labpkg" value="Configuration as Code: labs/{lab-id}/scenario.yaml" style="swimlane;startSize=30;fillColor=#fff2cc;strokeColor=#d6b656;html=1;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+      <mxGeometry x="60" y="280" width="360" height="100" as="geometry" />
+    </mxCell>
+    <mxCell id="schema" value="Validated against&#10;labs/templates-contract/scenario.schema.json" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontSize=12;" vertex="1" parent="labpkg">
+      <mxGeometry x="20" y="35" width="320" height="50" as="geometry" />
+    </mxCell>
+
+    <mxCell id="x02" value="x02: Control Plane VM" style="swimlane;startSize=30;fillColor=#dae8fc;strokeColor=#6c8ebf;html=1;fontStyle=1;fontSize=15;" vertex="1" parent="1">
+      <mxGeometry x="500" y="40" width="440" height="580" as="geometry" />
+    </mxCell>
+
+    <mxCell id="nginx" value="Nginx Reverse Proxy" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;fontStyle=1;" vertex="1" parent="x02">
+      <mxGeometry x="120" y="50" width="200" height="50" as="geometry" />
+    </mxCell>
+
+    <mxCell id="fastapi" value="FastAPI App&#10;controller/lab-controller-api/app" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=13;fontStyle=1;" vertex="1" parent="x02">
+      <mxGeometry x="120" y="150" width="200" height="60" as="geometry" />
+    </mxCell>
+
+    <mxCell id="spa" value="React SPA build&#10;lab-portal-ui (Vite + TS)&#10;role-based pages, one app" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="x02">
+      <mxGeometry x="20" y="250" width="180" height="65" as="geometry" />
+    </mxCell>
+
+    <mxCell id="sqlite" value="SQLite DB&#10;users, groups, sessions" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;boundedLbl=1;" vertex="1" parent="x02">
+      <mxGeometry x="240" y="250" width="180" height="70" as="geometry" />
+    </mxCell>
+
+    <mxCell id="mkdocs" value="MkDocs site&#10;docs/ -&gt; site/" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;" vertex="1" parent="x02">
+      <mxGeometry x="20" y="50" width="80" height="50" as="geometry" />
+    </mxCell>
+
+    <mxCell id="sshclient" value="ssh_client.py" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" vertex="1" parent="x02">
+      <mxGeometry x="120" y="350" width="200" height="45" as="geometry" />
+    </mxCell>
+
+    <mxCell id="fastapinote" value="auth.py: bcrypt password hash + HMAC-signed session cookie (portal_session)&#10;Two-password boundary: password_hash (portal login) vs lab_password (plaintext, sent to x01 over SSH stdin)" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;fontSize=11;fontColor=#666666;" vertex="1" parent="x02">
+      <mxGeometry x="20" y="420" width="400" height="60" as="geometry" />
+    </mxCell>
+
+    <mxCell id="fastapimods" value="Other modules: repository.py, scenarios.py, feedback.py,&#10;events.py, runtime_state.py, analytics.py, seed.py" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;fontSize=11;fontColor=#666666;" vertex="1" parent="x02">
+      <mxGeometry x="20" y="490" width="400" height="40" as="geometry" />
+    </mxCell>
+
+    <mxCell id="x01" value="x01: Lab Worker VM" style="swimlane;startSize=30;fillColor=#ffe6cc;strokeColor=#d79b00;html=1;fontStyle=1;fontSize=15;" vertex="1" parent="1">
+      <mxGeometry x="1000" y="40" width="580" height="580" as="geometry" />
+    </mxCell>
+
+    <mxCell id="wrapper" value="Restricted SSH Wrapper&#10;labctl-ssh-wrapper.py.j2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=13;fontStyle=1;" vertex="1" parent="x01">
+      <mxGeometry x="190" y="50" width="220" height="55" as="geometry" />
+    </mxCell>
+
+    <mxCell id="labctl" value="labctl_core&#10;cli, lifecycle, podman, manifest, scenario, config" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=12;fontStyle=1;" vertex="1" parent="x01">
+      <mxGeometry x="170" y="140" width="260" height="55" as="geometry" />
+    </mxCell>
+
+    <mxCell id="podman" value="Podman Container Engine" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;fontSize=13;fontStyle=1;" vertex="1" parent="x01">
+      <mxGeometry x="190" y="230" width="220" height="50" as="geometry" />
+    </mxCell>
+
+    <mxCell id="perstudent" value="Per-Student Lab Instance (app-net + client-net)" style="swimlane;startSize=25;fillColor=#f5f5f5;strokeColor=#666666;html=1;fontStyle=0;fontSize=12;" vertex="1" parent="x01">
+      <mxGeometry x="40" y="320" width="500" height="220" as="geometry" />
+    </mxCell>
+
+    <mxCell id="workstation" value="Workstation Container&#10;(workstation-base image)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=12;" vertex="1" parent="perstudent">
+      <mxGeometry x="30" y="40" width="180" height="60" as="geometry" />
+    </mxCell>
+
+    <mxCell id="service" value="Vulnerable Service Container&#10;e.g. redis-host" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontSize=12;" vertex="1" parent="perstudent">
+      <mxGeometry x="250" y="40" width="200" height="60" as="geometry" />
+    </mxCell>
+
+    <mxCell id="demoapp" value="Optional Scenario App&#10;e.g. demo-app" style="rounded=1;whiteSpace=wrap;html=1;dashed=1;fillColor=#f5f5f5;strokeColor=#666666;fontSize=12;" vertex="1" parent="perstudent">
+      <mxGeometry x="250" y="120" width="200" height="55" as="geometry" />
+    </mxCell>
+
+    <mxCell id="checkernote" value="Checker: scenario.yaml checker.states / checks,&#10;runs per-state via exec_in: workstation / redis-host" style="text;html=1;align=left;verticalAlign=top;whiteSpace=wrap;fontSize=11;fontColor=#666666;" vertex="1" parent="perstudent">
+      <mxGeometry x="30" y="180" width="440" height="35" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" parent="1" source="operators" target="ansible">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e1lbl" value="ansible-playbook via SSH" style="edgeLabel;html=1;labelBackgroundColor=#ffffff;fontSize=11;align=left;" vertex="1" connectable="0" parent="1">
+      <mxGeometry x="270" y="80" width="180" height="20" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;" edge="1" parent="1" source="iac" target="x02">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e2lbl" value="configures" style="edgeLabel;html=1;labelBackgroundColor=#ffffff;fontSize=11;" vertex="1" connectable="0" parent="e2">
+      <mxGeometry x="-0.1" relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e3" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;exitX=0.5;exitY=1;exitDx=0;exitDy=0;entryX=0.3;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="iac" target="x01">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="240" y="660" />
+          <mxPoint x="1174" y="660" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e3lbl" value="configures" style="edgeLabel;html=1;labelBackgroundColor=#ffffff;fontSize=11;" vertex="1" connectable="0" parent="e3">
+      <mxGeometry x="-0.1" relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e4" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" parent="x02" source="nginx" target="fastapi">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e4lbl" value="/  proxy" style="edgeLabel;html=1;labelBackgroundColor=#ffffff;fontSize=11;" vertex="1" connectable="0" parent="e4">
+      <mxGeometry x="-0.1" relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e5" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" parent="x02" source="nginx" target="mkdocs">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e5lbl" value="/docs/ (instructor-auth gate)" style="edgeLabel;html=1;labelBackgroundColor=#ffffff;fontSize=10;" vertex="1" connectable="0" parent="e5">
+      <mxGeometry x="-0.1" relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e6" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" parent="x02" source="fastapi" target="spa">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e6lbl" value="serves static build" style="edgeLabel;html=1;labelBackgroundColor=#ffffff;fontSize=10;" vertex="1" connectable="0" parent="e6">
+      <mxGeometry x="-0.1" relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e7" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" parent="x02" source="fastapi" target="sqlite">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e8" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" parent="x02" source="fastapi" target="sshclient">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e9" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=1;exitY=0.3;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="sshclient" target="wrapper">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="960" y="402" />
+          <mxPoint x="960" y="117" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e9lbl" value="ssh labadmin@x01 labctl {verb} {lab-id} {student-id}&#10;(lab password via stdin)" style="edgeLabel;html=1;labelBackgroundColor=#ffffff;fontSize=10;align=left;" vertex="1" connectable="0" parent="1">
+      <mxGeometry x="945" y="240" width="230" height="32" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e10" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" parent="x01" source="wrapper" target="labctl">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e11" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" parent="x01" source="labctl" target="podman">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e12" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" parent="x01" source="podman" target="perstudent">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e13" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="nginx" target="workstation">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="720" y="18" />
+          <mxPoint x="1160" y="18" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e13lbl" value="/terminal/{port}/ WebSocket (terminal-auth gate)" style="edgeLabel;html=1;labelBackgroundColor=#ffffff;fontSize=10;align=center;" vertex="1" connectable="0" parent="1">
+      <mxGeometry x="780" y="2" width="340" height="16" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e14" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" parent="1" source="fastapi" target="labpkg">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e14lbl" value="reads scenario metadata" style="edgeLabel;html=1;labelBackgroundColor=#ffffff;fontSize=10;align=left;" vertex="1" connectable="0" parent="1">
+      <mxGeometry x="60" y="256" width="200" height="16" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e15" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;" edge="1" parent="1" source="labctl" target="labpkg">
+      <mxGeometry relative="1" as="geometry" />
+    </mxCell>
+    <mxCell id="e15lbl" value="reads topology + checker" style="edgeLabel;html=1;labelBackgroundColor=#ffffff;fontSize=10;align=left;" vertex="1" connectable="0" parent="1">
+      <mxGeometry x="270" y="256" width="200" height="16" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e16" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeWidth=2;exitX=0;exitY=0.3;exitDx=0;exitDy=0;entryX=1;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="students" target="nginx">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="1620" y="26" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e16lbl" value="HTTPS: portal UI, docs, terminal" style="edgeLabel;html=1;labelBackgroundColor=#ffffff;fontSize=11;align=center;" vertex="1" connectable="0" parent="1">
+      <mxGeometry x="1400" y="2" width="220" height="16" as="geometry" />
+    </mxCell>
+
+    <mxCell id="e17" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;dashed=1;exitX=0;exitY=0.7;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="students" target="workstation">
+      <mxGeometry relative="1" as="geometry">
+        <Array as="points">
+          <mxPoint x="1650" y="80" />
+          <mxPoint x="1650" y="605" />
+          <mxPoint x="1160" y="605" />
+        </Array>
+      </mxGeometry>
+    </mxCell>
+    <mxCell id="e17lbl" value="optional direct SSH fallback (scenario-declared port)" style="edgeLabel;html=1;labelBackgroundColor=#ffffff;fontSize=10;" vertex="1" connectable="0" parent="e17">
+      <mxGeometry x="0.5" y="10" relative="1" as="geometry" />
+    </mxCell>
+
+  </root>
+</mxGraphModel>

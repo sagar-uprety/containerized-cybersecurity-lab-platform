@@ -27,9 +27,11 @@ from app import repository as repo
 from app.auth import (
     authenticate_credentials,
     change_password,
+    get_active_labs_detail,
+    get_assigned_labs_detail,
     get_student_users,
     get_visible_lab_ids,
-    get_visible_labs_with_deadlines,
+    get_visible_labs_detail,
     lookup_user,
 )
 from app.config import settings
@@ -320,6 +322,14 @@ def require_lab_visible(user: dict, lab_id: str) -> None:
         raise HTTPException(status_code=403, detail="Lab not assigned")
 
 
+def require_lab_assigned(user: dict, lab_id: str) -> None:
+    """Allow historical access and safe shutdown after a group becomes inactive."""
+    if user["role"] != "student":
+        return
+    if lab_id not in get_assigned_labs_detail(user["username"]):
+        raise HTTPException(status_code=403, detail="Lab not assigned")
+
+
 async def _parse_action_body(request: Request) -> dict:
     content_type = request.headers.get("content-type", "")
     if "application/json" in content_type:
@@ -368,8 +378,8 @@ def api_me(user: dict = Depends(get_authenticated_user)):
 @app.get("/api/labs")
 def api_labs(user: dict = Depends(get_authenticated_user)):
     require_student(user)
-    visible = get_visible_labs_with_deadlines(user["username"])
-    labs = [lab for lab in list_scenarios() if lab["id"] in visible]
+    assignments = get_active_labs_detail(user["username"])
+    labs = [lab for lab in list_scenarios() if lab["id"] in assignments]
     student_id = user_student_id(user)
     runtime_states = dict(tracked_runtime_items())
     result = []
@@ -377,6 +387,7 @@ def api_labs(user: dict = Depends(get_authenticated_user)):
         lab_status = runtime_states.get(state_key(lab["id"], student_id), {}).get(
             "status", "not_created"
         )
+        detail = assignments.get(lab["id"], {})
         result.append(
             {
                 "id": lab["id"],
@@ -384,7 +395,12 @@ def api_labs(user: dict = Depends(get_authenticated_user)):
                 "difficulty": lab.get("difficulty"),
                 "story": lab.get("story"),
                 "status": lab_status,
-                "deadline": visible.get(lab["id"]),
+                "deadline": detail.get("deadline"),
+                "group": {
+                    "id": detail.get("group_id"),
+                    "name": detail.get("group_name"),
+                    "semester": detail.get("semester"),
+                },
             }
         )
     return result
@@ -394,7 +410,7 @@ def api_labs(user: dict = Depends(get_authenticated_user)):
 def api_lab_detail(lab_id: str, _request: Request, user: dict = Depends(get_authenticated_user)):
     require_student(user)
     validate_lab_id(lab_id)
-    visible = get_visible_labs_with_deadlines(user["username"])
+    visible = get_visible_labs_detail(user["username"])
     if lab_id not in visible:
         raise HTTPException(status_code=404, detail="Lab not found")
     scenario = load_scenario_metadata(lab_id)
@@ -414,14 +430,19 @@ def api_lab_detail(lab_id: str, _request: Request, user: dict = Depends(get_auth
         "check_result": check_result,
         "endpoints": endpoints,
         "csrf_token": generate_token(user),
-        "deadline": visible.get(lab_id),
+        "deadline": visible.get(lab_id, {}).get("deadline"),
+        "group": {
+            "id": visible.get(lab_id, {}).get("group_id"),
+            "name": visible.get(lab_id, {}).get("group_name"),
+            "semester": visible.get(lab_id, {}).get("semester"),
+        },
     }
 
 
 @app.get("/api/labs/{lab_id}/feedback")
 def api_lab_feedback(lab_id: str, user: dict = Depends(get_authenticated_user)):
     require_student(user)
-    require_lab_visible(user, lab_id)
+    require_lab_assigned(user, lab_id)
     validate_lab_id(lab_id)
     student_id = user_student_id(user)
     runtime_state = runtime_state_for(lab_id, student_id)
@@ -652,7 +673,7 @@ async def stop_lab(
     user: dict = Depends(get_authenticated_user),
 ):
     require_student(user)
-    require_lab_visible(user, lab_id)
+    require_lab_assigned(user, lab_id)
     body = await _parse_action_body(request)
     validate_token(body["csrf_token"], user)
     student_id = user_student_id(user)
@@ -727,7 +748,7 @@ async def end_lab(
     user: dict = Depends(get_authenticated_user),
 ):
     require_student(user)
-    require_lab_visible(user, lab_id)
+    require_lab_assigned(user, lab_id)
     body = await _parse_action_body(request)
     validate_token(body["csrf_token"], user)
     student_id = user_student_id(user)
@@ -839,15 +860,15 @@ async def submit_feedback(
     user: dict = Depends(get_authenticated_user),
 ):
     require_student(user)
-    require_lab_visible(user, lab_id)
+    require_lab_assigned(user, lab_id)
     body = await _parse_action_body(request)
     validate_token(body["csrf_token"], user)
     validate_lab_id(lab_id)
     student_id = user_student_id(user)
     session_id = body.get("session_id", "")
     section_a = body.get("section_a", "")
-    section_b_rating = int(body.get("section_b_rating", 3))
-    section_b = body.get("section_b", "")
+    rating = int(body.get("rating", 3))
+    comment = body.get("comment", "")
     issue_category = body.get("issue_category")
     if not session_id:
         runtime_state = runtime_state_for(lab_id, student_id)
@@ -858,8 +879,8 @@ async def submit_feedback(
             student_id,
             session_id,
             section_a,
-            section_b_rating,
-            section_b,
+            rating,
+            comment,
             issue_category=issue_category,
         )
     except ValueError as exc:
@@ -876,7 +897,7 @@ def api_enrollment_options(user: dict = Depends(get_authenticated_user)):
         db_user = repo.get_user_by_email(session, user["username"])
         if db_user is None:
             raise HTTPException(status_code=404, detail="User not found")
-        groups = repo.list_groups(session)
+        groups = [group for group in repo.list_groups(session) if group.is_active]
         result = []
         for g in groups:
             my_membership = next((m for m in g.members if m.user_id == db_user.id), None)
@@ -884,6 +905,8 @@ def api_enrollment_options(user: dict = Depends(get_authenticated_user)):
                 {
                     "id": g.id,
                     "name": g.name,
+                    "semester": g.semester,
+                    "is_active": g.is_active,
                     "created_at": g.created_at.isoformat() if g.created_at else None,
                     "member_count": sum(1 for m in g.members if m.status == "approved"),
                     "status": my_membership.status if my_membership else None,
@@ -903,7 +926,8 @@ def api_enroll(group_id: int, user: dict = Depends(get_authenticated_user)):
             member = repo.request_membership(session, group_id, db_user.id)
             session.commit()
         except ValueError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
+            status_code = 404 if "not found" in str(exc) else 409
+            raise HTTPException(status_code=status_code, detail=str(exc)) from exc
         return {"status": member.status, "group_id": group_id}
 
 
@@ -1238,7 +1262,7 @@ def api_instructor_feedback(lab_id: str, user: dict = Depends(get_authenticated_
                 "response_id": response["response_id"],
                 "timestamp": response["timestamp"],
                 "section_a": response["section_a"],
-                "section_b": response["section_b"],
+                "comment": response["comment"],
                 "issue_category": response.get("issue_category"),
                 "synthetic": response.get("synthetic", False),
             }
@@ -1311,7 +1335,7 @@ def api_student_results(user: dict = Depends(get_authenticated_user)):
 @app.get("/api/results/{lab_id}")
 def api_student_lab_results(lab_id: str, user: dict = Depends(get_authenticated_user)):
     require_student(user)
-    require_lab_visible(user, lab_id)
+    require_lab_assigned(user, lab_id)
     result = analytics_service.student_results(user_student_id(user))
     lab = next((item for item in result["labs"] if item["lab_id"] == lab_id), None)
     detail = analytics_service.student_detail(user_student_id(user))
@@ -1437,6 +1461,8 @@ def _group_to_dict(group) -> dict:
     return {
         "id": group.id,
         "name": group.name,
+        "semester": group.semester,
+        "is_active": group.is_active,
         "members": [
             {"student_id": m.user.internal_id or m.user.email, "email": m.user.email}
             for m in group.members
@@ -1450,6 +1476,8 @@ def _group_summary(group) -> dict:
     return {
         "id": group.id,
         "name": group.name,
+        "semester": group.semester,
+        "is_active": group.is_active,
         "created_at": group.created_at.isoformat() if group.created_at else None,
         "member_count": sum(1 for m in group.members if m.status == "approved"),
         "pending_count": sum(1 for m in group.members if m.status == "pending"),
@@ -1475,9 +1503,11 @@ async def api_create_group(request: Request, user: dict = Depends(get_authentica
     name = body.get("name", "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="name is required")
+    semester = body.get("semester", "").strip() or None
+    is_active = bool(body.get("is_active", True))
     with SessionLocal() as session:
         try:
-            group = repo.create_group(session, name)
+            group = repo.create_group(session, name, semester=semester, is_active=is_active)
             session.commit()
             return _group_to_dict(group)
         except ValueError as exc:
@@ -1508,9 +1538,17 @@ async def api_rename_group(
     name = body.get("name", "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="name is required")
+    semester = body.get("semester")
+    is_active = body.get("is_active")
     with SessionLocal() as session:
         try:
-            group = repo.rename_group(session, group_id, name)
+            group = repo.rename_group(
+                session,
+                group_id,
+                name,
+                semester=semester,
+                is_active=None if is_active is None else bool(is_active),
+            )
             if group is None:
                 raise HTTPException(status_code=404, detail="Group not found")
             session.commit()
@@ -1540,7 +1578,8 @@ async def api_add_member(
             repo.add_member(session, group_id, target.id)
             session.commit()
         except ValueError as exc:
-            raise HTTPException(status_code=404, detail=str(exc)) from exc
+            status_code = 404 if "not found" in str(exc) else 409
+            raise HTTPException(status_code=status_code, detail=str(exc)) from exc
         group = repo.get_group(session, group_id)
         return _group_to_dict(group)
 
@@ -1664,6 +1703,8 @@ def api_group_detail(group_id: int, user: dict = Depends(get_authenticated_user)
         return {
             "id": group.id,
             "name": group.name,
+            "semester": group.semester,
+            "is_active": group.is_active,
             "created_at": group.created_at.isoformat() if group.created_at else None,
             "pending_members": pending,
             "approved_members": approved,

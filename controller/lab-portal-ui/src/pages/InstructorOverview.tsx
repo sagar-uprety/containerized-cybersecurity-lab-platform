@@ -12,6 +12,7 @@ import { useDebounce } from "../utils/useDebounce";
 import type { User, DashboardStats, Group, StudentsProgressEntry } from "../types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
@@ -34,6 +35,8 @@ export default function InstructorOverview({ user, onLogout }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [newGroupOpen, setNewGroupOpen] = useState(false);
   const [newGroup, setNewGroup] = useState("");
+  const [newGroupSemester, setNewGroupSemester] = useState("");
+  const [newGroupActive, setNewGroupActive] = useState(true);
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState("");
   const [students, setStudents] = useState<StudentsProgressEntry[] | null>(null);
@@ -65,8 +68,10 @@ export default function InstructorOverview({ user, onLogout }: Props) {
     setCreating(true);
     setError(null);
     try {
-      await createGroup(newGroup.trim());
+      await createGroup(newGroup.trim(), newGroupSemester.trim(), newGroupActive);
       setNewGroup("");
+      setNewGroupSemester("");
+      setNewGroupActive(true);
       setNewGroupOpen(false);
       await refresh();
     } catch (err: unknown) {
@@ -268,14 +273,27 @@ export default function InstructorOverview({ user, onLogout }: Props) {
             </DialogDescription>
           </DialogHeader>
           <form onSubmit={handleCreate}>
-            <Input
-              type="text"
-              placeholder="e.g. WS 2026/27 — Security Lab"
-              value={newGroup}
-              onChange={(e) => setNewGroup(e.target.value)}
-              autoFocus
-              required
-            />
+            <div className="space-y-3">
+              <Input
+                type="text"
+                placeholder="e.g. Security Fundamentals"
+                value={newGroup}
+                onChange={(e) => setNewGroup(e.target.value)}
+                autoFocus
+                required
+              />
+              <Input
+                type="text"
+                placeholder="Semester, e.g. WS 2026/27"
+                value={newGroupSemester}
+                onChange={(e) => setNewGroupSemester(e.target.value)}
+                required
+              />
+              <label className="flex items-center gap-2 text-sm text-foreground">
+                <Checkbox checked={newGroupActive} onCheckedChange={(v) => setNewGroupActive(v === true)} />
+                Active group
+              </label>
+            </div>
             <DialogFooter className="mt-4">
               <Button type="button" variant="outline" size="sm" onClick={() => setNewGroupOpen(false)}>Cancel</Button>
               <Button type="submit" size="sm" disabled={creating}>

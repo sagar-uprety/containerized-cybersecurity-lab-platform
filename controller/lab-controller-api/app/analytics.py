@@ -345,6 +345,7 @@ def student_detail(student_id: str, group_id=None):
                                 ]
                             ),
                             "outcome": lab_session.outcome,
+                            "close_reason": lab_session.close_reason,
                             "passed": next(
                                 (
                                     check.passed

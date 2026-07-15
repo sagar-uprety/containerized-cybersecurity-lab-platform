@@ -100,10 +100,23 @@
     - portal
     - portal-api
 
-- name: Remove legacy JSON runtime state
+- name: Find routine portal database backups
+  ansible.builtin.find:
+    paths: "{{ management_backup_root }}"
+    patterns: "portal.db.*.bak"
+    age_stamp: mtime
+  register: _portal_db_backups
+  tags:
+    - portal
+    - portal-api
+
+- name: Prune routine portal database backups beyond retention count
   ansible.builtin.file:
-    path: "{{ thesis_state_root }}/portal-runtime-state.json"
+    path: "{{ item.path }}"
     state: absent
+  loop: "{{ (_portal_db_backups.files | sort(attribute='mtime', reverse=true))[thesis_portal_backup_retain_count:] }}"
+  loop_control:
+    label: "{{ item.path }}"
   tags:
     - portal
     - portal-api
@@ -120,17 +133,6 @@
     - portal
     - portal-ui
 
-- name: Check local package-lock checksum
-  ansible.builtin.stat:
-    path: "{{ playbook_dir }}/../../controller/lab-portal-ui/package-lock.json"
-    checksum_algorithm: sha256
-  delegate_to: localhost
-  become: false
-  register: _lockfile_stat
-  tags:
-    - portal
-    - portal-ui
-
 - name: Check if node_modules exists
   ansible.builtin.stat:
     path: "{{ playbook_dir }}/../../controller/lab-portal-ui/node_modules/.package-lock.json"
@@ -141,16 +143,79 @@
     - portal
     - portal-ui
 
+- name: Check if portal UI dependencies need installing
+  ansible.builtin.command:
+    argv:
+      - python3
+      - "{{ playbook_dir }}/../../tools/build_gate.py"
+      - --stamp
+      - "{{ playbook_dir }}/../../.cache/ansible-build-gate/npm-ci.sha256"
+      - check
+      - "{{ playbook_dir }}/../../controller/lab-portal-ui/package.json"
+      - "{{ playbook_dir }}/../../controller/lab-portal-ui/package-lock.json"
+  delegate_to: localhost
+  become: false
+  register: _npm_ci_check
+  changed_when: false
+  failed_when: false
+  tags:
+    - portal
+    - portal-ui
+
 - name: Install portal UI dependencies
   ansible.builtin.command:
     argv: [npm, ci]
     chdir: "{{ playbook_dir }}/../../controller/lab-portal-ui"
   delegate_to: localhost
   become: false
+  register: _npm_ci
   changed_when: true
   when:
     - _npm_version.rc == 0
-    - not _node_modules_stat.stat.exists
+    - not _node_modules_stat.stat.exists or _npm_ci_check.rc == 0
+  tags:
+    - portal
+    - portal-ui
+
+- name: Record portal UI dependency checksum
+  ansible.builtin.command:
+    argv:
+      - python3
+      - "{{ playbook_dir }}/../../tools/build_gate.py"
+      - --stamp
+      - "{{ playbook_dir }}/../../.cache/ansible-build-gate/npm-ci.sha256"
+      - update
+      - "{{ playbook_dir }}/../../controller/lab-portal-ui/package.json"
+      - "{{ playbook_dir }}/../../controller/lab-portal-ui/package-lock.json"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  when: _npm_ci is changed
+  tags:
+    - portal
+    - portal-ui
+
+- name: Check if portal UI SPA needs rebuilding
+  ansible.builtin.command:
+    argv:
+      - python3
+      - "{{ playbook_dir }}/../../tools/build_gate.py"
+      - --stamp
+      - "{{ playbook_dir }}/../../.cache/ansible-build-gate/spa-build.sha256"
+      - check
+      - "{{ playbook_dir }}/../../controller/lab-portal-ui/src"
+      - "{{ playbook_dir }}/../../controller/lab-portal-ui/public"
+      - "{{ playbook_dir }}/../../controller/lab-portal-ui/index.html"
+      - "{{ playbook_dir }}/../../controller/lab-portal-ui/package.json"
+      - "{{ playbook_dir }}/../../controller/lab-portal-ui/package-lock.json"
+      - "{{ playbook_dir }}/../../controller/lab-portal-ui/vite.config.js"
+      - "{{ playbook_dir }}/../../controller/lab-portal-ui/tsconfig.json"
+      - "{{ playbook_dir }}/../../controller/lab-portal-ui/components.json"
+  delegate_to: localhost
+  become: false
+  register: _spa_build_check
+  changed_when: false
+  failed_when: false
   tags:
     - portal
     - portal-ui
@@ -163,7 +228,33 @@
   become: false
   register: _spa_build
   changed_when: _spa_build.rc == 0
-  when: _npm_version.rc == 0
+  when:
+    - _npm_version.rc == 0
+    - _spa_build_check.rc == 0
+  tags:
+    - portal
+    - portal-ui
+
+- name: Record portal UI SPA build checksum
+  ansible.builtin.command:
+    argv:
+      - python3
+      - "{{ playbook_dir }}/../../tools/build_gate.py"
+      - --stamp
+      - "{{ playbook_dir }}/../../.cache/ansible-build-gate/spa-build.sha256"
+      - update
+      - "{{ playbook_dir }}/../../controller/lab-portal-ui/src"
+      - "{{ playbook_dir }}/../../controller/lab-portal-ui/public"
+      - "{{ playbook_dir }}/../../controller/lab-portal-ui/index.html"
+      - "{{ playbook_dir }}/../../controller/lab-portal-ui/package.json"
+      - "{{ playbook_dir }}/../../controller/lab-portal-ui/package-lock.json"
+      - "{{ playbook_dir }}/../../controller/lab-portal-ui/vite.config.js"
+      - "{{ playbook_dir }}/../../controller/lab-portal-ui/tsconfig.json"
+      - "{{ playbook_dir }}/../../controller/lab-portal-ui/components.json"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  when: _spa_build is changed
   tags:
     - portal
     - portal-ui
@@ -176,19 +267,6 @@
   tags:
     - portal
     - portal-ui
-
-- name: Remove old Jinja student templates
-  ansible.builtin.file:
-    path: "{{ management_controller_root }}/lab-controller-api/app/templates/{{ item }}"
-    state: absent
-  loop:
-    - overview.html
-    - detail.html
-    - feedback.html
-  notify: Restart thesis portal
-  tags:
-    - portal
-    - portal-api
 
 - name: Copy portal API code
   ansible.builtin.copy:
@@ -204,6 +282,39 @@
     - portal-api
     - portal-ui
 
+- name: Check if portal demo dataset needs regenerating
+  ansible.builtin.command:
+    argv:
+      - python3
+      - "{{ playbook_dir }}/../../tools/build_gate.py"
+      - --stamp
+      - "{{ playbook_dir }}/../../.cache/ansible-build-gate/demo-data.sha256"
+      - check
+      - "{{ playbook_dir }}/../../tools/generate_portal_demo.py"
+      - "{{ playbook_dir }}/../../labs"
+  delegate_to: localhost
+  become: false
+  register: _demo_data_check
+  changed_when: false
+  failed_when: false
+  tags:
+    - portal
+    - portal-api
+    - portal-ui
+    - portal-demo-seed
+
+- name: Check if generated demo dataset file exists
+  ansible.builtin.stat:
+    path: "{{ playbook_dir }}/../../controller/lab-portal-ui/src/mocks/demo-data.json"
+  delegate_to: localhost
+  become: false
+  register: _demo_data_file_stat
+  tags:
+    - portal
+    - portal-api
+    - portal-ui
+    - portal-demo-seed
+
 - name: Generate canonical portal demo dataset locally
   ansible.builtin.command:
     argv:
@@ -211,7 +322,29 @@
       - "{{ playbook_dir }}/../../tools/generate_portal_demo.py"
   delegate_to: localhost
   become: false
+  register: _demo_data_gen
   changed_when: true
+  when: _demo_data_check.rc == 0 or not _demo_data_file_stat.stat.exists
+  tags:
+    - portal
+    - portal-api
+    - portal-ui
+    - portal-demo-seed
+
+- name: Record portal demo dataset checksum
+  ansible.builtin.command:
+    argv:
+      - python3
+      - "{{ playbook_dir }}/../../tools/build_gate.py"
+      - --stamp
+      - "{{ playbook_dir }}/../../.cache/ansible-build-gate/demo-data.sha256"
+      - update
+      - "{{ playbook_dir }}/../../tools/generate_portal_demo.py"
+      - "{{ playbook_dir }}/../../labs"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  when: _demo_data_gen is changed
   tags:
     - portal
     - portal-api
@@ -328,14 +461,6 @@
     owner: root
     group: "{{ thesis_admin_group }}"
     mode: "0640"
-  notify: Build MkDocs site
-  tags:
-    - docs
-
-- name: Remove legacy MkDocs lab source mirror
-  ansible.builtin.file:
-    path: "{{ management_docs_root }}/source/labs"
-    state: absent
   notify: Build MkDocs site
   tags:
     - docs
@@ -591,15 +716,6 @@
     owner: root
     group: root
     mode: "0644"
-  notify: Restart nginx
-  when: thesis_portal_nginx_enabled | bool
-  tags:
-    - nginx
-
-- name: Remove legacy scratch Nginx portal config
-  ansible.builtin.file:
-    path: /etc/nginx/conf.d/thesis.conf
-    state: absent
   notify: Restart nginx
   when: thesis_portal_nginx_enabled | bool
   tags:

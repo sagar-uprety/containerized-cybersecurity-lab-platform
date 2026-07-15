@@ -54,6 +54,8 @@ def _migrate_columns() -> None:
         ("group_labs", "assigned_at", "TEXT NOT NULL DEFAULT '2025-01-01T00:00:00+00:00'"),
         ("group_labs", "synthetic", "BOOLEAN NOT NULL DEFAULT 0"),
         ("groups", "synthetic", "BOOLEAN NOT NULL DEFAULT 0"),
+        ("groups", "semester", "TEXT"),
+        ("groups", "is_active", "BOOLEAN NOT NULL DEFAULT 1"),
     ]
     with engine.connect() as conn:
         for table, column, col_type in migrations:

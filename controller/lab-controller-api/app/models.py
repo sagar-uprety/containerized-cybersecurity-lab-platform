@@ -65,6 +65,8 @@ class Group(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
+    semester: Mapped[Optional[str]] = mapped_column(String, nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
     synthetic: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
@@ -282,8 +284,8 @@ class FeedbackResponse(Base):
     student_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
     lab_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
     section_a: Mapped[str] = mapped_column(Text, nullable=False)
-    section_b_rating: Mapped[int] = mapped_column(Integer, nullable=False)
-    section_b: Mapped[str] = mapped_column(Text, nullable=False)
+    rating: Mapped[int] = mapped_column(Integer, nullable=False)
+    comment: Mapped[str] = mapped_column(Text, nullable=False)
     issue_category: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     occurred_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
     synthetic: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)

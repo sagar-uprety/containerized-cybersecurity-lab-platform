@@ -55,11 +55,11 @@ export default function StudentLabResults({ user, labId, onLogout }: Props) {
               </Card>
               <div className="overflow-x-auto rounded-lg border border-border">
                 <Table>
-                  <TableHeader><TableRow><TableHead>Session</TableHead><TableHead>Started</TableHead><TableHead>Runtime</TableHead><TableHead>Checks</TableHead><TableHead>Result</TableHead><TableHead>Outcome</TableHead></TableRow></TableHeader>
+                  <TableHeader><TableRow><TableHead>Session</TableHead><TableHead>Started</TableHead><TableHead>Runtime</TableHead><TableHead>Checks</TableHead><TableHead>Result</TableHead><TableHead>Session status</TableHead></TableRow></TableHeader>
                   <TableBody>
                     {[...data.sessions].reverse().map((session, index) => {
                       const sessionNumber = data.sessions!.length - index;
-                      const style = outcomeStyle(session.outcome);
+                      const style = outcomeStyle(session.outcome, session.close_reason);
                       return (
                         <TableRow key={`${session.started_at}-${sessionNumber}`}>
                           <TableCell><DataChip>#{sessionNumber}</DataChip></TableCell>

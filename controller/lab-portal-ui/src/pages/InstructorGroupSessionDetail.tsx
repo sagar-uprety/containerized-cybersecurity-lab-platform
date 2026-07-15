@@ -26,6 +26,7 @@ interface ParsedSession {
   started_at: string;
   ended_at: string | null;
   outcome: string;
+  close_reason?: string | null;
 }
 
 export default function InstructorGroupSessionDetail({ user, groupId, studentId, labId, onLogout }: InstructorGroupSessionDetailProps) {
@@ -83,10 +84,11 @@ export default function InstructorGroupSessionDetail({ user, groupId, studentId,
   let sessionCommands: Command[] = commands || [];
   let sessionCheck: CheckResultData | null | undefined = latest_check;
   let sessionStatus: string = status;
+  let sessionCloseReason: string | null | undefined;
   let sessionDuration: number | undefined = duration_seconds;
 
   if (sessionNum && lifecycle_events) {
-    const endActions = new Set(["end", "stop", "destroy", "auto_stop"]);
+    const endActions = new Set(["end", "stop", "destroy", "auto_stop", "reset"]);
     const sessions: ParsedSession[] = [];
     let current: ParsedSession | null = null;
     for (const ev of lifecycle_events) {
@@ -97,6 +99,7 @@ export default function InstructorGroupSessionDetail({ user, groupId, studentId,
         if (current && !current.ended_at) {
           current.ended_at = ev.timestamp;
           current.outcome = ev.action;
+          current.close_reason = ev.reason;
           sessions.push(current);
           current = null;
         }
@@ -126,13 +129,14 @@ export default function InstructorGroupSessionDetail({ user, groupId, studentId,
         : null;
 
       sessionStatus = targetSession.outcome;
+      sessionCloseReason = targetSession.close_reason;
       if (targetSession.ended_at) {
         sessionDuration = (sEnd.getTime() - sStart.getTime()) / 1000;
       }
     }
   }
 
-  const statusStyle = outcomeStyle(sessionStatus);
+  const statusStyle = outcomeStyle(sessionStatus, sessionCloseReason);
 
   return (
     <InstructorLayout user={user} onLogout={onLogout} groupContext={groupId ? { id: groupId, name: group?.name, hasPending: !!group?.pending_members.length } : undefined}>

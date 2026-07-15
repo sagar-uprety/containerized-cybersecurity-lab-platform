@@ -205,17 +205,17 @@ def save_feedback(
     student_id: str,
     session_id: str,
     section_a: str,
-    section_b_rating: int,
-    section_b: str,
+    rating: int,
+    comment: str,
     issue_category: Optional[str] = None,
 ) -> str:
     section_a = section_a.strip()
-    section_b = section_b.strip()
+    comment = comment.strip()
     if not session_id:
         raise ValueError("A lab session is required")
-    if not 1 <= section_b_rating <= 5:
+    if not 1 <= rating <= 5:
         raise ValueError("Rating must be between 1 and 5")
-    if not 4 <= len(section_a) <= 4000 or not 4 <= len(section_b) <= 4000:
+    if len(section_a) > 4000 or not 4 <= len(comment) <= 4000:
         raise ValueError("Feedback text must contain 4 to 4000 characters")
     response_id = str(uuid.uuid4())
     with SessionLocal() as session:
@@ -229,8 +229,8 @@ def save_feedback(
                 lab_id=lab_id,
                 student_id=student_id,
                 section_a=section_a,
-                section_b_rating=section_b_rating,
-                section_b=section_b,
+                rating=rating,
+                comment=comment,
                 issue_category=issue_category,
                 synthetic=lab_session.synthetic,
             )
@@ -275,8 +275,8 @@ def list_feedback(lab_id: Optional[str] = None, include_synthetic: bool = True):
                 "student_id": record.student_id,
                 "session_id": record.lab_session_id,
                 "section_a": record.section_a,
-                "section_b_rating": record.section_b_rating,
-                "section_b": record.section_b,
+                "rating": record.rating,
+                "comment": record.comment,
                 "issue_category": record.issue_category,
                 "synthetic": record.synthetic,
             }
@@ -290,7 +290,7 @@ def feedback_analytics(
     records = list_feedback(lab_id)
     if student_ids is not None:
         records = [record for record in records if record["student_id"] in student_ids]
-    ratings = [record["section_b_rating"] for record in records]
+    ratings = [record["rating"] for record in records]
     distribution = {str(value): ratings.count(value) for value in range(1, 6)}
     categories = {}
     for record in records:
@@ -563,7 +563,7 @@ def any_pending_feedback(student_id: str) -> bool:
         ended_sessions = session.scalars(
             select(LabSession).where(
                 LabSession.student_id == student_id,
-                LabSession.outcome.in_(["end", "stopped"]),
+                LabSession.outcome.in_(["end", "stop"]),
             )
         ).all()
         for lab_session in ended_sessions:
@@ -643,7 +643,7 @@ def build_evidence_export(evaluation_id: str, anonymize: bool = False) -> Path:
                 record["student_id"] = pseudonym(record["student_id"])
         for record in feedback:
             record["section_a"] = "[redacted from anonymized export]"
-            record["section_b"] = "[redacted from anonymized export]"
+            record["comment"] = "[redacted from anonymized export]"
 
     manifest = {
         "evaluation_id": evaluation_id,

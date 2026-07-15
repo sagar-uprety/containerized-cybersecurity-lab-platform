@@ -93,17 +93,6 @@
   tags:
     - labadmin
 
-- name: Remove legacy x01 student registries
-  ansible.builtin.file:
-    path: "{{ thesis_config_root }}/{{ item }}"
-    state: absent
-  loop:
-    - students.txt
-    - students.yml
-  tags:
-    - labctl
-    - labadmin
-
 - name: Install lab scenario registry
   ansible.builtin.template:
     src: scenarios.txt.j2
@@ -312,6 +301,9 @@
     path: /etc/systemd/system/thesis-lab-cleanup.timer
   register: lab_cleanup_timer_stat
   changed_when: false
+  tags:
+    - lab-source
+    - lab-runtime
 
 - name: Install lab cleanup systemd service
   ansible.builtin.template:
@@ -321,6 +313,9 @@
     group: root
     mode: "0644"
   notify: Reload systemd
+  tags:
+    - lab-source
+    - lab-runtime
 
 - name: Install lab cleanup systemd timer
   ansible.builtin.template:
@@ -330,6 +325,9 @@
     group: root
     mode: "0644"
   notify: Reload systemd
+  tags:
+    - lab-source
+    - lab-runtime
 
 - name: Explain cleanup timer enable skipped in initial check mode
   ansible.builtin.debug:
@@ -338,6 +336,9 @@
   when:
     - ansible_check_mode
     - not lab_cleanup_timer_stat.stat.exists
+  tags:
+    - lab-source
+    - lab-runtime
 
 - name: Enable lab cleanup timer
   ansible.builtin.service:
@@ -345,3 +346,6 @@
     state: started
     enabled: true
   when: not ansible_check_mode or lab_cleanup_timer_stat.stat.exists
+  tags:
+    - lab-source
+    - lab-runtime

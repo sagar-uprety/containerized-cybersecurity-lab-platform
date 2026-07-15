@@ -15,6 +15,7 @@ export interface SessionSpan {
   check_count: number;
   student_check_count: number;
   automatic_check_count: number;
+  close_reason?: string | null;
   passed: boolean | null;
 }
 
@@ -29,7 +30,7 @@ export function buildSessionHistory(studentId: string, labId: string): SessionSp
   let current: { started_at: string; session_id?: string } | null = null;
   const endActions = new Set(["end", "stop", "destroy", "auto_stop", "reset"]);
 
-  function completeSession(endedAt: string | null, outcome: string) {
+  function completeSession(endedAt: string | null, outcome: string, closeReason?: string | null) {
     if (!current) return;
     const start = new Date(current.started_at);
     const end = endedAt ? new Date(endedAt) : null;
@@ -48,6 +49,7 @@ export function buildSessionHistory(studentId: string, labId: string): SessionSp
       check_count: checksInWindow.length,
       student_check_count: checksInWindow.filter((check) => check.actor_type === "student").length,
       automatic_check_count: checksInWindow.filter((check) => check.actor_type === "system").length,
+      close_reason: closeReason,
       passed: lastCheck ? lastCheck.check_result.passed : null,
     });
   }
@@ -58,7 +60,7 @@ export function buildSessionHistory(studentId: string, labId: string): SessionSp
       if (current) completeSession(ev.timestamp, "interrupted");
       current = { started_at: ev.timestamp, session_id: ev.session_id };
     } else if (endActions.has(ev.action) && current) {
-      completeSession(ev.timestamp, ev.action);
+      completeSession(ev.timestamp, ev.action, ev.reason);
       current = null;
     }
   }
@@ -182,6 +184,8 @@ export function groupSummary(groupId: number) {
   return {
     id: group.id,
     name: group.name,
+    semester: group.semester,
+    is_active: group.is_active,
     member_count: approved,
     pending_count: pending,
     lab_count: labs.length,
@@ -288,6 +292,8 @@ export function groupDetail(groupId: number) {
   return {
     id: group.id,
     name: group.name,
+    semester: group.semester,
+    is_active: group.is_active,
     created_at: group.created_at,
     pending_members: pending,
     approved_members: approved,
@@ -506,6 +512,7 @@ export function studentDetail(studentId: string, groupId?: number) {
         student_check_count: s.student_check_count,
         automatic_check_count: s.automatic_check_count,
         outcome: s.outcome,
+        close_reason: s.close_reason,
         passed: s.passed,
       })),
     };

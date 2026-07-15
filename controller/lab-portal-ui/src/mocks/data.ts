@@ -21,6 +21,8 @@ export interface MockUser {
 export interface MockGroup {
   id: number;
   name: string;
+  semester: string;
+  is_active: boolean;
   created_at: string;
 }
 

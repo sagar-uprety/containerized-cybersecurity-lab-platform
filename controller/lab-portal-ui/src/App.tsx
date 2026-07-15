@@ -14,6 +14,7 @@ const Overview = lazy(() => import("./pages/Overview"));
 const LabDetail = lazy(() => import("./pages/LabDetail"));
 const Feedback = lazy(() => import("./pages/Feedback"));
 const StudentResults = lazy(() => import("./pages/StudentResults"));
+const Enrollment = lazy(() => import("./pages/Enrollment"));
 const StudentLabResults = lazy(() => import("./pages/StudentLabResults"));
 const StudentAccountPassword = lazy(() => import("./pages/StudentAccountPassword"));
 const PasswordChange = lazy(() => import("./pages/PasswordChange"));
@@ -81,6 +82,7 @@ function parseRoute(): Route {
   if (studentLabResultsMatch) return { page: "student-lab-results", labId: studentLabResultsMatch[1] };
 
   if (/^\/results\/?$/.test(path)) return { page: "results" };
+  if (/^\/enrollment\/?$/.test(path)) return { page: "enrollment" };
   if (/^\/account\/password\/?$/.test(path)) return { page: "student-account-password" };
 
   if (path === "/" || path === "") return { page: "overview" };
@@ -237,6 +239,9 @@ function AppContent() {
       break;
     case "results":
       page = <StudentResults user={user} onLogout={handleLogout} />;
+      break;
+    case "enrollment":
+      page = <Enrollment user={user} onLogout={handleLogout} />;
       break;
     case "student-lab-results":
       page = <StudentLabResults user={user} labId={route.labId!} onLogout={handleLogout} />;
