@@ -374,6 +374,21 @@ def api_me(user: dict = Depends(get_authenticated_user)):
     }
 
 
+@app.get("/api/workstation-access")
+def api_workstation_access(user: dict = Depends(get_authenticated_user)):
+    require_student(user)
+    workstation_password = user.get("lab_password")
+    if not workstation_password:
+        raise HTTPException(status_code=409, detail="Workstation password is not configured")
+    return JSONResponse(
+        {
+            "student_id": user_student_id(user),
+            "workstation_password": workstation_password,
+        },
+        headers={"Cache-Control": "no-store"},
+    )
+
+
 @app.get("/api/labs")
 def api_labs(user: dict = Depends(get_authenticated_user)):
     require_student(user)
@@ -2046,6 +2061,11 @@ def portal_overview():
 @app.get("/results/{lab_id}", response_class=HTMLResponse)
 def student_results_spa(lab_id: Optional[str] = None):
     _ = lab_id
+    return _serve_spa()
+
+
+@app.get("/workstation-access", response_class=HTMLResponse)
+def workstation_access_spa():
     return _serve_spa()
 
 

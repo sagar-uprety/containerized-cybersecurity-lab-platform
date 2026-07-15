@@ -36,6 +36,8 @@ def main() -> None:
     inactive_lab_id = "ldap-anonymous-bind"
     email = "deadline-test@example.invalid"
     password = "deadline-test-password"
+    instructor_email = "deadline-instructor@example.invalid"
+    instructor_password = "deadline-instructor-password"
     with SessionLocal() as session:
         student = User(
             email=email,
@@ -49,7 +51,12 @@ def main() -> None:
         inactive_group = Group(
             name="Inactive contract group", semester="WS 2026/27", is_active=False
         )
-        session.add_all([student, group, inactive_group])
+        instructor = User(
+            email=instructor_email,
+            password_hash=repo.hash_password(instructor_password),
+            role="instructor",
+        )
+        session.add_all([student, instructor, group, inactive_group])
         session.flush()
         session.add_all(
             [
@@ -69,6 +76,14 @@ def main() -> None:
     with TestClient(app) as client:
         login = client.post("/api/login", json={"username": email, "password": password})
         assert login.status_code == 200, login.text
+
+        workstation_access = client.get("/api/workstation-access")
+        assert workstation_access.status_code == 200, workstation_access.text
+        assert workstation_access.headers["cache-control"] == "no-store"
+        assert workstation_access.json() == {
+            "student_id": "student999",
+            "workstation_password": "workstation-test-password",
+        }
 
         labs = client.get("/api/labs")
         assert labs.status_code == 200, labs.text
@@ -94,6 +109,14 @@ def main() -> None:
         assert denied_start.status_code == 403, denied_start.text
         denied_inactive_start = client.post(f"/api/labs/{inactive_lab_id}/start")
         assert denied_inactive_start.status_code == 403, denied_inactive_start.text
+
+        client.post("/api/logout")
+        instructor_login = client.post(
+            "/api/login",
+            json={"username": instructor_email, "password": instructor_password},
+        )
+        assert instructor_login.status_code == 200, instructor_login.text
+        assert client.get("/api/workstation-access").status_code == 403
 
 
 if __name__ == "__main__":

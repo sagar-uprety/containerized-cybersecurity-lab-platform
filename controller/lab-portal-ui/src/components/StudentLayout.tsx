@@ -1,4 +1,4 @@
-import { BookOpen, BarChart3, Users } from "lucide-react";
+import { BookOpen, BarChart3, KeyRound, Users } from "lucide-react";
 import type { User } from "../types";
 import AppShell, { type NavItem } from "./AppShell";
 
@@ -14,6 +14,7 @@ export default function StudentLayout({ user, onLogout, fullWidth, children }: S
     { href: "/", label: "My Labs", icon: BookOpen, match: (p) => p === "/" || p.startsWith("/labs") },
     { href: "/enrollment", label: "Enrollment", icon: Users, match: (p) => p.startsWith("/enrollment") },
     { href: "/results", label: "My Results", icon: BarChart3, match: (p) => p.startsWith("/results") },
+    { href: "/workstation-access", label: "Workstation access", icon: KeyRound, match: (p) => p.startsWith("/workstation-access") },
   ];
 
   return (

@@ -45,6 +45,10 @@ The browser terminal opens on the workstation. The target hostname and
 legitimate lab key are available in the lab environment; use standard SSH
 client help to determine how to connect.
 
+For the authorized weak-password assessment, use the `lab-user` account and
+the short candidate list at `/lab/keys/weak-passwords.txt`. Determine which
+candidate succeeds rather than assuming the password from the guide.
+
 ## Investigation
 
 Before fixing anything, understand the environment and confirm the problem

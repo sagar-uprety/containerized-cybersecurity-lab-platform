@@ -23,11 +23,11 @@ sshpass -p 'demo-ssh-pass' ssh \
 ```
 
 The command returns `lab-user`, proving that the planted password grants remote
-access. Demonstrate that a short wordlist finds the same password:
+access. Demonstrate that the student-accessible candidate list finds the same
+password:
 
 ```bash
-printf 'password\ndemo-ssh-pass\n123456\nadmin\n' > /tmp/brute-wordlist.txt
-hydra -l lab-user -P /tmp/brute-wordlist.txt ssh://ssh-host -t 4 -f
+hydra -l lab-user -P /lab/keys/weak-passwords.txt ssh://ssh-host -t 4 -f
 ```
 
 Inspect effective policy and the planted keys from the workstation:

@@ -16,6 +16,7 @@ Your mission:
 Useful paths:
 
 - /lab/keys
+- /lab/keys/weak-passwords.txt
 - ~/SITREP.txt
 
 Full browser guide:

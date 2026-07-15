@@ -20,6 +20,7 @@ import type {
   Intervention,
   InterventionStatus,
   ReviewReasonCode,
+  WorkstationAccess,
 } from "./types";
 
 const API_BASE = "/api";
@@ -87,6 +88,10 @@ export function logout(): Promise<null> {
 
 export function getMe(): Promise<User> {
   return request("/me", {}, false);
+}
+
+export function getWorkstationAccess(): Promise<WorkstationAccess> {
+  return request("/workstation-access");
 }
 
 export function getLabs(): Promise<Lab[]> {

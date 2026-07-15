@@ -13,6 +13,8 @@ RUN useradd -m -s /bin/bash lab-user \
 RUN mkdir -p /opt/lab/keys \
     && ssh-keygen -t ed25519 -f /opt/lab/keys/lab_key -N "" -q \
     && chmod 600 /opt/lab/keys/lab_key
+COPY weak-passwords.txt /opt/lab/keys/weak-passwords.txt
+RUN chmod 0644 /opt/lab/keys/weak-passwords.txt
 
 RUN rm -f /etc/ssh/sshd_config
 COPY config.vulnerable /opt/lab/baseline/sshd_config

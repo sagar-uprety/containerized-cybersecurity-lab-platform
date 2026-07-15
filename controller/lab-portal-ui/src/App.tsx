@@ -17,6 +17,7 @@ const StudentResults = lazy(() => import("./pages/StudentResults"));
 const Enrollment = lazy(() => import("./pages/Enrollment"));
 const StudentLabResults = lazy(() => import("./pages/StudentLabResults"));
 const StudentAccountPassword = lazy(() => import("./pages/StudentAccountPassword"));
+const WorkstationAccess = lazy(() => import("./pages/WorkstationAccess"));
 const PasswordChange = lazy(() => import("./pages/PasswordChange"));
 const InstructorOverview = lazy(() => import("./pages/InstructorOverview"));
 const InstructorLabDetail = lazy(() => import("./pages/InstructorLabDetail"));
@@ -84,6 +85,7 @@ function parseRoute(): Route {
   if (/^\/results\/?$/.test(path)) return { page: "results" };
   if (/^\/enrollment\/?$/.test(path)) return { page: "enrollment" };
   if (/^\/account\/password\/?$/.test(path)) return { page: "student-account-password" };
+  if (/^\/workstation-access\/?$/.test(path)) return { page: "workstation-access" };
 
   if (path === "/" || path === "") return { page: "overview" };
 
@@ -253,6 +255,9 @@ function AppContent() {
           onLogout={handleLogout}
         />
       );
+      break;
+    case "workstation-access":
+      page = <WorkstationAccess user={user} onLogout={handleLogout} />;
       break;
     case "overview":
       if (user.role === "instructor") {

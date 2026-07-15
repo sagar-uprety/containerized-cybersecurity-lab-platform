@@ -5,6 +5,11 @@ export interface User {
   must_change_password?: boolean;
 }
 
+export interface WorkstationAccess {
+  student_id: string;
+  workstation_password: string;
+}
+
 export interface Lab {
   id: string;
   title: string;
