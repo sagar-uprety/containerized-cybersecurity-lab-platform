@@ -7,7 +7,6 @@ import type {
   Group,
   GroupDetail,
   GroupProgress,
-  DashboardStats,
   StudentDetail,
   SessionDetail,
   StudentsProgressEntry,
@@ -17,9 +16,6 @@ import type {
   StudentResultsData,
   StudentLabResultsData,
   InstructorAnalyticsData,
-  Intervention,
-  InterventionStatus,
-  ReviewReasonCode,
   WorkstationAccess,
 } from "./types";
 
@@ -218,43 +214,12 @@ export function getStudentLabResults(labId: string): Promise<StudentLabResultsDa
   return request(`/results/${labId}`);
 }
 
-export function getInstructorAnalytics(groupId?: number): Promise<InstructorAnalyticsData> {
-  const query = groupId != null ? `?group_id=${groupId}` : "";
-  return request(`/instructor/analytics${query}`);
-}
-
-export function getInterventions(opts: { groupId?: number; studentId?: string; status?: InterventionStatus } = {}): Promise<Intervention[]> {
+export function getInstructorAnalytics(groupId?: number, includeInactive?: boolean): Promise<InstructorAnalyticsData> {
   const query = new URLSearchParams();
-  if (opts.groupId != null) query.set("group_id", String(opts.groupId));
-  if (opts.studentId) query.set("student_id", opts.studentId);
-  if (opts.status) query.set("status", opts.status);
-  return request(`/instructor/interventions${query.size ? `?${query}` : ""}`);
-}
-
-export function createIntervention(input: {
-  studentId: string;
-  groupId: number;
-  labId?: string;
-  reason: ReviewReasonCode;
-  note: string;
-  followUpAt?: string;
-}): Promise<Intervention> {
-  return instructorPost("/instructor/interventions", {
-    student_id: input.studentId,
-    group_id: input.groupId,
-    lab_id: input.labId,
-    reason: input.reason,
-    note: input.note,
-    follow_up_at: input.followUpAt,
-  });
-}
-
-export function updateIntervention(id: number, input: { status?: InterventionStatus; note?: string; followUpAt?: string }): Promise<Intervention> {
-  return instructorPost(`/instructor/interventions/${id}`, {
-    status: input.status,
-    note: input.note,
-    follow_up_at: input.followUpAt,
-  });
+  if (groupId != null) query.set("group_id", String(groupId));
+  if (includeInactive) query.set("include_inactive", "true");
+  const qs = query.toString();
+  return request(`/instructor/analytics${qs ? `?${qs}` : ""}`);
 }
 
 export function changePassword(currentPassword: string, newPassword: string): Promise<unknown> {
@@ -371,10 +336,6 @@ export function rejectMembers(groupId: number, userIds: number[], csrfToken: str
     body: JSON.stringify({ user_ids: userIds, csrf_token: csrfToken }),
     headers: { "Content-Type": "application/json" },
   });
-}
-
-export function getDashboardStats(): Promise<DashboardStats> {
-  return request("/instructor/dashboard");
 }
 
 export function getGroupProgress(groupId: number): Promise<GroupProgress> {

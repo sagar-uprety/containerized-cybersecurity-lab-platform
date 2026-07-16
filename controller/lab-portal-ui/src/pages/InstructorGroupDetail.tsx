@@ -46,6 +46,7 @@ import { cn } from "@/lib/utils";
 interface InstructorGroupDetailProps {
   user: User;
   groupId: number;
+  section?: "labs" | "pending" | "activity";
   onLogout: () => void;
 }
 
@@ -63,7 +64,7 @@ function activityLabel(event: ActivityEvent): string {
   return event.result === "error" ? `${label} failed` : label;
 }
 
-export default function InstructorGroupDetail({ user, groupId, onLogout }: InstructorGroupDetailProps) {
+export default function InstructorGroupDetail({ user, groupId, section, onLogout }: InstructorGroupDetailProps) {
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [labs, setLabs] = useState<InstructorLabInfo[]>([]);
   const [progress, setProgress] = useState<GroupProgress | null>(null);
@@ -345,7 +346,7 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
       />
 
       <div className="min-w-0 space-y-8">
-          {group && (
+          {group && !section && (
             <div id="overview" className="grid scroll-mt-8 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               <StatCard
                 label="Students"
@@ -381,6 +382,7 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
 
           <AlertError message={error} />
 
+          {(!section || section === "labs") && (
           <section id="labs" className="scroll-mt-8">
             <h2 className="mb-3 text-lg font-semibold text-foreground">Lab assignments</h2>
 
@@ -421,8 +423,9 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
               </div>
             )}
           </section>
+          )}
 
-          {hasPending && (
+          {(!section || section === "pending") && hasPending && (
             <section id="pending" className="scroll-mt-8">
               <h2 className="mb-3 text-lg font-semibold text-foreground">Pending approvals</h2>
               <div className="mb-3 flex items-center gap-2">
@@ -457,7 +460,13 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
               </Card>
             </section>
           )}
+          {section === "pending" && !hasPending && (
+            <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
+              No pending approvals in this group.
+            </div>
+          )}
 
+          {(!section || section === "activity") && (
           <section id="activity" className="scroll-mt-8">
             <h2 className="mb-3 text-lg font-semibold text-foreground">Recent activity</h2>
             <p className="mb-3 max-w-3xl text-sm text-muted-foreground">
@@ -491,6 +500,7 @@ export default function InstructorGroupDetail({ user, groupId, onLogout }: Instr
               </div>
             )}
           </section>
+          )}
       </div>
 
       <ConfirmModal

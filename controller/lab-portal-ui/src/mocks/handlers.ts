@@ -1,6 +1,6 @@
 import { http, HttpResponse } from "msw";
 import { store, LABS, INSTRUCTOR_USER, STUDENT_USER, studentLabState, STUDENT_RESULTS, LAB_FEEDBACK_RATINGS, allocGroupId } from "./data";
-import type { InterventionStatus, ReviewReasonCode } from "../types";
+import type { ReviewReasonCode } from "../types";
 import {
   dashboardStats, groupSummary, groupDetail, groupProgress, studentsProgress,
   studentDetail, sessionDetail,
@@ -293,56 +293,6 @@ export const handlers = [
   http.get(`${API}/instructor/analytics`, ({ request }) => {
     const group = new URL(request.url).searchParams.get("group_id");
     return HttpResponse.json(analytics(group ? Number(group) : undefined));
-  }),
-
-  http.get(`${API}/instructor/interventions`, ({ request }) => {
-    const query = new URL(request.url).searchParams;
-    const groupId = query.get("group_id");
-    const studentId = query.get("student_id");
-    const status = query.get("status");
-    return HttpResponse.json(store.interventions
-      .filter((item) => !groupId || item.group_id === Number(groupId))
-      .filter((item) => !studentId || item.student_id === studentId)
-      .filter((item) => !status || item.status === status)
-      .sort((a, b) => b.updated_at.localeCompare(a.updated_at)));
-  }),
-
-  http.post(`${API}/instructor/interventions`, async ({ request }) => {
-    const body = await request.json() as {
-      student_id: string;
-      group_id: number;
-      lab_id?: string;
-      reason: ReviewReasonCode;
-      note: string;
-      follow_up_at?: string;
-    };
-    const now = new Date().toISOString();
-    const intervention = {
-      id: Math.max(0, ...store.interventions.map((item) => item.id)) + 1,
-      student_id: body.student_id,
-      group_id: body.group_id,
-      lab_id: body.lab_id,
-      reason: body.reason,
-      note: body.note,
-      owner: INSTRUCTOR_USER.username,
-      status: "open" as const,
-      follow_up_at: body.follow_up_at,
-      created_at: now,
-      updated_at: now,
-    };
-    store.interventions.push(intervention);
-    return HttpResponse.json(intervention, { status: 201 });
-  }),
-
-  http.post(`${API}/instructor/interventions/:id`, async ({ params, request }) => {
-    const body = await request.json() as { status?: InterventionStatus; note?: string; follow_up_at?: string };
-    const intervention = store.interventions.find((item) => item.id === Number(params.id));
-    if (!intervention) return HttpResponse.json({ detail: "Intervention not found" }, { status: 404 });
-    if (body.status) intervention.status = body.status;
-    if (body.note != null) intervention.note = body.note;
-    if (body.follow_up_at != null) intervention.follow_up_at = body.follow_up_at;
-    intervention.updated_at = new Date().toISOString();
-    return HttpResponse.json(intervention);
   }),
 
   http.get(`${API}/instructor/groups`, () => HttpResponse.json(store.groups.map((g) => groupSummary(g.id)))),

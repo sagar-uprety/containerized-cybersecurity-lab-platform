@@ -113,17 +113,10 @@ export default function AppShell({ user, onLogout, roleLabel, brandHref, navItem
                     {contextItems.map(({ href, label, icon: Icon, match }) => (
                       <SidebarMenuItem key={href}>
                         <SidebarMenuButton asChild isActive={match(path)} tooltip={label}>
-                          {href.includes("#") ? (
-                            <a href={href}>
-                              <Icon />
-                              <span>{label}</span>
-                            </a>
-                          ) : (
-                            <Link href={href}>
-                              <Icon />
-                              <span>{label}</span>
-                            </Link>
-                          )}
+                          <Link href={href}>
+                            <Icon />
+                            <span>{label}</span>
+                          </Link>
                         </SidebarMenuButton>
                       </SidebarMenuItem>
                     ))}

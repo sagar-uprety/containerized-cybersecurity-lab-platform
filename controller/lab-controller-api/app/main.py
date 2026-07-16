@@ -13,7 +13,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, Response, status
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, status
 from fastapi.responses import (
     FileResponse,
     HTMLResponse,
@@ -1294,54 +1294,14 @@ def api_instructor_feedback(lab_id: str, user: dict = Depends(get_authenticated_
 
 @app.get("/api/instructor/analytics")
 def api_instructor_analytics(
-    group_id: Optional[int] = None, user: dict = Depends(get_authenticated_user)
-):
-    require_instructor(user)
-    return analytics_service.instructor_analytics(group_id=group_id)
-
-
-@app.get("/api/instructor/interventions")
-def api_instructor_interventions(
     group_id: Optional[int] = None,
-    student_id: Optional[str] = None,
-    intervention_status: Optional[str] = Query(None, alias="status"),
+    include_inactive: bool = False,
     user: dict = Depends(get_authenticated_user),
 ):
     require_instructor(user)
-    return analytics_service.list_interventions(
-        group_id=group_id, student_id=student_id, status=intervention_status
+    return analytics_service.instructor_analytics(
+        group_id=group_id, include_inactive=include_inactive
     )
-
-
-@app.post("/api/instructor/interventions")
-async def api_create_intervention(request: Request, user: dict = Depends(get_authenticated_user)):
-    require_instructor(user)
-    body = await _parse_action_body(request)
-    validate_token(body["csrf_token"], user)
-    try:
-        return JSONResponse(
-            analytics_service.create_intervention(body, user["username"]), status_code=201
-        )
-    except (KeyError, TypeError, ValueError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@app.post("/api/instructor/interventions/{intervention_id}")
-async def api_update_intervention(
-    intervention_id: int,
-    request: Request,
-    user: dict = Depends(get_authenticated_user),
-):
-    require_instructor(user)
-    body = await _parse_action_body(request)
-    validate_token(body["csrf_token"], user)
-    try:
-        result = analytics_service.update_intervention(intervention_id, body)
-    except (TypeError, ValueError) as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    if result is None:
-        raise HTTPException(status_code=404, detail="Intervention not found")
-    return result
 
 
 @app.get("/api/results")
@@ -2019,12 +1979,6 @@ def _legacy_api_instructor_students_progress():
                 }
             )
         return result
-
-
-@app.get("/api/instructor/dashboard")
-def api_instructor_dashboard(user: dict = Depends(get_authenticated_user)):
-    require_instructor(user)
-    return analytics_service.instructor_dashboard()
 
 
 # ---------------------------------------------------------------------------

@@ -76,7 +76,7 @@ export default function InstructorResults({ user, groupId, onLogout }: Props) {
           <SelectContent>
             <SelectItem value="all">All outcomes</SelectItem>
             <SelectItem value="needs-review">Needs review</SelectItem>
-            <SelectItem value="overdue">Overdue incomplete</SelectItem>
+            <SelectItem value="overdue">Overdue</SelectItem>
             <SelectItem value="in-progress">In progress</SelectItem>
             <SelectItem value="passed">All labs passed</SelectItem>
           </SelectContent>
@@ -95,10 +95,9 @@ export default function InstructorResults({ user, groupId, onLogout }: Props) {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
                     <span className="truncate text-sm font-medium">{row.email}</span>
-                    {row.at_risk && <Badge className="border-transparent bg-destructive-bg text-destructive"><AlertTriangle /> Overdue incomplete</Badge>}
+                    {row.at_risk && <Badge className="border-transparent bg-destructive-bg text-destructive"><AlertTriangle /> Overdue</Badge>}
                   </div>
                   <div className="truncate text-xs text-muted-foreground">{group?.name || row.groups?.map((item) => item.name).join(", ") || row.student_id}</div>
-                  {!!row.review_reasons?.length && <div className="mt-1 flex flex-wrap gap-1">{row.review_reasons.slice(0, 2).map((reason) => <Badge key={`${reason.code}-${reason.lab_id}-${reason.criterion_name}`} variant="outline" className="max-w-52 truncate font-normal">{reason.label}{reason.criterion_name ? `: ${reason.criterion_name}` : ""}</Badge>)}{row.review_reasons.length > 2 && <Badge variant="outline">+{row.review_reasons.length - 2}</Badge>}</div>}
                 </div>
                 <div className="grid shrink-0 grid-cols-3 items-center gap-6 text-right text-xs text-muted-foreground">
                   <div><strong className="block text-sm text-foreground">{row.labs_started || 0}/{row.labs_assigned}</strong>Started</div>

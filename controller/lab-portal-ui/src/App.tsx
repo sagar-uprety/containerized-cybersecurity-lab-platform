@@ -59,6 +59,11 @@ function parseRoute(): Route {
     return { page: "instructor-lab", labId: instructorLabMatch[1] };
   }
 
+  const instructorGroupSectionMatch = path.match(/^\/instructor\/groups\/(\d+)\/(labs|pending|activity)\/?$/);
+  if (instructorGroupSectionMatch) {
+    return { page: "instructor-group-detail", groupId: parseInt(instructorGroupSectionMatch[1], 10), section: instructorGroupSectionMatch[2] as "labs" | "pending" | "activity" };
+  }
+
   const instructorGroupMatch = path.match(/^\/instructor\/groups\/(\d+)\/?$/);
   if (instructorGroupMatch) {
     return { page: "instructor-group-detail", groupId: parseInt(instructorGroupMatch[1], 10) };
@@ -202,7 +207,7 @@ function AppContent() {
       page = <InstructorGroupStudentDetail user={user} groupId={route.groupId!} studentId={route.studentId!} onLogout={handleLogout} />;
       break;
     case "instructor-group-detail":
-      page = <InstructorGroupDetail user={user} groupId={route.groupId!} onLogout={handleLogout} />;
+      page = <InstructorGroupDetail user={user} groupId={route.groupId!} section={route.section} onLogout={handleLogout} />;
       break;
     case "instructor-students":
       page = <InstructorStudents user={user} onLogout={handleLogout} />;
