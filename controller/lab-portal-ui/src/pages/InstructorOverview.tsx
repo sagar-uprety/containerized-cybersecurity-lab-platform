@@ -115,51 +115,7 @@ export default function InstructorOverview({ user, onLogout }: Props) {
 
       <AlertError message={error} className="mb-6" />
 
-      {data && (
-        <div className="flex flex-col gap-6">
-          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            <StatCard label="Achievement" value={`${data.completed_assignments} / ${data.eligible_assignments}`} description={`${data.completion_rate}% ever passed; current state tracked separately`} />
-            <StatCard icon={Radio} label="Active now" value={`${data.active_now_students} / ${data.total_students}`} description={`${data.active_now_sessions} lab session${data.active_now_sessions === 1 ? "" : "s"} running right now`} tone={data.active_now_students > 0 ? "success" : "default"} />
-            <StatCard icon={Activity} label="Active this week" value={`${data.active_this_week} / ${data.total_students}`} description="Distinct students with a session in the last 7 days" />
-            <StatCard icon={data.overdue_incomplete > 0 ? AlertTriangle : CheckCircle2} label="Overdue incomplete" value={data.overdue_incomplete} description={`${data.overdue_eligible} assignment${data.overdue_eligible === 1 ? "" : "s"} currently due`} tone={data.overdue_incomplete > 0 ? "danger" : "success"} />
-            <StatCard icon={Clock3} label="Median recorded runtime" value={`${data.median_session_minutes} min`} description={`${data.median_runtime_samples} closed sessions; ${data.open_sessions} open`} />
-          </div>
-
-          <Card className="border-primary/20 bg-primary/[0.025]">
-            <CardContent className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-              <span><strong className="font-medium text-foreground">Metric context:</strong> {data.window_label}</span>
-              <span>As of {new Date(data.as_of).toLocaleString("en-GB", { timeZone: data.timezone })} {data.timezone}</span>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle><h2>Achievement trajectory</h2></CardTitle>
-              <CardDescription>Cumulative achieved obligations against assignments eligible by each cutoff. Current week is partial.</CardDescription>
-            </CardHeader>
-            <CardContent><CompletionTrendChart data={data.weekly} /></CardContent>
-          </Card>
-
-          <div className="grid gap-4 xl:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle><h2>Weekly active students</h2></CardTitle>
-                <CardDescription>Distinct students who started a recorded lab session.</CardDescription>
-              </CardHeader>
-              <CardContent><ActiveStudentsTrendChart data={data.weekly} /></CardContent>
-            </Card>
-            <Card>
-              <CardHeader>
-                <CardTitle><h2>Weekly session starts</h2></CardTitle>
-                <CardDescription>Recorded starts, including later interrupted or open sessions.</CardDescription>
-              </CardHeader>
-              <CardContent><SessionTrendChart data={data.weekly} /></CardContent>
-            </Card>
-          </div>
-        </div>
-      )}
-
-      <section className="mt-8">
+      <section className="mb-8">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-foreground">Groups</h2>
           <div className="flex items-center gap-2">
@@ -231,6 +187,50 @@ export default function InstructorOverview({ user, onLogout }: Props) {
           </div>
         )}
       </section>
+
+      {data && (
+        <div className="flex flex-col gap-6">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <StatCard label="Achievement" value={`${data.completed_assignments} / ${data.eligible_assignments}`} description={`${data.completion_rate}% ever passed; current state tracked separately`} />
+            <StatCard icon={Radio} label="Active now" value={`${data.active_now_students} / ${data.total_students}`} description={`${data.active_now_sessions} lab session${data.active_now_sessions === 1 ? "" : "s"} running right now`} tone={data.active_now_students > 0 ? "success" : "default"} />
+            <StatCard icon={Activity} label="Active this week" value={`${data.active_this_week} / ${data.total_students}`} description="Distinct students with a session in the last 7 days" />
+            <StatCard icon={data.overdue_incomplete > 0 ? AlertTriangle : CheckCircle2} label="Overdue incomplete" value={data.overdue_incomplete} description={`${data.overdue_eligible} assignment${data.overdue_eligible === 1 ? "" : "s"} currently due`} tone={data.overdue_incomplete > 0 ? "danger" : "success"} />
+            <StatCard icon={Clock3} label="Median recorded runtime" value={`${data.median_session_minutes} min`} description={`${data.median_runtime_samples} closed sessions; ${data.open_sessions} open`} />
+          </div>
+
+          <Card className="border-primary/20 bg-primary/[0.025]">
+            <CardContent className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+              <span><strong className="font-medium text-foreground">Metric context:</strong> {data.window_label}</span>
+              <span>As of {new Date(data.as_of).toLocaleString("en-GB", { timeZone: data.timezone })} {data.timezone}</span>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle><h2>Achievement trajectory</h2></CardTitle>
+              <CardDescription>Cumulative achieved obligations against assignments eligible by each cutoff. Current week is partial.</CardDescription>
+            </CardHeader>
+            <CardContent><CompletionTrendChart data={data.weekly} /></CardContent>
+          </Card>
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle><h2>Weekly active students</h2></CardTitle>
+                <CardDescription>Distinct students who started a recorded lab session.</CardDescription>
+              </CardHeader>
+              <CardContent><ActiveStudentsTrendChart data={data.weekly} /></CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle><h2>Weekly session starts</h2></CardTitle>
+                <CardDescription>Recorded starts, including later interrupted or open sessions.</CardDescription>
+              </CardHeader>
+              <CardContent><SessionTrendChart data={data.weekly} /></CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
 
       <Dialog open={newGroupOpen} onOpenChange={setNewGroupOpen}>
         <DialogContent>

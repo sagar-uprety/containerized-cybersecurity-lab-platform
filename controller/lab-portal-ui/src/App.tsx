@@ -20,6 +20,7 @@ const StudentAccountPassword = lazy(() => import("./pages/StudentAccountPassword
 const WorkstationAccess = lazy(() => import("./pages/WorkstationAccess"));
 const PasswordChange = lazy(() => import("./pages/PasswordChange"));
 const InstructorOverview = lazy(() => import("./pages/InstructorOverview"));
+const InstructorGroups = lazy(() => import("./pages/InstructorGroups"));
 const InstructorLabDetail = lazy(() => import("./pages/InstructorLabDetail"));
 const InstructorGroupDetail = lazy(() => import("./pages/InstructorGroupDetail"));
 const InstructorGroupStudentDetail = lazy(() => import("./pages/InstructorGroupStudentDetail"));
@@ -69,6 +70,7 @@ function parseRoute(): Route {
     return { page: "instructor-group-detail", groupId: parseInt(instructorGroupMatch[1], 10) };
   }
 
+  if (/^\/instructor\/groups\/?$/.test(path)) return { page: "instructor-groups" };
   if (/^\/instructor\/students\/?$/.test(path)) return { page: "instructor-students" };
   if (/^\/instructor\/results\/?$/.test(path)) return { page: "instructor-results" };
   if (/^\/instructor\/analytics\/?$/.test(path)) return { page: "instructor-analytics" };
@@ -208,6 +210,9 @@ function AppContent() {
       break;
     case "instructor-group-detail":
       page = <InstructorGroupDetail user={user} groupId={route.groupId!} section={route.section} onLogout={handleLogout} />;
+      break;
+    case "instructor-groups":
+      page = <InstructorGroups user={user} onLogout={handleLogout} />;
       break;
     case "instructor-students":
       page = <InstructorStudents user={user} onLogout={handleLogout} />;
