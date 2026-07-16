@@ -76,6 +76,9 @@ nginx-thesis.conf
 .playwright/
 .playwright-cli/
 
+style guidelines
+interface guidelines
+skills-lock.json
 
 # Packaged archives
 *.tar
