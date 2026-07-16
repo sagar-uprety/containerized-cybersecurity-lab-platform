@@ -108,19 +108,6 @@ export interface PendingMember extends GroupMember {
   requested_at?: string;
 }
 
-export interface DashboardStats {
-  total_groups: number;
-  total_students: number;
-  total_labs: number;
-  total_pending: number;
-  total_passed: number;
-  total_possible: number;
-  total_at_risk: number;
-  active_this_week: number;
-  groups: Group[];
-  recent_activity: ActivityEvent[];
-}
-
 export interface ActivityEvent {
   student_id: string;
   student_email: string | null;
@@ -259,6 +246,7 @@ export interface Route {
   labId?: string;
   groupId?: number;
   studentId?: string;
+  section?: "labs" | "pending" | "activity";
 }
 
 export interface StudentLabResult {
@@ -324,8 +312,11 @@ export interface AnalyticsGroup {
   completed_assignments: number;
   eligible_assignments: number;
   active_students: number;
+  active_now_students: number;
   total_students: number;
+  labs_assigned: number;
   overdue_incomplete: number;
+  pending_count: number;
 }
 
 export interface InstructorAnalyticsData {
@@ -333,11 +324,17 @@ export interface InstructorAnalyticsData {
   as_of: string;
   timezone: string;
   window_label: string;
+  include_inactive: boolean;
+  inactive_groups_count: number;
+  total_groups: number;
+  total_labs: number;
   total_students: number;
   completion_rate: number;
   completed_assignments: number;
   eligible_assignments: number;
   active_this_week: number;
+  active_now_sessions: number;
+  active_now_students: number;
   at_risk: number;
   overdue_incomplete: number;
   overdue_eligible: number;
@@ -376,20 +373,4 @@ export interface CriterionEvidence {
   failures_before_achievement: number;
   first_pass_at?: string;
   last_checked_at?: string;
-}
-
-export type InterventionStatus = "open" | "contacted" | "resolved";
-
-export interface Intervention {
-  id: number;
-  student_id: string;
-  group_id: number;
-  lab_id?: string;
-  reason: ReviewReasonCode;
-  note: string;
-  owner: string;
-  status: InterventionStatus;
-  follow_up_at?: string;
-  created_at: string;
-  updated_at: string;
 }

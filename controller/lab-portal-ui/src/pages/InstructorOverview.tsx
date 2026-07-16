@@ -1,21 +1,22 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback } from "react";
 import InstructorLayout from "../components/InstructorLayout";
 import AlertError from "../components/AlertError";
 import PageHeader from "../components/PageHeader";
 import StatCard from "../components/StatCard";
-import Link from "../components/Link";
-import { Layers, BookMarked, Plus, Search, ArrowRight, Users, AlertTriangle, CheckCircle2 } from "lucide-react";
-import { getDashboardStats, createGroup, getInstructorStudents } from "../api.js";
+import { ActiveStudentsTrendChart, CompletionTrendChart, SessionTrendChart } from "../components/AnalyticsCharts";
+import { Layers, BookMarked, Plus, Radio, Activity, AlertTriangle, CheckCircle2, Clock3 } from "lucide-react";
+import { getInstructorAnalytics, createGroup } from "../api";
 import { navigate } from "../utils/navigate";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
-import { useDebounce } from "../utils/useDebounce";
-import type { User, DashboardStats, Group, StudentsProgressEntry } from "../types";
+import type { User, InstructorAnalyticsData, AnalyticsGroup } from "../types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Card, CardContent } from "@/components/ui/card";
+import { Switch } from "@/components/ui/switch";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -31,7 +32,7 @@ interface Props {
 }
 
 export default function InstructorOverview({ user, onLogout }: Props) {
-  const [data, setData] = useState<DashboardStats | null>(null);
+  const [data, setData] = useState<InstructorAnalyticsData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [newGroupOpen, setNewGroupOpen] = useState(false);
   const [newGroup, setNewGroup] = useState("");
@@ -39,28 +40,19 @@ export default function InstructorOverview({ user, onLogout }: Props) {
   const [newGroupActive, setNewGroupActive] = useState(true);
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState("");
-  const [students, setStudents] = useState<StudentsProgressEntry[] | null>(null);
-  const [studentSearch, setStudentSearch] = useState("");
-
-  const debouncedStudentSearch = useDebounce(studentSearch, 300);
+  const [includeInactive, setIncludeInactive] = useState(false);
 
   useDocumentTitle("Instructor Dashboard");
 
   const refresh = useCallback(async () => {
     try {
-      setData(await getDashboardStats());
+      setData(await getInstructorAnalytics(undefined, includeInactive));
     } catch (err: unknown) {
       setError((err as Error).message);
     }
-  }, []);
+  }, [includeInactive]);
 
   useEffect(() => { refresh(); }, [refresh]);
-
-  useEffect(() => {
-    if (debouncedStudentSearch.length >= 2 && !students) {
-      getInstructorStudents().then((data) => setStudents(data as unknown as StudentsProgressEntry[])).catch(() => {});
-    }
-  }, [debouncedStudentSearch, students]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -81,17 +73,9 @@ export default function InstructorOverview({ user, onLogout }: Props) {
     }
   }
 
-  const filteredGroups = data?.groups?.filter((g: Group) =>
+  const filteredGroups = data?.groups?.filter((g: AnalyticsGroup) =>
     !search || g.name.toLowerCase().includes(search.toLowerCase())
   ) || [];
-
-  const studentMatches = useMemo(() => {
-    if (debouncedStudentSearch.length < 2 || !students) return [];
-    const q = debouncedStudentSearch.toLowerCase();
-    return students.filter((s) =>
-      s.email?.toLowerCase().includes(q) || s.student_id?.toLowerCase().includes(q)
-    ).slice(0, 8);
-  }, [debouncedStudentSearch, students]);
 
   function handleGroupKeyDown(e: React.KeyboardEvent, groupId: number) {
     if (e.key === "Enter" || e.key === " ") {
@@ -100,19 +84,13 @@ export default function InstructorOverview({ user, onLogout }: Props) {
     }
   }
 
-  const completionPct = data && data.total_possible > 0
-    ? Math.round((data.total_passed / data.total_possible) * 100)
-    : null;
-  const needsAttention = data ? data.total_pending + data.total_at_risk : 0;
-  const activePct = data && data.total_students > 0
-    ? Math.round((data.active_this_week / data.total_students) * 100)
-    : null;
+  const totalPending = data?.groups?.reduce((sum, g) => sum + g.pending_count, 0) ?? 0;
 
   return (
-    <InstructorLayout user={user} onLogout={onLogout} pendingCount={data?.total_pending}>
+    <InstructorLayout user={user} onLogout={onLogout} pendingCount={totalPending}>
       <PageHeader
         title="Dashboard"
-        description="Who needs your attention, and how your groups are doing."
+        description="How your groups are doing, compared and over time."
         actions={
           data ? (
             <>
@@ -122,79 +100,22 @@ export default function InstructorOverview({ user, onLogout }: Props) {
               <Badge variant="outline" className="gap-1.5 text-muted-foreground">
                 <BookMarked className="size-3.5" /> {data.total_labs} lab{data.total_labs !== 1 ? "s" : ""}
               </Badge>
+              {data.inactive_groups_count > 0 && (
+                <div className="flex items-center gap-2">
+                  <Switch id="include-inactive" checked={includeInactive} onCheckedChange={setIncludeInactive} />
+                  <Label htmlFor="include-inactive" className="text-sm font-normal text-muted-foreground">
+                    Include {data.inactive_groups_count} inactive
+                  </Label>
+                </div>
+              )}
             </>
           ) : undefined
         }
       />
 
-      {data && (
-        <div className="mb-8 grid gap-4 sm:grid-cols-3">
-          <StatCard
-            icon={CheckCircle2}
-            label="Overall completion"
-            value={completionPct != null ? `${completionPct}%` : "—"}
-            description={`${data.total_passed} / ${data.total_possible} assignments passed`}
-          />
-          <StatCard
-            icon={needsAttention > 0 ? AlertTriangle : CheckCircle2}
-            label="Needs attention"
-            value={needsAttention}
-            description={needsAttention > 0 ? `${data.total_pending} pending, ${data.total_at_risk} overdue incomplete` : "All clear"}
-            tone={needsAttention > 0 ? "danger" : "success"}
-            href={needsAttention > 0 ? "/instructor/pending" : undefined}
-          />
-          <StatCard
-            icon={Users}
-            label="Active this week"
-            value={activePct != null ? `${activePct}%` : "—"}
-            description={`${data.active_this_week} / ${data.total_students} students`}
-          />
-        </div>
-      )}
-
       <AlertError message={error} className="mb-6" />
 
       <section className="mb-8">
-        <h2 className="mb-3 text-lg font-semibold text-foreground">Student search</h2>
-        <div className="relative max-w-md">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            type="text"
-            placeholder="Find a student across all groups…"
-            value={studentSearch}
-            onChange={(e) => setStudentSearch(e.target.value)}
-            className="pl-8"
-          />
-        </div>
-        {debouncedStudentSearch.length >= 2 && students && (
-          studentMatches.length === 0 ? (
-            <div className="mt-2 text-sm text-muted-foreground">No students found.</div>
-          ) : (
-            <Card className="mt-2 max-w-md gap-0 divide-y divide-border py-0">
-              {studentMatches.map((s) => (
-                <div key={s.student_id} className="p-3">
-                  <div className="text-sm font-medium text-foreground">{s.email || s.student_id}</div>
-                  {s.groups && s.groups.length > 0 ? (
-                    <div className="mt-1.5 flex flex-wrap gap-1.5">
-                      {s.groups.map((g) => (
-                        <Button key={g.id} asChild variant="outline" size="xs" className="gap-1">
-                          <Link href={`/instructor/groups/${g.id}/students/${s.student_id}`}>
-                            {g.name} <ArrowRight className="size-3" />
-                          </Link>
-                        </Button>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="mt-1 text-xs text-muted-foreground">Not enrolled in any group</div>
-                  )}
-                </div>
-              ))}
-            </Card>
-          )
-        )}
-      </section>
-
-      <section>
         <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-foreground">Groups</h2>
           <div className="flex items-center gap-2">
@@ -234,7 +155,7 @@ export default function InstructorOverview({ user, onLogout }: Props) {
 
         {filteredGroups.length > 0 && (
           <div className="grid items-stretch gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredGroups.map((g: Group) => (
+            {filteredGroups.map((g: AnalyticsGroup) => (
               <Card
                 key={g.id}
                 role="link"
@@ -243,26 +164,73 @@ export default function InstructorOverview({ user, onLogout }: Props) {
                 onKeyDown={(e) => handleGroupKeyDown(e, g.id)}
                 className="h-full cursor-pointer py-5 transition-colors hover:bg-accent/40 hover:ring-primary/30 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               >
-                <CardContent className="flex h-full flex-col">
-                  <div className="font-medium text-foreground">{g.name}</div>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    <Badge variant="outline">{g.member_count} member{g.member_count !== 1 ? "s" : ""}</Badge>
-                    <Badge variant="outline">{g.lab_count} lab{g.lab_count !== 1 ? "s" : ""}</Badge>
-                    {g.pending_count > 0 && (
-                      <Badge className="border-transparent bg-warning-bg text-warning">{g.pending_count} pending approval{g.pending_count !== 1 ? "s" : ""}</Badge>
-                    )}
-                  </div>
-                  {g.created_at && (
-                    <div className="mt-auto pt-2 text-xs text-muted-foreground">
-                      Created {new Date(g.created_at).toLocaleDateString()}
+                <CardContent className="flex h-full flex-col gap-3">
+                  <div>
+                    <div className="font-medium text-foreground">{g.name}</div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      <Badge variant="outline">{g.total_students} student{g.total_students !== 1 ? "s" : ""}</Badge>
+                      <Badge variant="outline">{g.labs_assigned} lab{g.labs_assigned !== 1 ? "s" : ""}</Badge>
+                      {g.pending_count > 0 && (
+                        <Badge className="border-transparent bg-warning-bg text-warning">{g.pending_count} pending approval{g.pending_count !== 1 ? "s" : ""}</Badge>
+                      )}
                     </div>
-                  )}
+                  </div>
+                  <div className="mt-auto grid grid-cols-2 gap-x-3 gap-y-1.5 text-xs text-muted-foreground">
+                    <span>Achieved <strong className="text-foreground">{g.completed_assignments}/{g.eligible_assignments}</strong></span>
+                    <span>Overdue <strong className={g.overdue_incomplete > 0 ? "text-warning" : "text-foreground"}>{g.overdue_incomplete}</strong></span>
+                    <span>Active now <strong className="text-foreground">{g.active_now_students}/{g.total_students}</strong></span>
+                    <span>Active this week <strong className="text-foreground">{g.active_students}/{g.total_students}</strong></span>
+                  </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
       </section>
+
+      {data && (
+        <div className="flex flex-col gap-6">
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+            <StatCard label="Achievement" value={`${data.completed_assignments} / ${data.eligible_assignments}`} description={`${data.completion_rate}% ever passed; current state tracked separately`} />
+            <StatCard icon={Radio} label="Active now" value={`${data.active_now_students} / ${data.total_students}`} description={`${data.active_now_sessions} lab session${data.active_now_sessions === 1 ? "" : "s"} running right now`} tone={data.active_now_students > 0 ? "success" : "default"} />
+            <StatCard icon={Activity} label="Active this week" value={`${data.active_this_week} / ${data.total_students}`} description="Distinct students with a session in the last 7 days" />
+            <StatCard icon={data.overdue_incomplete > 0 ? AlertTriangle : CheckCircle2} label="Overdue incomplete" value={data.overdue_incomplete} description={`${data.overdue_eligible} assignment${data.overdue_eligible === 1 ? "" : "s"} currently due`} tone={data.overdue_incomplete > 0 ? "danger" : "success"} />
+            <StatCard icon={Clock3} label="Median recorded runtime" value={`${data.median_session_minutes} min`} description={`${data.median_runtime_samples} closed sessions; ${data.open_sessions} open`} />
+          </div>
+
+          <Card className="border-primary/20 bg-primary/[0.025]">
+            <CardContent className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+              <span><strong className="font-medium text-foreground">Metric context:</strong> {data.window_label}</span>
+              <span>As of {new Date(data.as_of).toLocaleString("en-GB", { timeZone: data.timezone })} {data.timezone}</span>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle><h2>Achievement trajectory</h2></CardTitle>
+              <CardDescription>Cumulative achieved obligations against assignments eligible by each cutoff. Current week is partial.</CardDescription>
+            </CardHeader>
+            <CardContent><CompletionTrendChart data={data.weekly} /></CardContent>
+          </Card>
+
+          <div className="grid gap-4 xl:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle><h2>Weekly active students</h2></CardTitle>
+                <CardDescription>Distinct students who started a recorded lab session.</CardDescription>
+              </CardHeader>
+              <CardContent><ActiveStudentsTrendChart data={data.weekly} /></CardContent>
+            </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle><h2>Weekly session starts</h2></CardTitle>
+                <CardDescription>Recorded starts, including later interrupted or open sessions.</CardDescription>
+              </CardHeader>
+              <CardContent><SessionTrendChart data={data.weekly} /></CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
 
       <Dialog open={newGroupOpen} onOpenChange={setNewGroupOpen}>
         <DialogContent>

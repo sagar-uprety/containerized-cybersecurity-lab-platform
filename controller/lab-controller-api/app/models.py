@@ -289,22 +289,3 @@ class FeedbackResponse(Base):
     issue_category: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     occurred_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
     synthetic: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)
-
-
-class Intervention(Base):
-    __tablename__ = "interventions"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    student_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
-    group_id: Mapped[int] = mapped_column(
-        ForeignKey("groups.id", ondelete="CASCADE"), nullable=False, index=True
-    )
-    lab_id: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    reason: Mapped[str] = mapped_column(String, nullable=False)
-    note: Mapped[str] = mapped_column(Text, nullable=False)
-    owner: Mapped[str] = mapped_column(String, nullable=False)
-    status: Mapped[str] = mapped_column(String, nullable=False, default="open")
-    follow_up_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
-    synthetic: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, index=True)

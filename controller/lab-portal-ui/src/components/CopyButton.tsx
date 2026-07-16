@@ -11,7 +11,20 @@ export default function CopyButton({ value, label = "Copy to clipboard" }: CopyB
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
-    await navigator.clipboard.writeText(value);
+    if (window.isSecureContext && navigator.clipboard) {
+      await navigator.clipboard.writeText(value);
+    } else {
+      const textarea = document.createElement("textarea");
+      textarea.value = value;
+      textarea.style.position = "fixed";
+      textarea.style.opacity = "0";
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      const succeeded = document.execCommand("copy");
+      textarea.remove();
+      if (!succeeded) throw new Error("Copy failed");
+    }
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
   }

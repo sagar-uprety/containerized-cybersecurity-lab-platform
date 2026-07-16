@@ -5,7 +5,6 @@ import AlertError from "../components/AlertError";
 import StatCard from "../components/StatCard";
 import PageHeader from "../components/PageHeader";
 import DataChip from "../components/DataChip";
-import InterventionPanel from "../components/InterventionPanel";
 import { navigate } from "../utils/navigate";
 import { fmtDuration, fmtTimestamp } from "../utils/time";
 import { outcomeStyle } from "../utils/outcome";
@@ -13,10 +12,13 @@ import { useDocumentTitle } from "../utils/useDocumentTitle";
 import { getGroupDetail, getInstructorStudentDetail } from "../api";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowRight } from "lucide-react";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { ArrowRight, ChevronRight, Info } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 interface InstructorGroupStudentDetailProps {
   user: User;
@@ -30,6 +32,7 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
   const [student, setStudent] = useState<StudentDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [hideShort, setHideShort] = useState(false);
+  const [expandedLabs, setExpandedLabs] = useState<Set<string>>(new Set());
 
   const memberInfo: (GroupMember & Partial<PendingMember>) | undefined =
     group?.approved_members?.find((m) => m.student_id === studentId)
@@ -82,8 +85,6 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
 
       {!student && !error && <Skeleton className="h-48 w-full" />}
 
-      {student && <InterventionPanel studentId={studentId} groupId={groupId} labs={student.labs} />}
-
       {student && student.labs.length === 0 && (
         <div className="rounded-lg border border-dashed border-border p-6 text-center text-sm text-muted-foreground">
           No lab data for this student in this group.
@@ -105,43 +106,64 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
         // numbering GroupSessionDetail expects when looking a session back up.
         const orderedSessions = [...sessions].reverse();
         const currentPassed = lab.latest_check?.passed === true || lab.latest_check?.status === "fixed";
+        const isOpen = expandedLabs.has(lab.lab_id);
 
         return (
           <section key={lab.lab_id} className="mb-8">
-            <div className="mb-3 flex items-center justify-between gap-2">
-              <h2 className="text-lg font-semibold text-foreground">{lab.lab_title}</h2>
-              <div className="flex flex-wrap gap-2">
-                <Badge className={lab.ever_passed ? "border-transparent bg-success-bg text-success" : "border-transparent bg-muted text-muted-foreground"}>
-                  {lab.ever_passed ? "Passed before" : "No pass recorded"}
-                </Badge>
-                {lab.latest_check ? (
-                  <Badge className={currentPassed ? "border-transparent bg-success-bg text-success" : "border-transparent bg-warning-bg text-warning"}>
-                    Latest result: {currentPassed ? "passes" : lab.latest_check.status || "fails"}
+            <Collapsible
+              open={isOpen}
+              onOpenChange={(open) => {
+                setExpandedLabs((prev) => {
+                  const next = new Set(prev);
+                  open ? next.add(lab.lab_id) : next.delete(lab.lab_id);
+                  return next;
+                });
+              }}
+            >
+              <CollapsibleTrigger className="mb-3 flex w-full items-center justify-between gap-2 text-left">
+                <span className="flex items-center gap-2">
+                  <ChevronRight className={cn("size-4 shrink-0 text-muted-foreground transition-transform", isOpen && "rotate-90")} />
+                  <h2 className="text-lg font-semibold text-foreground">{lab.lab_title}</h2>
+                </span>
+                <div className="flex flex-wrap gap-2">
+                  <Badge className={lab.ever_passed ? "border-transparent bg-success-bg text-success" : "border-transparent bg-muted text-muted-foreground"}>
+                    {lab.ever_passed ? "Passed before" : "No pass recorded"}
                   </Badge>
-                ) : <Badge variant="outline">Latest result: not checked</Badge>}
-              </div>
-            </div>
+                  {lab.latest_check ? (
+                    <Badge className={currentPassed ? "border-transparent bg-success-bg text-success" : "border-transparent bg-warning-bg text-warning"}>
+                      Latest result: {currentPassed ? "passes" : lab.latest_check.status || "fails"}
+                    </Badge>
+                  ) : <Badge variant="outline">Latest result: not checked</Badge>}
+                </div>
+              </CollapsibleTrigger>
 
+              <CollapsibleContent className="space-y-4">
             <div className="mb-4 overflow-x-auto rounded-lg border border-border">
-              <div className="border-b bg-muted/30 px-4 py-3">
-                <h3 className="text-sm font-semibold">Checker evidence</h3>
-                <p className="mt-0.5 max-w-3xl text-xs text-muted-foreground">
-                  Each row comes from this lab&apos;s <code className="font-mono">scenario.yaml</code> checker. A required fix tests the remediation. A protection check confirms expected functionality still works.
-                </p>
-                <p className="mt-1 max-w-3xl text-xs text-muted-foreground">
-                  Passed before is historical and remains recorded after reset. Latest result only reflects the most recent session.
-                </p>
+              <div className="flex items-center gap-1.5 border-b bg-muted/30 px-4 py-3">
+                <h3 className="text-sm font-semibold">Automated checks</h3>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button type="button" className="text-muted-foreground hover:text-foreground" aria-label="What is this table?">
+                      <Info className="size-3.5" />
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent className="max-w-xs whitespace-normal text-left">
+                    Each row is one automated check from this lab&apos;s scenario definition. A Required Mitigation verifies the fix; a Guardrail confirms normal functionality still works.
+                    Passed before is historical and survives a reset — Latest result only reflects the most recent session.
+                    Attempt history counts every logged run of this check, how many failed, and how many failures happened before the first success.
+                  </TooltipContent>
+                </Tooltip>
               </div>
               <Table>
-                <TableHeader><TableRow><TableHead>Checker criterion</TableHead><TableHead>Purpose</TableHead><TableHead>Passed before</TableHead><TableHead>Latest result</TableHead><TableHead>Saved result history</TableHead><TableHead>First passed</TableHead></TableRow></TableHeader>
+                <TableHeader><TableRow><TableHead>Automated check</TableHead><TableHead>Purpose</TableHead><TableHead>Passed before</TableHead><TableHead>Latest result</TableHead><TableHead>Attempt history</TableHead><TableHead>First passed</TableHead></TableRow></TableHeader>
                 <TableBody>
                   {(lab.criteria || []).map((criterion) => (
                     <TableRow key={criterion.name}>
                       <TableCell className="font-medium">{criterion.label}</TableCell>
-                      <TableCell><Badge variant="outline">{criterion.kind === "guardrail" ? "Protection check" : "Required fix"}</Badge></TableCell>
+                      <TableCell><Badge variant="outline">{criterion.kind === "guardrail" ? "Guardrail" : "Required Mitigation"}</Badge></TableCell>
                       <TableCell><Badge className={criterion.ever_passed ? "border-transparent bg-success-bg text-success" : "border-transparent bg-muted text-muted-foreground"}>{criterion.ever_passed ? "Yes" : "Not yet"}</Badge></TableCell>
                       <TableCell>{criterion.current_passed == null ? <span className="text-muted-foreground">Not checked</span> : <Badge className={criterion.current_passed ? "border-transparent bg-success-bg text-success" : "border-transparent bg-warning-bg text-warning"}>{criterion.current_passed ? "Pass" : criterion.ever_passed ? "Fail after earlier pass" : criterion.current_state || "Fail"}</Badge>}</TableCell>
-                      <TableCell>{criterion.total_checks} saved {criterion.total_checks === 1 ? "result" : "results"}<span className="block text-xs text-muted-foreground">{criterion.failed_checks} failed; {criterion.failures_before_achievement} before first pass</span></TableCell>
+                      <TableCell className="text-sm text-foreground">{criterion.total_checks} attempt{criterion.total_checks === 1 ? "" : "s"} · {criterion.failed_checks} failed · {criterion.failures_before_achievement} before success</TableCell>
                       <TableCell>{criterion.first_pass_at ? fmtTimestamp(criterion.first_pass_at) : "—"}</TableCell>
                     </TableRow>
                   ))}
@@ -209,6 +231,8 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
                 {hideShort ? "All sessions under 1 minute (hidden)." : "No sessions recorded."}
               </div>
             )}
+              </CollapsibleContent>
+            </Collapsible>
           </section>
         );
       })}

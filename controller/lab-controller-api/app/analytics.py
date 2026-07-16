@@ -5,7 +5,7 @@ from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 from functools import cache
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 
 from app.db import SessionLocal
 from app.feedback import feedback_analytics, sync_assignment_obligations
@@ -15,9 +15,9 @@ from app.models import (
     CheckObligation,
     CriterionObservation,
     Group,
-    Intervention,
     LabSession,
     LifecycleEvidence,
+    RuntimeLease,
     SessionObligation,
     User,
 )
@@ -508,11 +508,16 @@ def _week_start(value: datetime) -> datetime:
     return start.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-def instructor_analytics(group_id=None):
+def instructor_analytics(group_id=None, include_inactive=False):
     sync_assignment_obligations()
     now = datetime.now(timezone.utc)
     with SessionLocal() as session:
         obligations = _obligations(session, group_id=group_id)
+        if group_id is None and not include_inactive:
+            active_group_ids = set(
+                session.scalars(select(Group.id).where(Group.is_active.is_(True))).all()
+            )
+            obligations = [item for item in obligations if item.group_id in active_group_ids]
         _prime_evidence_cache(session, obligations)
         student_ids = {item.student_id for item in obligations}
         completed = sum(1 for item in obligations if _achieved(session, item))
@@ -530,6 +535,17 @@ def instructor_analytics(group_id=None):
         active_students = {
             item.student_id for item in all_sessions.values() if _aware(item.started_at) >= week_ago
         }
+        running_leases = session.scalars(
+            select(RuntimeLease).where(RuntimeLease.status == "running")
+        ).all()
+        active_now_students_all = {lease.student_id for lease in running_leases}
+        active_now_leases = (
+            [lease for lease in running_leases if lease.student_id in student_ids]
+            if group_id is not None
+            else running_leases
+        )
+        active_now_sessions = len(active_now_leases)
+        active_now_students = len({lease.student_id for lease in active_now_leases})
         overdue_eligible = [
             item for item in obligations if item.deadline and _aware(item.deadline) < now
         ]
@@ -658,6 +674,7 @@ def instructor_analytics(group_id=None):
                 if item.deadline and _aware(item.deadline) < now and not _achieved(session, item)
             }
             active = len(active_students & group_student_ids)
+            active_now = len(active_now_students_all & group_student_ids)
             groups.append(
                 {
                     "id": candidate_id,
@@ -672,21 +689,35 @@ def instructor_analytics(group_id=None):
                     "completed_assignments": group_completed,
                     "eligible_assignments": len(group_obligations),
                     "active_students": active,
+                    "active_now_students": active_now,
                     "total_students": len(group_student_ids),
+                    "labs_assigned": len({item.lab_id for item in group_obligations}),
                     "overdue_incomplete": len(group_overdue),
+                    "pending_count": sum(
+                        1 for member in group.members if member.status == "pending"
+                    ),
                 }
             )
         group = session.get(Group, group_id) if group_id is not None else None
+        inactive_groups_count = session.scalar(
+            select(func.count()).select_from(Group).where(Group.is_active.is_(False))
+        )
         return {
             "scope_name": group.name if group else None,
             "as_of": _iso(now),
             "timezone": "Europe/Berlin",
             "window_label": "Last 8 weeks; current week to date",
+            "include_inactive": include_inactive,
+            "inactive_groups_count": inactive_groups_count,
+            "total_groups": len(groups),
+            "total_labs": len(list_scenarios()),
             "total_students": len(student_ids),
             "completion_rate": round(completed / len(obligations) * 100) if obligations else 0,
             "completed_assignments": completed,
             "eligible_assignments": len(obligations),
             "active_this_week": len(active_students),
+            "active_now_sessions": active_now_sessions,
+            "active_now_students": active_now_students,
             "at_risk": len(overdue_students),
             "overdue_incomplete": len(overdue_students),
             "overdue_eligible": len(overdue_eligible),
@@ -698,65 +729,6 @@ def instructor_analytics(group_id=None):
             "weekly": weekly,
             "labs": labs,
             "groups": groups,
-        }
-
-
-def instructor_dashboard():
-    analytics = instructor_analytics()
-    with SessionLocal() as session:
-        groups = session.scalars(select(Group).order_by(Group.name)).all()
-        recent_events = session.scalars(
-            select(LifecycleEvidence).order_by(LifecycleEvidence.occurred_at.desc()).limit(15)
-        ).all()
-        recent_student_ids = {event.student_id for event in recent_events}
-        recent_emails = {
-            user.internal_id: user.email
-            for user in session.scalars(
-                select(User).where(User.internal_id.in_(recent_student_ids))
-            ).all()
-        }
-        return {
-            "total_groups": len(groups),
-            "total_labs": len(list_scenarios()),
-            "total_students": len(
-                session.scalars(select(User.id).where(User.role == "student")).all()
-            ),
-            "total_pending": sum(
-                1 for group in groups for member in group.members if member.status == "pending"
-            ),
-            "total_passed": analytics["completed_assignments"],
-            "total_possible": analytics["eligible_assignments"],
-            "total_at_risk": analytics["overdue_incomplete"],
-            "active_this_week": analytics["active_this_week"],
-            "groups": [
-                {
-                    "id": group.id,
-                    "name": group.name,
-                    "member_count": sum(
-                        1 for member in group.members if member.status == "approved"
-                    ),
-                    "pending_count": sum(
-                        1 for member in group.members if member.status == "pending"
-                    ),
-                    "lab_count": len(group.labs),
-                    "created_at": _iso(group.created_at),
-                }
-                for group in groups
-            ],
-            "recent_activity": [
-                {
-                    "timestamp": _iso(event.occurred_at),
-                    "action": event.action,
-                    "student_id": event.student_id,
-                    "student_email": recent_emails.get(event.student_id),
-                    "lab_id": event.lab_id,
-                    "lab_title": _title(event.lab_id),
-                    "result": event.result,
-                    "actor_type": event.actor_type,
-                    "reason": event.reason,
-                }
-                for event in recent_events
-            ],
         }
 
 
@@ -820,82 +792,3 @@ def student_results(student_id: str):
         "total_passed": sum(1 for item in labs if item["result"] == "passed"),
         "total_labs": len(labs),
     }
-
-
-def list_interventions(group_id=None, student_id=None, status=None):
-    with SessionLocal() as session:
-        query = select(Intervention).order_by(Intervention.updated_at.desc())
-        if group_id is not None:
-            query = query.where(Intervention.group_id == group_id)
-        if student_id:
-            query = query.where(Intervention.student_id == student_id)
-        if status:
-            query = query.where(Intervention.status == status)
-        return [_intervention_dict(item) for item in session.scalars(query).all()]
-
-
-def _intervention_dict(item):
-    return {
-        "id": item.id,
-        "student_id": item.student_id,
-        "group_id": item.group_id,
-        "lab_id": item.lab_id,
-        "reason": item.reason,
-        "note": item.note,
-        "owner": item.owner,
-        "status": item.status,
-        "follow_up_at": _iso(item.follow_up_at),
-        "created_at": _iso(item.created_at),
-        "updated_at": _iso(item.updated_at),
-        "synthetic": item.synthetic,
-    }
-
-
-def create_intervention(data: dict, owner: str):
-    allowed_reasons = set(REVIEW_LABELS)
-    if data.get("reason") not in allowed_reasons:
-        raise ValueError("Invalid intervention reason")
-    note = str(data.get("note", "")).strip()
-    if not 4 <= len(note) <= 2000:
-        raise ValueError("Intervention note must contain 4 to 2000 characters")
-    follow_up = data.get("follow_up_at")
-    with SessionLocal() as session:
-        item = Intervention(
-            student_id=data["student_id"],
-            group_id=int(data["group_id"]),
-            lab_id=data.get("lab_id") or None,
-            reason=data["reason"],
-            note=note,
-            owner=owner,
-            status="open",
-            follow_up_at=(
-                datetime.fromisoformat(str(follow_up).replace("Z", "+00:00")) if follow_up else None
-            ),
-        )
-        session.add(item)
-        session.commit()
-        session.refresh(item)
-        return _intervention_dict(item)
-
-
-def update_intervention(intervention_id: int, data: dict):
-    with SessionLocal() as session:
-        item = session.get(Intervention, intervention_id)
-        if not item:
-            return None
-        if data.get("status"):
-            if data["status"] not in {"open", "contacted", "resolved"}:
-                raise ValueError("Invalid intervention status")
-            item.status = data["status"]
-        if data.get("note") is not None:
-            note = str(data["note"]).strip()
-            if not 4 <= len(note) <= 2000:
-                raise ValueError("Intervention note must contain 4 to 2000 characters")
-            item.note = note
-        if data.get("follow_up_at") is not None:
-            item.follow_up_at = datetime.fromisoformat(
-                str(data["follow_up_at"]).replace("Z", "+00:00")
-            )
-        item.updated_at = datetime.now(timezone.utc)
-        session.commit()
-        return _intervention_dict(item)

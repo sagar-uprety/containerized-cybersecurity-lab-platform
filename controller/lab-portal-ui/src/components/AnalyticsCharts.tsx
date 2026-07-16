@@ -11,7 +11,7 @@ import {
 
 const completionConfig = {
   completed_assignments: { label: "Achieved", color: "var(--chart-2)" },
-  eligible_assignments: { label: "Eligible", color: "var(--chart-1)" },
+  eligible_assignments: { label: "Assignments due so far", color: "var(--chart-1)" },
 } satisfies ChartConfig;
 
 const activityConfig = {

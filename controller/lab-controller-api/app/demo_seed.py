@@ -26,7 +26,6 @@ from app.models import (
     Group,
     GroupLab,
     GroupMember,
-    Intervention,
     LabSession,
     LifecycleEvidence,
     SessionObligation,
@@ -246,20 +245,6 @@ def replace_with_demo_data(data_path: Path, credentials_path: Path) -> dict:
                     comment=item["section_b"],
                     issue_category=item.get("issue_category"),
                     occurred_at=_dt(item["occurred_at"]),
-                    synthetic=True,
-                )
-            )
-        for item in payload["interventions"]:
-            session.add(
-                Intervention(
-                    student_id=item["student_id"],
-                    group_id=item["group_id"],
-                    lab_id=item.get("lab_id"),
-                    reason=item["reason"],
-                    note=item["note"],
-                    owner=item["owner"],
-                    status=item["status"],
-                    follow_up_at=_dt(item.get("follow_up_at")),
                     synthetic=True,
                 )
             )
