@@ -662,9 +662,19 @@ def instructor_analytics(group_id=None, include_inactive=False):
                     **feedback,
                 }
             )
+        if group_id is not None:
+            group_candidate_ids = {group_id}
+        elif include_inactive:
+            group_candidate_ids = set(session.scalars(select(Group.id)).all())
+        else:
+            group_candidate_ids = set(
+                session.scalars(select(Group.id).where(Group.is_active.is_(True))).all()
+            )
         groups = []
-        for candidate_id in sorted({item.group_id for item in obligations}):
+        for candidate_id in sorted(group_candidate_ids):
             group = session.get(Group, candidate_id)
+            if group is None:
+                continue
             group_obligations = [item for item in obligations if item.group_id == candidate_id]
             group_student_ids = {item.student_id for item in group_obligations}
             group_completed = sum(1 for item in group_obligations if _achieved(session, item))

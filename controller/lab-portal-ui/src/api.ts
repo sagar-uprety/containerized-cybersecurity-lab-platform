@@ -71,11 +71,15 @@ async function request<T>(path: string, options: RequestInit = {}, notifySession
 }
 
 export function login(username: string, password: string): Promise<{ user: User }> {
-  return request("/login", {
-    method: "POST",
-    body: JSON.stringify({ username, password }),
-    headers: { "Content-Type": "application/json" },
-  });
+  return request(
+    "/login",
+    {
+      method: "POST",
+      body: JSON.stringify({ username, password }),
+      headers: { "Content-Type": "application/json" },
+    },
+    false,
+  );
 }
 
 export function logout(): Promise<null> {

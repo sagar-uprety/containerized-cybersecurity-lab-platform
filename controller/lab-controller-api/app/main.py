@@ -2070,8 +2070,26 @@ def instructor_account_password_spa():
     return _serve_spa()
 
 
+@app.get("/instructor/groups", response_class=HTMLResponse)
+def instructor_groups_spa():
+    return _serve_spa()
+
+
+@app.get("/enrollment", response_class=HTMLResponse)
+def enrollment_spa():
+    return _serve_spa()
+
+
 @app.get("/instructor/groups/{group_id}", response_class=HTMLResponse)
 def instructor_group_detail_spa(group_id: int):
+    _ = group_id
+    return _serve_spa()
+
+
+@app.get("/instructor/groups/{group_id}/labs", response_class=HTMLResponse)
+@app.get("/instructor/groups/{group_id}/pending", response_class=HTMLResponse)
+@app.get("/instructor/groups/{group_id}/activity", response_class=HTMLResponse)
+def instructor_group_section_spa(group_id: int):
     _ = group_id
     return _serve_spa()
 
