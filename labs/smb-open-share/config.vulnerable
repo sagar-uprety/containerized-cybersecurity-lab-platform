@@ -1,0 +1,17 @@
+[global]
+   workgroup = WORKGROUP
+   security = user
+   map to guest = Bad User
+   smb encrypt = off
+   disable netbios = yes
+   smb ports = 445
+   log file = /var/log/samba/log.smbd
+   max log size = 1000
+   server min protocol = SMB2
+   logging = file
+
+[backup]
+   path = /srv/samba/backup
+   read only = yes
+   writable = no
+   guest ok = yes

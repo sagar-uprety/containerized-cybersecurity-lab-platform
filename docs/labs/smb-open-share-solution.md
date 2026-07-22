@@ -1,0 +1,1 @@
+--8<-- "labs/smb-open-share/docs/solution-notes.md"

@@ -1,0 +1,198 @@
+id: smb-open-share
+title: Open SMB Share with Sensitive Data Exposure
+difficulty: intermediate
+
+story:
+  role: Junior IT administrator
+  situation: >
+    A file server used by several teams for backups and shared documents has
+    been flagged during a routine internal network scan. The server is
+    reachable on the lab network and may be exposing data without proper
+    access controls. Assess what is accessible and harden the service.
+
+documentation:
+  student_guide_url: /docs/labs/smb-open-share/
+  solution_notes_url: /docs/labs/smb-open-share-solution/
+  instructor_guide_url: /docs/labs/smb-open-share-instructor/
+
+access:
+  ssh_port_base: 34000
+  browser_terminal_port_base: 19200
+
+lifecycle:
+  idle_timeout_minutes: 30
+  max_runtime_minutes: 120
+  evaluation_idle_timeout_minutes: null
+  retention_after_stop_minutes: 180
+
+checker:
+  version: 2
+  states:
+    - vulnerable
+    - fixed
+  checks:
+    - name: smb_anonymous_read
+      label: "Anonymous SMB read access to the share is blocked"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        OUT=$(smbclient -N //smb-host/backup -c 'ls' 2>&1);
+        if printf '%s\n' "$OUT" | grep -q 'passwords'; then
+          echo ANON_READ_OK;
+        elif printf '%s\n' "$OUT" | grep -qiE 'NT_STATUS_ACCESS_DENIED|NT_STATUS_LOGON_FAILURE|NT_STATUS_CONNECTION'; then
+          echo ANON_BLOCKED;
+        else
+          echo ANON_UNKNOWN;
+        fi
+      states:
+        vulnerable: "output_eq: ANON_READ_OK"
+        fixed: "output_eq: ANON_BLOCKED"
+    - name: smb_authenticated_access
+      label: "Authenticated Samba user can read the share"
+      kind: guardrail
+      exec_in: workstation
+      run: >-
+        OUT=$(smbclient -U 'shareuser%smb-demo-password' //smb-host/backup
+        -c 'ls' 2>&1);
+        if printf '%s\n' "$OUT" | grep -q 'passwords'; then
+          echo AUTH_ACCESS_OK;
+        else
+          echo AUTH_ACCESS_FAIL;
+        fi
+      states:
+        vulnerable: "output_eq: AUTH_ACCESS_OK"
+        fixed: "output_eq: AUTH_ACCESS_OK"
+    - name: smb_wrong_password_rejected
+      label: "A wrong Samba password is rejected (guest mapping is disabled)"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        OUT=$(smbclient -U 'shareuser%wrong-password-demo' //smb-host/backup
+        -c 'ls' 2>&1);
+        if printf '%s\n' "$OUT" | grep -q 'passwords'; then
+          echo WRONG_PASS_ACCEPTED;
+        elif printf '%s\n' "$OUT" | grep -qiE 'NT_STATUS_LOGON_FAILURE|NT_STATUS_ACCESS_DENIED'; then
+          echo WRONG_PASS_REJECTED;
+        else
+          echo WRONG_PASS_UNKNOWN;
+        fi
+      states:
+        vulnerable: "output_eq: WRONG_PASS_ACCEPTED"
+        fixed: "output_eq: WRONG_PASS_REJECTED"
+    - name: smb_encrypt_required
+      label: "SMB encryption is required by the server configuration"
+      kind: objective
+      exec_in: smb-host
+      run: >-
+        if testparm -v -s 2>/dev/null | grep -qiE '(server )?smb encrypt = required'; then
+          echo ENCRYPT_REQUIRED;
+        else
+          echo ENCRYPT_NOT_REQUIRED;
+        fi
+      states:
+        vulnerable: "output_eq: ENCRYPT_NOT_REQUIRED"
+        fixed: "output_eq: ENCRYPT_REQUIRED"
+    - name: smb_guest_config_hardened
+      label: "Guest access is disabled and the share is restricted to an allowed group"
+      kind: objective
+      exec_in: smb-host
+      run: >-
+        OUT=$(testparm -v -s 2>/dev/null);
+        if printf '%s\n' "$OUT" | grep -qiE 'guest ok = Yes|public = Yes'; then
+          echo GUEST_OPEN;
+        elif ! printf '%s\n' "$OUT" | grep -qi 'map to guest = Never'; then
+          echo GUEST_OPEN;
+        elif ! printf '%s\n' "$OUT" | grep -qi 'valid users'; then
+          echo GUEST_PARTIAL;
+        else
+          echo GUEST_HARDENED;
+        fi
+      states:
+        vulnerable: "output_eq: GUEST_OPEN"
+        fixed: "output_eq: GUEST_HARDENED"
+    - name: smb_service_up
+      label: "SMB service is listening on port 445"
+      kind: guardrail
+      exec_in: workstation
+      run: "if nc -z -w3 smb-host 445 2>/dev/null; then echo SMB_UP; else echo SMB_DOWN; fi"
+      states:
+        vulnerable: "output_eq: SMB_UP"
+        fixed: "output_eq: SMB_UP"
+
+build:
+  images:
+    - service: smb-host
+      name: thesis-labs/smb-open-share-smb:latest
+      context: .
+      dockerfile: Dockerfile
+
+services:
+  workstation:
+    image: thesis-labs/workstation-base:latest
+    role: Student browser terminal and SSH fallback.
+    internal_ports:
+      browser_terminal: 19000
+      ssh: 22
+  smb-host:
+    image: thesis-labs/smb-open-share-smb:latest
+    role: Vulnerable Samba file server.
+    internal_ports:
+      smb: 445
+
+resources:
+  workstation:
+    cpus: "0.50"
+    memory: "256m"
+  smb-host:
+    cpus: "0.50"
+    memory: "512m"
+
+workstation:
+  environment:
+    SMB_HOST: smb-host
+    SMB_PORT: "445"
+  depends_on:
+    - smb-host
+  shared_volumes:
+    - name: smb_config
+      target: /lab/smb
+    - name: smb_access
+      target: /lab/access
+  cap_add:
+    - NET_RAW
+
+containers:
+  - service: smb-host
+    hostname: smb-host
+    init: true
+    restart: unless-stopped
+    environment:
+      LAB_ADMIN_USER: sambaadmin
+      LAB_CONFIG_SRC: /opt/lab/baseline/smb.conf
+      LAB_CONFIG_DST: /etc/samba/smb.conf
+      LAB_SERVICE_CMD: "smbd -D --no-process-group"
+      LAB_DATA_DIR: /srv/samba/backup
+      LAB_DATA_USER: root
+      LAB_SETUP_SCRIPT: /opt/lab/hooks/pre-start.sh
+      LAB_LOG_FILE: /var/log/samba/log.smbd
+      SERVICE_ADMIN_PASSWORD: "$platform.student_password"
+    expose:
+      - 445
+    volumes:
+      - name: smb_data
+        target: /srv/samba/backup
+      - name: smb_config
+        target: /etc/samba
+      - name: smb_access
+        target: /lab/access
+    healthcheck:
+      command:
+        - CMD-SHELL
+        - "smbclient -N -L //127.0.0.1 2>&1 | grep -qiE 'Sharename|backup|IPC|ACCESS_DENIED' || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 8s
+    security:
+      privileged: false
+      host_network: false
