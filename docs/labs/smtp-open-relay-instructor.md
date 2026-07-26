@@ -1,0 +1,1 @@
+--8<-- "labs/smtp-open-relay/docs/instructor-guide.md"

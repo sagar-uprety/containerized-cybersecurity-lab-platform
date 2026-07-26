@@ -1,0 +1,164 @@
+id: smtp-open-relay
+title: Unexpected Mail Traffic
+difficulty: intermediate
+
+story:
+  role: Junior Linux administrator
+  situation: >
+    Network monitoring flagged unusual outbound SMTP traffic from the mail
+    relay server. The traffic does not originate from the mail clients you
+    expect. The relay may be authorizing clients outside the intended trust boundary.
+
+documentation:
+  student_guide_url: /docs/labs/smtp-open-relay/
+  solution_notes_url: /docs/labs/smtp-open-relay-solution/
+  instructor_guide_url: /docs/labs/smtp-open-relay-instructor/
+
+access:
+  ssh_port_base: 22100
+  browser_terminal_port_base: 19100
+
+lifecycle:
+  idle_timeout_minutes: 30
+  max_runtime_minutes: 120
+  evaluation_idle_timeout_minutes: null
+  retention_after_stop_minutes: 180
+
+checker:
+  version: 1
+  states:
+    - vulnerable
+    - fixed
+  checks:
+    - name: smtp_open_relay
+      label: "SMTP relay rejects mail from untrusted sources"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        result=$(timeout 15 swaks --timeout 5 --to recipient@test.local
+        --from spoofed@external.com --server postfix-host --port 25 2>&1);
+        if printf '%s\n' "$result" | grep -q '250 2.0.0 Ok: queued'; then
+          echo relay_accepted;
+        elif printf '%s\n' "$result" | grep -qiE '554|5\.7\.1|relaying denied|rejected|not permitted|access denied'; then
+          echo relay_rejected;
+        else
+          echo relay_unexpected;
+        fi
+      states:
+        vulnerable: "output_eq: relay_accepted"
+        fixed: "output_eq: relay_rejected"
+    - name: postfix_mynetworks_restricted
+      label: "Postfix mynetworks is restricted to local addresses"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        networks=$(sed -n 's/^[[:space:]]*mynetworks[[:space:]]*=[[:space:]]*//p'
+        /lab/postfix/main.cf | tail -n 1);
+        if [ "$networks" = '0.0.0.0/0' ]; then echo mynetworks_broad;
+        elif [ "$networks" = '127.0.0.0/8' ]; then echo mynetworks_restricted;
+        else echo mynetworks_unexpected; fi
+      states:
+        vulnerable: "output_eq: mynetworks_broad"
+        fixed: "output_eq: mynetworks_restricted"
+    - name: postfix_relay_restrictions_active
+      label: "Postfix relay safety restriction remains active"
+      kind: guardrail
+      exec_in: workstation
+      run: >-
+        restrictions=$(sed -n 's/^[[:space:]]*smtpd_relay_restrictions[[:space:]]*=[[:space:]]*//p'
+        /lab/postfix/main.cf | tail -n 1);
+        if printf '%s\n' "$restrictions" | grep -q 'reject_unauth_destination'; then
+          echo relay_restrictions_active;
+        else
+          echo relay_restrictions_missing;
+        fi
+      states:
+        vulnerable: "output_eq: relay_restrictions_missing"
+        fixed: "output_eq: relay_restrictions_active"
+    - name: smtp_service_healthy
+      label: "Postfix SMTP service is responsive"
+      kind: guardrail
+      exec_in: workstation
+      run: >-
+        if timeout 8 swaks --timeout 3 --server postfix-host --port 25
+        --quit-after CONNECT 2>&1 | grep -q '220 postfix-host'; then
+          echo smtp_available;
+        else
+          echo smtp_unavailable;
+        fi
+      states:
+        vulnerable: "output_eq: smtp_unavailable"
+        fixed: "output_eq: smtp_available"
+
+build:
+  images:
+    - service: postfix-host
+      name: thesis-labs/smtp-open-relay-postfix:latest
+      context: .
+      dockerfile: Dockerfile
+
+services:
+  workstation:
+    image: thesis-labs/workstation-base:latest
+    role: Student browser terminal and SSH fallback.
+    internal_ports:
+      browser_terminal: 19000
+      ssh: 22
+  postfix-host:
+    image: thesis-labs/smtp-open-relay-postfix:latest
+    role: Vulnerable Postfix mail relay.
+    internal_ports:
+      smtp: 25
+
+networks:
+  - name: mail-net
+
+resources:
+  workstation:
+    cpus: "0.50"
+    memory: "256m"
+  postfix-host:
+    cpus: "0.50"
+    memory: "256m"
+
+workstation:
+  environment:
+    POSTFIX_HOST: postfix-host
+  shared_volumes:
+    - name: postfix_config
+      target: /lab/postfix
+  depends_on:
+    - postfix-host
+
+containers:
+  - service: postfix-host
+    hostname: postfix-host
+    networks:
+      - mail-net
+    init: true
+    restart: unless-stopped
+    environment:
+      LAB_ADMIN_USER: postfixadmin
+      LAB_CONFIG_SRC: /opt/lab/baseline/main.cf
+      LAB_CONFIG_DST: /etc/postfix/main.cf
+      LAB_SERVICE_CMD: postfix start-fg
+      LAB_SETUP_SCRIPT: /opt/lab/hooks/pre-start.sh
+      SERVICE_ADMIN_PASSWORD: "$platform.student_password"
+    expose:
+      - 25
+    volumes:
+      - name: postfix_config
+        target: /etc/postfix
+    healthcheck:
+      command:
+        - CMD-SHELL
+        - "swaks --server 127.0.0.1 --port 25 --quit-after CONNECT --timeout 3 2>&1 | grep -q '220 postfix-host'"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    security:
+      privileged: false
+      host_network: false
+      cap_add:
+        - AUDIT_WRITE

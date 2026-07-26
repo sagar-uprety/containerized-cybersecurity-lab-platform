@@ -1,0 +1,24 @@
+# Postfix main.cf - Vulnerable (Open Relay) Configuration
+# DO NOT USE IN PRODUCTION - Lab baseline only
+
+myhostname = postfix-host
+mydomain = lab.local
+myorigin = $myhostname
+mydestination = $myhostname, localhost.$mydomain, localhost
+mynetworks = 0.0.0.0/0
+inet_interfaces = all
+inet_protocols = ipv4
+
+# Postfix requires a terminal reject/defer restriction before smtpd will start.
+# This remains an open relay because the broad mynetworks match permits every
+# IPv4 client before reject_unauth_destination is evaluated.
+smtpd_relay_restrictions = permit_mynetworks, reject_unauth_destination
+smtpd_recipient_restrictions =
+
+# Log directly through the foreground master process in the container.
+maillog_file = /dev/stdout
+
+# No SASL authentication
+# No TLS/STARTTLS
+
+compatibility_level = 3.6

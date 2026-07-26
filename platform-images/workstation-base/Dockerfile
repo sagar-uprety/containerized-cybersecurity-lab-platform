@@ -50,6 +50,7 @@ RUN apt-get update \
       redis-tools \
       smbclient \
       snmp \
+      swaks \
       tini \
       libjson-c5 \
       libssl3 \
