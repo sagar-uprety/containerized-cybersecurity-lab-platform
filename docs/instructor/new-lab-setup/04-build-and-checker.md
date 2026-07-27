@@ -126,6 +126,24 @@ condition:
 Prefer `output_eq` with short tokens. A shell expression returning status alone
 can use exit-code conditions, but output tokens produce clearer evidence.
 
+`sample-lab`'s checks all emit a token from an HTTP response. Other
+vulnerability classes need their own token-emitting pattern; for example, a
+file-permission or ownership check reads the mode bits and maps them to a
+token instead of matching response text:
+
+```bash
+mode=$(stat -c '%a' /var/lib/target-service/data.log 2>/dev/null);
+if [ "$mode" = 666 ] || [ "$mode" = 664 ]; then echo TARGET_WORLD_WRITABLE;
+elif [ "$mode" = 640 ] || [ "$mode" = 600 ]; then echo TARGET_PERMISSIONS_HARDENED;
+else echo TARGET_PERMISSIONS_UNKNOWN; fi
+```
+
+The shape is the same regardless of vulnerability class: read one fact
+deterministically, map every expected value to a token, and emit a distinct
+unmatched token for anything else. Adapt the fact-gathering command (`stat`,
+`getfacl`, a config grep, a client request) to what your scenario actually
+needs to prove; the token-and-`output_eq` pattern stays constant.
+
 ### Checker Command Rules
 
 -   Run from `workstation` when testing student/attacker-visible behavior.

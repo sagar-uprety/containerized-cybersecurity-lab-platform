@@ -83,8 +83,10 @@ ANSIBLE_CONFIG=config/ansible.cfg .venv/bin/ansible-playbook \
 Use `--tags lab-source` only when Dockerfiles, image scripts, packages, and
 image-copied configuration did not change. When uncertain, use both tags.
 
-When rolling out platform-level labctl/runtime changes such as the read-only
-source-mount enforcement introduced with this authoring kit, include `labctl`:
+**An ordinary new lab needs only the command above.** Add `labctl` to the tag
+list only if you also changed `controller/labctl_core/` itself (the Python
+package that implements `labctl start/stop/reset/check`) — for example, a
+platform-level runtime behavior change, not a scenario-level one:
 
 ```bash
 ANSIBLE_CONFIG=config/ansible.cfg .venv/bin/ansible-playbook \
@@ -100,10 +102,12 @@ ANSIBLE_CONFIG=config/ansible.cfg .venv/bin/ansible-playbook \
 
 The docs tag discovers direct `labs/*/scenario.yaml` packages, copies scenario
 source used by the portal, rebuilds MkDocs, and restarts the portal when scenario
-source changes. A normal new lab does not require a frontend build.
+source changes. **An ordinary new lab needs only the command above** — no
+frontend build, no extra tags.
 
-When rolling out platform-level schema or instructor-document protection changes
-such as this authoring kit itself, deploy all affected backend/docs/proxy tags:
+Only add `portal-api` and `nginx` if you also changed backend code outside
+`labs/` — the schema at `labs/templates-contract/scenario.schema.json`, the
+portal's Python routes, or the Nginx instructor-doc auth gate itself:
 
 ```bash
 ANSIBLE_CONFIG=config/ansible.cfg .venv/bin/ansible-playbook \

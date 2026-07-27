@@ -79,6 +79,15 @@ The clone is not finished. It is a known-good baseline that should remain
 runnable while sample behavior is replaced. Delete or rename sample files only
 after removing all matching references from Dockerfile and `scenario.yaml`.
 
+**The rename is a literal substring replacement of `sample-lab` only** — it
+does not touch every sample-prefixed identifier. After cloning, `scenario.yaml`
+still contains `sample-service`, `sample-net`, `sample_config`/`sample_data`,
+`SAMPLE_SERVICE_HOST`/`SAMPLE_SERVICE_PORT`, and `sampleadmin`; `docs/SITREP.txt`
+still says `/lab/sample` in its useful-paths list. None of these contain the
+literal string `sample-lab`, so the generator leaves them for you. Work
+through `labs/sample-lab/docs/AUTHORING.md`'s file map deliberately, service
+name by service name, rather than assuming the generator caught everything.
+
 ## Learn the Sample Before Replacing It
 
 `sample-lab` is a real catalog scenario, not inert pseudocode. It demonstrates:

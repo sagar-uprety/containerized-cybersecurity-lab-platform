@@ -120,9 +120,13 @@ Use these in this order:
 
 2. `labs/templates-contract/scenario.schema.json` defines accepted machine fields.
 3. `labs/sample-lab/` is the runnable, commented authoring reference.
-4. `labs/templates-contract/STUDENT_GUIDE_TEMPLATE.md` defines student-guide sections.
-5. `labs/templates-contract/INSTRUCTOR_GUIDE_TEMPLATE.md` defines instructor-guide sections.
-6. Existing real labs show scenario-specific variations, not new contracts.
+4. `platform-images/lab-service-base/entrypoint.sh` defines exactly what the
+   shared service base does with every `LAB_*` environment variable before,
+   during, and after your service starts — read it, don't infer its behavior
+   from the sample alone.
+5. `labs/templates-contract/STUDENT_GUIDE_TEMPLATE.md` defines student-guide sections.
+6. `labs/templates-contract/INSTRUCTOR_GUIDE_TEMPLATE.md` defines instructor-guide sections.
+7. Existing real labs show scenario-specific variations, not new contracts.
 
 Do not copy Redis-specific names or behavior into unrelated labs. Redis is one
 real implementation; `sample-lab` is the neutral authoring starting point.

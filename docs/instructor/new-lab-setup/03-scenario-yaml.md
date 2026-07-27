@@ -182,6 +182,19 @@ The shared service base understands:
 | `LAB_SETUP_SCRIPT`       | Optional idempotent pre-start hook      |
 | `SERVICE_ADMIN_PASSWORD` | `$platform.student_password` at runtime |
 
+**`LAB_CONFIG_DST` and `LAB_DATA_DIR` are not student-visible by themselves.**
+They are paths inside the target container's own filesystem. A path only
+becomes reachable from the workstation (for shared-volume editing, per the
+"Shared Student Editing" pattern) when the _same_ named volume is also listed
+under that container's `volumes` **and** under `workstation.shared_volumes`
+with a `workstation`-side `target`. Compare `labs/sample-lab/scenario.yaml`'s
+`sample_config` volume (declared in both places, so `/etc/sample-service` on
+the target is reachable as `/lab/sample` on the workstation) against its
+`sample_data` volume (declared only under the target container's `volumes`,
+so it is never student-visible). If your checker or solution notes need a
+student to read or edit a `LAB_DATA_DIR` file directly, put that data in a
+volume that is also shared to the workstation, not only in `LAB_DATA_DIR`.
+
 The authoritative implementation comments are at
 `platform-images/lab-service-base/entrypoint.sh`.
 

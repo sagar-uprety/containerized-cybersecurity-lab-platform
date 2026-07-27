@@ -158,9 +158,19 @@ network. A router/firewall/proxy container can join multiple networks.
 
 ## Required Validation
 
-From repository root:
+From repository root. If `.venv` does not exist yet, create it first:
 
 ```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r config/requirements-dev.txt
+.venv/bin/pre-commit install
+```
+
+Then run, for every new/changed lab Python file and the full package:
+
+```bash
+python3 -m py_compile labs/<lab-id>/<script>.py
+PYTHONPATH=. .venv/bin/python tests/test_create_lab.py
 PYTHONPATH=controller .venv/bin/python tools/pre_commit/validate_scenarios.py
 .venv/bin/python tools/pre_commit/check_scenario_checker_shell.py
 .venv/bin/python tools/pre_commit/validate_intentional_risks.py
