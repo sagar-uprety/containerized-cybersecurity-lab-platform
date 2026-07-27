@@ -28,37 +28,6 @@ checks.
 It is not a general-purpose cyber range for every possible security exercise.
 That boundary is a safety and reproducibility feature, not missing polish.
 
-### Coverage of the Scenario Selection Report
-
-The research selection report identifies 19 scenario ideas. Seventeen can be
-represented by the existing scenario contract, sometimes with the documented
-safe redesign. Two cannot be represented authentically on this platform.
-
-| Rank / scenario          | Supported pattern                                         | Important constraint                                                        |
-| ------------------------ | --------------------------------------------------------- | --------------------------------------------------------------------------- |
-| 1 NoSQL exposure         | Workstation + database + optional dependent app           | Keep database port private; seed dummy data                                 |
-| 1 Weak SSH config        | Workstation + SSH service                                 | Use planted dummy accounts/keys and bounded brute-force evidence            |
-| 3 Firewall bypass        | Multi-network workstation/firewall/server topology        | Narrow `NET_ADMIN`; never privileged or host network                        |
-| 4 LDAP anonymous bind    | Workstation + LDAP service                                | Dummy directory entries; private LDAP port                                  |
-| 5 Database permissions   | Workstation + SQL service                                 | Synthetic schema; checker covers auth and least privilege                   |
-| 6 Unpatched service      | Workstation + pinned legacy service                       | Build must work on `ppc64le`; prefer safe compensating control              |
-| 7 PROXY protocol bypass  | Client/workstation + proxy + backend, often multi-network | Bound requests; validate trust boundary and backend continuity              |
-| 8 Banner exposure        | Workstation + target service                              | Behavior check should distinguish useful service from excess metadata       |
-| 9 TLS/vhost isolation    | Workstation + one or more TLS services                    | Version test material; avoid external certificates or domains               |
-| 10 Logging failure       | Workstation + service/logging target                      | Service logs/rsyslog are possible; kernel `auditd` is not                   |
-| 11 FTP anonymous access  | Workstation + FTP service                                 | Keep traffic inside private network; passive ports need careful config      |
-| 12 SMB exposure          | Workstation + file service                                | Use dummy files and separate legitimate-access guardrail                    |
-| 14 SNMP exposure         | Workstation + SNMP service                                | Dummy community strings and data only                                       |
-| 16 Network segmentation  | Several uniquely named services across several networks   | Workstation joins first network; route through declared middleboxes         |
-| 17 DNS misconfiguration  | Workstation + DNS service                                 | Internal UDP traffic works; do not create Internet reflector access         |
-| 18 SMTP open relay       | Workstation + mail service                                | Isolated network only; never deliver real mail externally                   |
-| 19 Container security    | Safely redesigned capability/non-root lesson              | No privileged mode, `ALL` capabilities, host mounts, or escape demo         |
-| 13 NTP amplification     | Not supported as designed                                 | Required `monlist` behavior no longer exists on target platform             |
-| 15 Full system hardening | Not supported as designed                                 | Host kernel, SELinux, `auditd`, systemd, and global sysctls are unavailable |
-
-The full evidence, rankings, and scenario details live in
-`resources/scenario-selection-report.md`.
-
 ### Reusable Capabilities Already Implemented
 
 | Need                                  | Scenario mechanism                                                                   |
@@ -96,71 +65,10 @@ These are implementation facts instructors must design around:
 | One active lab per student                    | Do not design simultaneous labs for one student; coordinate any port-range change across all scenarios |
 | No draft flag                                 | An undeployed branch is the draft boundary; any deployed valid scenario enters instructor catalog      |
 
-These limits still cover all 17 container-safe candidates in the selection
-report. Changing them is platform architecture work, not a lab-local workaround.
+Changing any of these is platform architecture work, not a lab-local
+workaround.
 
-## Scenario Pattern Cookbook
-
-This section maps every implementable scenario family from
-`resources/scenario-selection-report.md` to the concrete `scenario.yaml`
-fields, topology, checker shapes, and caveats you need. Use it as a lookup
-when you cannot reuse the sample directly.
-
-The selection report contains 19 ranked scenarios. Two (NTP amplification Rank
-13, System Hardening Rank 15) cannot be represented on this platform. The other
-17 are supported by the existing contract; the table below is the
-configuration recipe for each one.
-
-| Family                               | Containers                                                                      | Networks                                                   | Build                                                                                                                                                           | Checker shape                                                                                                                                                                                              | Caveats                                                                                                                                                                     |
-| ------------------------------------ | ------------------------------------------------------------------------------- | ---------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **1 NoSQL exposure (Redis/MongoDB)** | workstation + db-service (+ optional demo-app dependent on db)                  | single default                                             | Dockerfile installs redis-server/mongod, copies `config.vulnerable` with `bind 0.0.0.0` + no auth                                                               | objective: anonymous `redis-cli PING` returns `PONG` / `mongo --eval 'show dbs'` succeeds; objective: bind restricted; guardrail: demo-app health; guardrail: authenticated client still works             | Keep db port private. If a dependent app is pedagogically important, add it; otherwise omit it. See `labs/redis-exposed/`.                                                  |
-| **1 SSH weak config**                | workstation + ssh-host                                                          | single default                                             | Dockerfile installs openssh-server, fail2ban; `config.vulnerable` enables `PasswordAuthentication yes`; setup hook plants weak user passwords + authorized_keys | objective: `sshpass -p weak ssh lab-user@ssh-host` succeeds; objective: `permitrootlogin no`; objective: weak accounts locked; guardrail: key auth still works; guardrail: fail2ban bans injected attempts | Add `NET_RAW` + `AUDIT_WRITE` to workstation caps. Canonical implementation: `labs/ssh-weak-config/`.                                                                       |
-| **3 Firewall source-port bypass**    | workstation + firewall-host (attaches to 2 nets) + internal-server              | `external`, `internal`                                     | Two Dockerfiles: firewall (iptables rules file), server (nginx)                                                                                                 | objective: `curl --local-port 80` to internal reaches server (vulnerable) vs blocked (fixed); objective: FORWARD policy DROP + conntrack state rule present; guardrails: forwarding path healthy           | Add `NET_ADMIN` on firewall, `NET_RAW` + `NET_BIND_SERVICE` on workstation so student can bind source port 80. Canonical: `labs/firewall-source-port-bypass/`.              |
-| **4 LDAP anonymous bind**            | workstation + ldap-host                                                         | single default                                             | Dockerfile installs slapd, certs, dummy LDIF; `config.vulnerable` enables anonymous read                                                                        | objective: `ldapsearch -x` without bind creds returns entries; objective: plaintext bind rejected (TLS required); guardrail: authenticated bind over STARTTLS still returns entries                        | Generate self-signed certs in setup hook, not real CA. Canonical: `labs/ldap-anonymous-bind/`.                                                                              |
-| **5 MySQL/MariaDB weak permissions** | workstation + mysql-host                                                        | single default                                             | Dockerfile installs mariadb-server; `config.vulnerable` binds 0.0.0.0, weak root pw, anonymous user, broad grants                                               | objective: anonymous `mysql -h` read succeeds; objective: bind restricted to localhost; objective: anonymous users removed; guardrail: authenticated least-priv user can still query                       | Keep 3306 private; check from workstation.                                                                                                                                  |
-| **6 Unpatched Apache CVE**           | workstation + apache-host                                                       | single default                                             | Dockerfile pins vulnerable Apache 2.4.49 from source + sha256; `config.vulnerable` enables mod_cgi + alias                                                      | objective: `curl --path-as-is /cgi-bin/.%2e/etc/passwd` returns 403/404 not 200 + passwd; objective: mod_cgi disabled + alias removed; guardrail: home HTTP 200                                            | Pin source, verify checksum, ensure ppc64le-compatible. Canonical: `labs/unpatched-apache-cve/`.                                                                            |
-| **7 PROXY protocol bypass**          | workstation + proxy-host (2 nets) + backend                                     | `external`, `internal`                                     | Dockerfile installs HAProxy/nginx with PROXY protocol enabled                                                                                                   | objective: crafted PROXY header reaches restricted backend; objective: trusted upstreams only; guardrail: legitimate client path healthy                                                                   | Multi-net. Like firewall lab but trust-boundary focused.                                                                                                                    |
-| **8 Banner exposure**                | workstation + service-host                                                      | single default                                             | Dockerfile installs a chatty service (ssh/postfix/nginx) with `server_tokens on` / verbose version                                                              | objective: banner reveals exact version; objective: server_tokens off / banner scrubbed; guardrail: service still responds                                                                                 | Simplest lab; good first scenario beyond sample.                                                                                                                            |
-| **9 TLS/vhost isolation**            | workstation + web-host                                                          | single default (or 2 nets if separating clients)           | Dockerfile installs Apache/nginx with TLS + 2 vhosts sharing STEK                                                                                               | objective: session ticket from vhost A resumes against vhost B; objective: tickets isolated or disabled; guardrail: same-vhost resumption still works                                                      | Advanced. Generate self-signed certs in setup. Document TLS 1.2 vs 1.3 ticket behavior.                                                                                     |
-| **10 Logging failure**               | workstation + service-host                                                      | single default                                             | Dockerfile installs target service (e.g. SSH/Apache) with rsyslog running but minimal config                                                                    | objective: failed login not in `auth.log`; objective: failed login captured; guardrail: service still works; guardrail: log rotation configured                                                            | `auditd` kernel-level rules NOT available in unprivileged containers. Use rsyslog + service-specific logs only.                                                             |
-| **11 FTP anonymous access**          | workstation + ftp-host                                                          | single default                                             | Dockerfile installs vsftpd; `config.vulnerable` enables `anonymous_enable=YES` + write                                                                          | objective: anonymous login reads dummy files; objective: anonymous disabled; guardrail: authenticated user still works                                                                                     | FTP passive-mode port range inside container needs `pasv_min_port`/`pasv_max_port` set; do not rely on NAT.                                                                 |
-| **12 SMB open share**                | workstation + smb-host                                                          | single default                                             | Dockerfile installs samba; `config.vulnerable` enables `guest ok = yes`, `map to guest = Bad User`, open `valid users`                                          | objective: `smbclient -N //smb-host/backup` lists files; objective: guest disabled + valid_users restricted; guardrail: authenticated Samba user still reads share                                         | Canonical: `labs/smb-open-share/`.                                                                                                                                          |
-| **14 SNMP community strings**        | workstation + snmp-host                                                         | single default (or UDP-published if you want remote tools) | Dockerfile installs snmpd; `config.vulnerable` sets `rocommunity public` + broad view                                                                           | objective: `snmpwalk -c public` returns OIDs; objective: community restricted + view limited; guardrail: authorized community still walks                                                                  | Use `protocol: udp` in the `ports` block if you want SNMP published to the workstation; otherwise test from workstation over the internal net (no host publication needed). |
-| **16 Network segmentation**          | workstation + router/firewall (3 nets) + server-a + server-b                    | `external`, `dmz`, `internal`                              | Router Dockerfile (iptables/forwarding), two server Dockerfiles                                                                                                 | objective: workstation reaches `internal` directly (flat network); objective: FORWARD DROP + only DMZ reachable; guardrails: each segment's legitimate path still works                                    | Largest topology (5 containers, 3 nets). Workstation joins `external` only.                                                                                                 |
-| **17 DNS misconfiguration**          | workstation + dns-host (+ optional controlled authoritative for poisoning demo) | single default                                             | Dockerfile installs BIND/Unbound; `config.vulnerable` enables `allow-recursion any` + `dnssec-validation no`                                                    | objective: `dig ANY` returns large response from any source; objective: recursion restricted + DNSSEC on; guardrail: trusted-client recursion still works                                                  | For amplification demo, keep DNS UDP and isolated. Use `protocol: udp` on the published port only if needed.                                                                |
-| **18 SMTP open relay**               | workstation + mail-host                                                         | single default                                             | Dockerfile installs Postfix; `config.vulnerable` sets `mynetworks = 0.0.0.0/0` + `permit_mynetworks` before reject                                              | objective: `swaks --from spoofed@external.com` queues; objective: relay rejected from non-mynetworks; guardrails: reject_unauth_destination still present + SMTP banner responsive                         | No real email leaves the isolated network. Canonical: `labs/smtp-open-relay/`.                                                                                              |
-| **19 Container security (redesign)** | workstation + target-service                                                    | single default                                             | Dockerfile intentionally over-grants `cap_add: [SYS_ADMIN]`, runs as `root`, writable volume                                                                    | objective: `capsh --print` inside container shows SYS_ADMIN / `cat /proc/1/status                                                                                                                          | grep Cap`(set); objective: target redeployed with`cap_drop: [ALL]`+`cap_add: [AUDIT_WRITE]`+ non-root`user`; guardrail: service still serves                                | **Cannot** use `--privileged` or `--cap-add=ALL` (platform hard-rejects). Use `SYS_ADMIN` as the vulnerable over-grant. Cannot demonstrate real escape to host — that is by design. Lesson is least-privilege, not exploit mechanics. |
-
-### How to use this cookbook
-
-1. Find your scenario family row.
-2. Use the topology, network count, and checker pattern as your starting
-   `scenario.yaml` skeleton.
-3. Replace dockerfile packages, configuration file directives, and seed data
-   with your target service's real values (researched from official docs).
-4. Add guardrails for any service continuity the scenario requires.
-5. If your scenario needs a capability the table notes as a caveat (e.g.
-   `NET_ADMIN` on a firewall container), justify it in your
-   `intentional-risk-allowlist.yaml` and the container's `security.cap_add`.
-
-The cookbook is exhaustive for the threshold model used by this platform: an
-unprivileged Podman lab on RHEL 9.6 `ppc64le` that has deterministic
-config-driven `vulnerable`/`fixed` checks. Scenarios outside that model
-(kernels, bare metal, Windows, escape-to-host) cannot be supported without
-
-### Hard Boundaries
-
-Reject or redesign a lab if it requires any of these:
-
--   `--privileged`, host networking, `--cap-add=ALL`, host devices, or a Docker/Podman socket
--   Changes to x01/x02 host kernel, SELinux, systemd, host firewall, or host audit subsystem
--   Real malware, real credentials, real personal data, or uncontrolled Internet abuse
--   Windows/Active Directory, public-cloud accounts, proprietary appliances, physical/ICS hardware, or BMC/IPMI
--   Open-ended forensics, social engineering, policy-only assessment, or a task with no deterministic technical outcome
--   A vulnerability that cannot be safely represented on RHEL 9.6 `ppc64le`
-
-Stop and request architecture review rather than weakening isolation to make an
-changes require explicit approval.
+## Hard Boundaries
 
 Reject or redesign a lab if it requires any of these:
 
