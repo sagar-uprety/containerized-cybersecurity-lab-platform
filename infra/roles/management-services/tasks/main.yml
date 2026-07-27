@@ -425,6 +425,24 @@
     - portal-api
     - docs
 
+# MkDocs pymdownx.snippets resolves lab guide includes (e.g. "labs/<id>/docs/
+# instructor-guide.md") relative to the MkDocs source root, not the portal's
+# controller/labs tree copied above. Without this, docs/labs/<id>*.md stubs
+# fail snippet resolution on the management node even though they build fine
+# locally (repo root already has labs/ next to config/mkdocs.yml).
+- name: Install lab doc source trees for MkDocs snippet resolution
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../labs/{{ item }}/docs/"
+    dest: "{{ management_docs_root }}/source/labs/{{ item }}/docs/"
+    owner: root
+    group: "{{ thesis_admin_group }}"
+    mode: preserve
+    directory_mode: "0750"
+  loop: "{{ management_lab_scenarios }}"
+  notify: Build MkDocs site
+  tags:
+    - docs
+
 - name: Create MkDocs configuration directory
   ansible.builtin.file:
     path: "{{ management_docs_root }}/source/config"
