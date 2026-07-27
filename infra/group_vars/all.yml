@@ -55,7 +55,7 @@ thesis_students:
 
 thesis_instructors:
   - username: instructor
-    password: instructor-password
+    password: REDACTED
     role: instructor
 
 thesis_max_concurrent_students: 1

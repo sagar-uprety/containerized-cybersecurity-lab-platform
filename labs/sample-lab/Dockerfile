@@ -4,11 +4,12 @@
 # versioned baseline artifacts. Never place real secrets in an image.
 FROM thesis-labs/lab-service-base:1.0
 
-# Replace python3-minimal with packages needed by your service. Package versions
-# should be pinned when exact version behavior is part of the lesson.
+# Install the full Python interpreter so the standard library (http, json, etc.)
+# is available to the sample service. Real labs should pin versions when exact
+# behavior is part of the lesson.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
-      python3-minimal \
+      python3 \
     && rm -rf /var/lib/apt/lists/*
 
 # UID 1000 is deliberate: the workstation student also uses UID 1000, allowing

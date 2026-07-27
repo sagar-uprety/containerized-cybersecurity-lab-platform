@@ -364,11 +364,28 @@
     - portal-api
     - portal-demo-seed
 
+- name: Discover lab scenario directories on controller
+  ansible.builtin.find:
+    paths: "{{ playbook_dir }}/../../labs"
+    patterns: scenario.yaml
+    recurse: true
+    depth: 2
+    file_type: file
+  delegate_to: localhost
+  become: false
+  register: management_scenario_files
+  changed_when: false
+  tags:
+    - portal
+    - portal-api
+    - docs
+
 - name: Set management lab scenario list
   ansible.builtin.set_fact:
     management_lab_scenarios: >-
       {{
-        query('ansible.builtin.fileglob', playbook_dir ~ '/../../labs/*/scenario.yaml')
+        management_scenario_files.files
+        | map(attribute='path')
         | map('dirname')
         | map('basename')
         | sort
