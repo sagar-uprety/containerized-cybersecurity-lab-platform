@@ -35,7 +35,7 @@ python3 tools/create_lab.py <lab-id> \
 ```
 
 Start with [`labs/sample-lab/`](labs/sample-lab/) and follow the complete
-instructor guide at `docs/instructor/new-lab-setup.md` or the deployed protected
+instructor guide at `docs/instructor/new-lab-setup/` or the deployed protected
 URL `/docs/instructor/new-lab-setup/`.
 
 ## labctl layout

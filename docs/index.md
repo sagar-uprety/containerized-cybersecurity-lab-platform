@@ -13,4 +13,4 @@ management-host docs deployment.
 
 ## Instructor Resources
 
--   [Create and ship a new security lab](instructor/new-lab-setup.md)
+-   [Create and ship a new security lab](instructor/new-lab-setup/index.md)
