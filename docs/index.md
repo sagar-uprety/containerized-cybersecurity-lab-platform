@@ -10,3 +10,7 @@ Start in the portal, open your assigned lab, then keep the guide next to the bro
 
 The deployed site generates this list from `labs/*/scenario.yaml` during the
 management-host docs deployment.
+
+## Instructor Resources
+
+-   [Create and ship a new security lab](instructor/new-lab-setup.md)

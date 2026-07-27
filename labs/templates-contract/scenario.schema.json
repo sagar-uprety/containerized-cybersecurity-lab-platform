@@ -30,8 +30,7 @@
             "minLength": 1
         },
         "difficulty": {
-            "type": "string",
-            "minLength": 1
+            "enum": ["beginner", "intermediate", "advanced"]
         },
         "story": {
             "type": "object",
@@ -130,7 +129,9 @@
                     "items": {
                         "enum": ["vulnerable", "fixed"]
                     },
-                    "minItems": 2
+                    "minItems": 2,
+                    "maxItems": 2,
+                    "uniqueItems": true
                 },
                 "checks": {
                     "type": "array",
@@ -184,7 +185,7 @@
                     "items": {
                         "type": "object",
                         "additionalProperties": false,
-                        "required": ["name", "context", "dockerfile"],
+                        "required": ["service", "name", "context", "dockerfile"],
                         "properties": {
                             "name": {
                                 "type": "string",
@@ -225,6 +226,7 @@
             "type": "object",
             "additionalProperties": {
                 "type": "object",
+                "additionalProperties": false,
                 "required": ["cpus", "memory"],
                 "properties": {
                     "cpus": {
@@ -345,7 +347,12 @@
                             "properties": {
                                 "host_ip": { "type": "string" },
                                 "host_port": { "type": "string" },
-                                "container_port": { "type": "integer" }
+                                "container_port": { "type": "integer" },
+                                "protocol": {
+                                    "type": "string",
+                                    "enum": ["tcp", "udp"],
+                                    "default": "tcp"
+                                }
                             }
                         }
                     },
@@ -367,19 +374,21 @@
                                             "minLength": 1,
                                             "description": "Logical volume name (no runtime prefix). labctl prepends runtime_project_ automatically."
                                         },
-                                        "target": { "type": "string", "minLength": 1 }
+                                        "target": { "type": "string", "minLength": 1 },
+                                        "read_only": { "type": "boolean" }
                                     }
                                 },
                                 {
                                     "additionalProperties": false,
-                                    "required": ["host_path", "target"],
+                                    "required": ["host_path", "target", "read_only"],
                                     "properties": {
                                         "host_path": {
                                             "type": "string",
                                             "minLength": 1,
                                             "description": "Bind-mount a host path. $platform.lab_source_root and $platform.lab_id are resolved."
                                         },
-                                        "target": { "type": "string", "minLength": 1 }
+                                        "target": { "type": "string", "minLength": 1 },
+                                        "read_only": { "const": true }
                                     }
                                 }
                             ]

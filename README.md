@@ -24,6 +24,20 @@ VM-hosted, container-first cybersecurity lab platform. Two RHEL 9.6 VMs: x02
 | `tools/`           | Pre-commit validators                                                                                                 |
 | `resources/`       | Research traceability for scenario selection                                                                          |
 
+## Create a Lab
+
+Create a runnable, contract-compliant copy of the generic sample:
+
+```bash
+python3 tools/create_lab.py <lab-id> \
+  --title "<Human-Readable Lab Title>" \
+  --difficulty beginner
+```
+
+Start with [`labs/sample-lab/`](labs/sample-lab/) and follow the complete
+instructor guide at `docs/instructor/new-lab-setup.md` or the deployed protected
+URL `/docs/instructor/new-lab-setup/`.
+
 ## labctl layout
 
 `controller/labctl` is a thin wrapper. Reusable logic in `labctl_core/`:
@@ -80,9 +94,10 @@ PORTAL_BASE_URL=http://<x02-ip> \
 ## Local Checks
 
 ```bash
-python -m pip install -r config/requirements-dev.txt
-pre-commit install
-pre-commit run --all-files
+python3 -m venv .venv
+.venv/bin/python -m pip install -r config/requirements-dev.txt
+.venv/bin/pre-commit install
+.venv/bin/pre-commit run --all-files
 ```
 
 Hooks are local/offline — they do not contact the thesis VMs.

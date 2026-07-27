@@ -1,0 +1,17 @@
+lab_id: sample-lab
+
+intentional_findings:
+  - id: sample-lab-disabled-access-control
+    tool: semgrep
+    files:
+      - config.vulnerable
+    patterns:
+      - ACCESS_CONTROL=disabled
+    reason: Disabled access control is the isolated synthetic teaching vulnerability students must identify and remediate.
+  - id: sample-lab-dummy-token
+    tool: gitleaks
+    files:
+      - config.vulnerable
+    patterns:
+      - sample-demo-token
+    reason: This clearly marked demo token supports authorized-use guardrail testing and has no value outside the isolated lab.

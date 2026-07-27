@@ -22,27 +22,11 @@
     - labctl
     - lab-runtime
 
-- name: Discover local lab scenario files
-  ansible.builtin.find:
-    paths: "{{ lab_runtime_local_scenario_root }}"
-    patterns: scenario.yaml
-    file_type: file
-    recurse: true
-  register: _lab_runtime_scenario_files
-  delegate_to: localhost
-  become: false
-  changed_when: false
-  tags:
-    - lab-source
-    - lab-images
-    - labadmin
-
 - name: Set lab scenario list
   ansible.builtin.set_fact:
     lab_runtime_scenarios: >-
       {{
-        _lab_runtime_scenario_files.files
-        | map(attribute='path')
+        query('ansible.builtin.fileglob', lab_runtime_local_scenario_root ~ '/*/scenario.yaml')
         | map('dirname')
         | map('basename')
         | sort

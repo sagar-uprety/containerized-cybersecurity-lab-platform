@@ -1,7 +1,7 @@
 site_name: Thesis Lab Guides
 site_description: Static guides for the thesis cybersecurity lab platform
-docs_dir: docs
-site_dir: site
+docs_dir: ../docs
+site_dir: ../site
 use_directory_urls: true
 theme:
   name: mkdocs
@@ -16,11 +16,8 @@ markdown_extensions:
 plugins:
   - search
 
-nav:
-  - Home: index.md
-  - Labs:
-      - labs/redis-exposed.md
-      - labs/ssh-weak-config.md
-      - labs/firewall-source-port-bypass.md
-      - labs/ldap-anonymous-bind.md
-      - labs/unpatched-apache-cve.md
+# MkDocs 1.6 infers navigation from docs/. Protected answer/instructor pages are
+# still built and directly addressable, but intentionally omitted from nav.
+not_in_nav: |
+  /labs/*-solution.md
+  /labs/*-instructor.md

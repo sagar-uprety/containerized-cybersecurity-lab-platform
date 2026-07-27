@@ -26,6 +26,16 @@ server {
         try_files /index.html =404;
     }
 
+    location = /docs/instructor {
+        return 301 /docs/instructor/;
+    }
+
+    location /docs/instructor/ {
+        auth_request /internal/instructor-auth;
+        alias {{ management_docs_root }}/source/site/instructor/;
+        index index.html;
+    }
+
     location /docs/ {
         alias {{ management_docs_root }}/source/site/;
         index index.html index.htm;

@@ -1,0 +1,9 @@
+# SAMPLE VULNERABLE BASELINE
+# This is synthetic configuration for the runnable reference service. In a new
+# lab, replace the whole file with the target service's real baseline config.
+
+# Intentional teaching vulnerability: unauthenticated requests can read records.
+ACCESS_CONTROL=disabled
+
+# Dummy lab credential only. Never use production or personal credentials.
+AUTHORIZED_TOKEN=sample-demo-token

@@ -119,18 +119,19 @@ def container_run_args(container: dict) -> list[str]:
     for key, value in container.get("environment", {}).items():
         args.extend(["-e", f"{key}={value}"])
     for port in container.get("ports", []):
-        args.extend(
-            [
-                "-p",
-                "{}:{}:{}".format(
-                    port.get("host_ip", "0.0.0.0"), port["host_port"], port["container_port"]
-                ),
-            ]
+        spec = "{}:{}:{}".format(
+            port.get("host_ip", "0.0.0.0"), port["host_port"], port["container_port"]
         )
+        if port.get("protocol") == "udp":
+            spec += "/udp"
+        args.extend(["-p", spec])
     for port in container.get("expose", []):
         args.extend(["--expose", str(port)])
     for volume in container.get("volumes", []):
-        args.extend(["-v", f"{volume['source']}:{volume['target']}"])
+        mount = f"{volume['source']}:{volume['target']}"
+        if volume.get("read_only"):
+            mount += ":ro"
+        args.extend(["-v", mount])
 
     network = container.get("network", {})
     if network.get("name"):

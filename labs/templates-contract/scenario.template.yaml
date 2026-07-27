@@ -1,9 +1,9 @@
 # ──────────────────────────────────────────────────────────────────────
 # scenario.template.yaml
 #
-# Copy this file to labs/<lab-id>/scenario.yaml and fill in the values.
-# Schema enforcement is done by scenario.schema.json — this file is
-# a human-readable reference for lab authors.
+# This is a field-oriented reference, not the recommended starting package.
+# Create a runnable copy of labs/sample-lab with tools/create_lab.py, then use
+# this file and scenario.schema.json when looking up optional fields.
 #
 # Fields marked REQUIRED must be present. All others are optional.
 # ──────────────────────────────────────────────────────────────────────
@@ -75,13 +75,15 @@ checker:
       label: "Human-readable criterion"
       kind: objective               # objective changes state; guardrail must stay healthy
       exec_in: workstation          # hostname of container to exec into
-      run: "echo test"              # shell command to run
+      run: >-                       # replace with a bounded, deterministic observation
+        if grep -qx 'SECURITY_MODE=insecure' /lab/service-config/config.env;
+        then echo SAMPLE_VULNERABLE; else echo SAMPLE_FIXED; fi
       states:
         # REQUIRED. Condition that matches when the lab is vulnerable.
         # Format: <operator>:<value>   (see operators below)
-        vulnerable: "output_contains: expected_vulnerable_output"
+        vulnerable: "output_eq: SAMPLE_VULNERABLE"
         # REQUIRED. Condition that matches when the lab is fixed.
-        fixed: "output_contains: expected_fixed_output"
+        fixed: "output_eq: SAMPLE_FIXED"
         #
         # Available operators:
         #   output_contains:<text>  — text appears in stdout or stderr
@@ -158,8 +160,6 @@ workstation:
 # is auto-generated from the workstation: section above).
 #
 # Values prefixed with $platform. are resolved at runtime by labctl.
-#
-# Values prefixed with $platform. are resolved at runtime by labctl.
 # Available tokens:
 #   $platform.lab_id                  — e.g. "my-new-lab"
 #   $platform.student_id              — e.g. "student01"
@@ -207,6 +207,7 @@ containers:
     # Optional: bind-mount a file from the lab source tree on the host.
     # - host_path: "$platform.lab_source_root/$platform.lab_id/docs/SITREP.txt"
     #   target: /opt/lab/student/SITREP.txt
+    #   read_only: true
     healthcheck:
       command:
         - CMD-SHELL
@@ -221,5 +222,15 @@ containers:
       cap_add: []                     # add only what is strictly needed
       cap_drop:
         - ALL                         # drop everything, then cap_add selectively
-    user: "appuser"                   # optional: run as this user (uid or name)
-    read_only: true                   # optional: mount root filesystem read-only
+    # Optional hardening after verifying every writable path uses a volume:
+    # user: "appuser"
+    # read_only: true
+  # Optional: publish a UDP endpoint (DNS/SNMP/Amplifier labs).
+  # Omit the protocol field (or use tcp) for normal TCP services.
+  # - service: dns-server
+  #   hostname: dns-server
+  #   ports:
+  #     - host_ip: "$platform.host_bind_ip"
+  #       host_port: "$platform.app_port"
+  #       container_port: 53
+  #       protocol: udp

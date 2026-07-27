@@ -21,6 +21,8 @@
       - mkdocs
       - build
       - --clean
+      - --config-file
+      - config/mkdocs.yml
     chdir: "{{ management_docs_root }}/source"
   changed_when: true
   when: not ansible_check_mode

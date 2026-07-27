@@ -364,27 +364,11 @@
     - portal-api
     - portal-demo-seed
 
-- name: Discover local lab scenario files for portal
-  ansible.builtin.find:
-    paths: "{{ playbook_dir }}/../../labs"
-    patterns: scenario.yaml
-    file_type: file
-    recurse: true
-  register: _management_lab_scenario_files
-  delegate_to: localhost
-  become: false
-  changed_when: false
-  tags:
-    - portal
-    - portal-api
-    - docs
-
 - name: Set management lab scenario list
   ansible.builtin.set_fact:
     management_lab_scenarios: >-
       {{
-        _management_lab_scenario_files.files
-        | map(attribute='path')
+        query('ansible.builtin.fileglob', playbook_dir ~ '/../../labs/*/scenario.yaml')
         | map('dirname')
         | map('basename')
         | sort
@@ -422,11 +406,22 @@
   tags:
     - portal
     - portal-api
+    - docs
+
+- name: Create MkDocs configuration directory
+  ansible.builtin.file:
+    path: "{{ management_docs_root }}/source/config"
+    state: directory
+    owner: root
+    group: "{{ thesis_admin_group }}"
+    mode: "0750"
+  tags:
+    - docs
 
 - name: Install MkDocs configuration
   ansible.builtin.copy:
     src: "{{ playbook_dir }}/../../config/mkdocs.yml"
-    dest: "{{ management_docs_root }}/source/mkdocs.yml"
+    dest: "{{ management_docs_root }}/source/config/mkdocs.yml"
     owner: root
     group: "{{ thesis_admin_group }}"
     mode: "0640"

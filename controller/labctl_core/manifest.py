@@ -203,6 +203,7 @@ def build_manifest(scenario: dict, ctx: dict) -> dict:
                 "host_ip": _resolve(port.get("host_ip", ctx.get("host_bind_ip", "0.0.0.0")), ctx),
                 "host_port": _resolve(str(port["host_port"]), ctx),
                 "container_port": port["container_port"],
+                "protocol": port.get("protocol", "tcp"),
             }
             for port in cdef.get("ports", [])
         ]
@@ -218,18 +219,20 @@ def build_manifest(scenario: dict, ctx: dict) -> dict:
         for vol in cdef.get("volumes", []):
             if "name" in vol:
                 # named (managed) volume
-                resolved_volumes.append(
-                    {
-                        "source": f"{runtime_project}_{vol['name']}",
-                        "target": vol["target"],
-                    }
-                )
+                volume_entry = {
+                    "source": f"{runtime_project}_{vol['name']}",
+                    "target": vol["target"],
+                }
+                if vol.get("read_only"):
+                    volume_entry["read_only"] = True
+                resolved_volumes.append(volume_entry)
             elif "host_path" in vol:
                 # bind-mount from lab source tree
                 resolved_volumes.append(
                     {
                         "source": _resolve(vol["host_path"], ctx),
                         "target": vol["target"],
+                        "read_only": True,
                     }
                 )
         if resolved_volumes:
@@ -342,6 +345,7 @@ def build_manifest(scenario: dict, ctx: dict) -> dict:
         {
             "source": _resolve(f"{ctx['lab_source_root']}/{ctx['lab_id']}/docs/SITREP.txt", ctx),
             "target": "/opt/lab/student/SITREP.txt",
+            "read_only": True,
         }
     )
 

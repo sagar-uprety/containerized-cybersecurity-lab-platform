@@ -12,3 +12,7 @@ Start in the portal, open your assigned lab, then keep the guide next to the bro
 {% set scenario = lookup('file', playbook_dir ~ '/../../labs/' ~ lab_id ~ '/scenario.yaml') | from_yaml %}
 -   [{{ scenario.title }}](labs/{{ lab_id }}.md)
 {% endfor %}
+
+## Instructor Resources
+
+-   [Create and ship a new security lab](instructor/new-lab-setup.md)
