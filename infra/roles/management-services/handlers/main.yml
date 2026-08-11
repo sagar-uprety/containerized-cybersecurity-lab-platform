@@ -13,6 +13,13 @@
     name: nginx
     state: restarted
 
+- name: Enable certbot renewal timer
+  ansible.builtin.systemd:
+    name: certbot-renew.timer
+    state: started
+    enabled: true
+    daemon_reload: true
+
 - name: Build MkDocs site
   ansible.builtin.command:
     argv:

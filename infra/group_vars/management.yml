@@ -12,3 +12,17 @@ management_directories:
   - "{{ management_docs_root }}"
   - "{{ management_docs_root }}/source"
   - "{{ management_backup_root }}"
+
+# TLS / Let's Encrypt (M?: public HTTPS access for survey students)
+thesis_portal_public_hostname: x02lp1.ucc.cit.tum.de
+# Contact address Let's Encrypt uses for expiry/problem notices - set to a real, monitored inbox before requesting.
+thesis_portal_letsencrypt_email: "CHANGE_ME@tum.de"
+# One-time gate: only attempt certonly issuance when explicitly requested (-e thesis_portal_tls_request=true),
+# so routine deploys never hammer Let's Encrypt with a doomed request while port 80 is still VPN/campus-only.
+thesis_portal_tls_request: false
+thesis_portal_acme_webroot: "{{ thesis_runtime_root }}/acme-challenge"
+# certbot lives in its own venv, never system pip3 - x02's dnf/subscription-manager depend on the
+# RPM-managed python3-requests/python3-urllib3 in system site-packages; pip installing certbot there
+# would silently upgrade those and can break dnf (confirmed present: python3-requests-2.25.1 RPM).
+thesis_certbot_venv: "{{ thesis_runtime_root }}/certbot-venv"
+thesis_letsencrypt_live_dir: "/etc/letsencrypt/live/{{ thesis_portal_public_hostname }}"

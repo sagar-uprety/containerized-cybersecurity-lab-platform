@@ -1,6 +1,17 @@
 server {
     listen 80;
+{% if letsencrypt_cert_exists %}
+    listen 443 ssl;
+    ssl_certificate {{ thesis_letsencrypt_live_dir }}/fullchain.pem;
+    ssl_certificate_key {{ thesis_letsencrypt_live_dir }}/privkey.pem;
+    ssl_protocols TLSv1.2 TLSv1.3;
+{% endif %}
     server_name _;
+
+    location ^~ /.well-known/acme-challenge/ {
+        root {{ thesis_portal_acme_webroot }};
+        try_files $uri =404;
+    }
 
     location / {
         proxy_pass http://127.0.0.1:8000;

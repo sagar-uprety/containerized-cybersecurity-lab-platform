@@ -739,6 +739,98 @@
   tags:
     - nginx
 
+- name: Ensure ACME HTTP-01 webroot directory exists
+  ansible.builtin.file:
+    path: "{{ thesis_portal_acme_webroot }}"
+    state: directory
+    owner: root
+    group: "{{ thesis_admin_group }}"
+    mode: "0750"
+  when: thesis_portal_nginx_enabled | bool
+  tags:
+    - nginx
+    - tls
+
+- name: Create isolated virtualenv for certbot
+  ansible.builtin.command:
+    argv: [python3, -m, venv, "{{ thesis_certbot_venv }}"]
+    creates: "{{ thesis_certbot_venv }}/bin/python3"
+  when: thesis_portal_nginx_enabled | bool
+  tags:
+    - tls
+
+- name: Install certbot into isolated virtualenv
+  ansible.builtin.pip:
+    name: certbot
+    virtualenv: "{{ thesis_certbot_venv }}"
+    virtualenv_command: python3 -m venv
+  when: thesis_portal_nginx_enabled | bool
+  tags:
+    - tls
+
+# Gated behind thesis_portal_tls_request (default false) - only meant to be run explicitly,
+# once, after the public firewall change lands. HTTP-01 validation will fail until port 80
+# is reachable from the public internet, so this must never run on a routine deploy.
+- name: Request Let's Encrypt certificate via HTTP-01 webroot challenge
+  ansible.builtin.command:
+    argv:
+      - "{{ thesis_certbot_venv }}/bin/certbot"
+      - certonly
+      - --webroot
+      - --webroot-path
+      - "{{ thesis_portal_acme_webroot }}"
+      - -d
+      - "{{ thesis_portal_public_hostname }}"
+      - --non-interactive
+      - --agree-tos
+      - -m
+      - "{{ thesis_portal_letsencrypt_email }}"
+    creates: "{{ thesis_letsencrypt_live_dir }}/fullchain.pem"
+  when:
+    - thesis_portal_nginx_enabled | bool
+    - thesis_portal_tls_request | bool
+  register: _certbot_issue
+  tags:
+    - tls-request
+
+- name: Relabel Let's Encrypt certificate directories for SELinux
+  ansible.builtin.command:
+    argv: [restorecon, -Rv, /etc/letsencrypt/live, /etc/letsencrypt/archive]
+  when: _certbot_issue is changed
+  notify: Restart nginx
+  tags:
+    - tls-request
+
+- name: Check for an issued Let's Encrypt certificate
+  ansible.builtin.stat:
+    path: "{{ thesis_letsencrypt_live_dir }}/fullchain.pem"
+  register: _letsencrypt_cert_stat
+  when: thesis_portal_nginx_enabled | bool
+  tags:
+    - nginx
+    - tls
+
+- name: Install certbot renewal systemd units
+  ansible.builtin.template:
+    src: "{{ item.src }}"
+    dest: "{{ item.dest }}"
+    owner: root
+    group: root
+    mode: "0644"
+  loop:
+    - src: certbot-renew.service.j2
+      dest: /etc/systemd/system/certbot-renew.service
+    - src: certbot-renew.timer.j2
+      dest: /etc/systemd/system/certbot-renew.timer
+  when:
+    - thesis_portal_nginx_enabled | bool
+    - _letsencrypt_cert_stat.stat.exists
+  notify:
+    - Reload systemd
+    - Enable certbot renewal timer
+  tags:
+    - tls
+
 - name: Install Nginx portal reverse proxy
   ansible.builtin.template:
     src: thesis-portal-nginx.conf.j2
@@ -746,6 +838,8 @@
     owner: root
     group: root
     mode: "0644"
+  vars:
+    letsencrypt_cert_exists: "{{ _letsencrypt_cert_stat.stat.exists | default(false) }}"
   notify: Restart nginx
   when: thesis_portal_nginx_enabled | bool
   tags:

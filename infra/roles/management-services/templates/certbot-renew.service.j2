@@ -1,0 +1,6 @@
+[Unit]
+Description=Renew Let's Encrypt certificate for {{ thesis_portal_public_hostname }}
+
+[Service]
+Type=oneshot
+ExecStart={{ thesis_certbot_venv }}/bin/certbot renew --webroot --webroot-path {{ thesis_portal_acme_webroot }} --deploy-hook "systemctl reload nginx"
