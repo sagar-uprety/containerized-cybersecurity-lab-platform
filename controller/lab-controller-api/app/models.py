@@ -5,7 +5,7 @@ Identity model:
   container naming (labctl expects `student([0-9]{2,4})`).
 - Labs are assigned to groups only. A student's visible labs are the union of
   lab assignments across every group they belong to.
-- The portal-login password (bcrypt hash here) is distinct from the lab/SSH
+- The portal-login password (PBKDF2-HMAC-SHA256 hash) is distinct from the lab/SSH
   password used inside workstation containers on x01.
 """
 

@@ -4,11 +4,7 @@
     "version": "1.0.0",
     "type": "module",
     "scripts": {
-        "generate:demo": "python3 ../../tools/generate_portal_demo.py",
-        "predev:mock": "npm run generate:demo",
         "dev": "vite",
-        "dev:mock": "VITE_USE_MOCKS=true vite",
-        "prebuild": "npm run generate:demo",
         "build": "vite build",
         "preview": "vite preview"
     },
@@ -39,13 +35,7 @@
         "@types/react": "^19.2.17",
         "@types/react-dom": "^19.2.3",
         "@vitejs/plugin-react": "^4.5.2",
-        "msw": "^2.15.0",
         "typescript": "^6.0.3",
         "vite": "^6.3.5"
-    },
-    "msw": {
-        "workerDirectory": [
-            "public"
-        ]
     }
 }

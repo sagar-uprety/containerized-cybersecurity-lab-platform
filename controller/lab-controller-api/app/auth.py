@@ -7,7 +7,7 @@ shape so the rest of the portal is unchanged:
   lab_password-> lab/SSH password injected into the workstation (Decision B)
   role, must_change_password, active
 
-Passwords are verified with bcrypt. The old plaintext YAML registry is gone;
+Passwords are verified with PBKDF2-HMAC-SHA256. The old plaintext YAML registry is gone;
 """
 
 from typing import Optional

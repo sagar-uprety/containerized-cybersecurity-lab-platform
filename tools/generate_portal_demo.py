@@ -13,7 +13,7 @@ from pathlib import Path
 import yaml
 
 ROOT = Path(__file__).resolve().parents[1]
-OUTPUT = ROOT / "controller/lab-portal-ui/src/mocks/demo-data.json"
+OUTPUT = ROOT / "controller/lab-controller-api/demo-data.json"
 NOW = datetime(2026, 7, 13, 12, 0, tzinfo=timezone.utc)
 RNG = random.Random(20260713)
 

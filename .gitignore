@@ -86,4 +86,4 @@ skills-lock.json
 *.tgz
 *.zip
 controller/lab-portal-ui/package-lock.json
-controller/lab-portal-ui/src/mocks/demo-data.json
+controller/lab-controller-api/demo-data.json
