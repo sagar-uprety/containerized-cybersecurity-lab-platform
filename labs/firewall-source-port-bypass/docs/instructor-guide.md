@@ -17,6 +17,14 @@ and use a lab-local health path to distinguish hardening from service breakage.
 | 4   | Keep active and persistent policy aligned       | Student saves the rule file and applies it with the accessible reload helper          |
 | 5   | Test firewall configuration systematically      | Student verifies bypass blocked while the internal service and DNAT path stay healthy |
 
+## Safety and Scope Boundaries
+
+-   **Contained blast radius:** The external workstation, firewall host, and internal web server run across two per-student Podman networks (`external`, `internal`). The internal server is reachable only through the firewall; nothing routes outside the lab.
+-   **Synthetic data only:** The internal web server serves placeholder content and a health path. There is no real data behind the firewall.
+-   **Intentional risks:** A stateless `--sport 80` rule that admits new connections from source port 80 is the deliberate weakness (`intentional-risk-allowlist.yaml`). Safe because the topology is isolated and the "external" network is a lab-only segment.
+-   **Student boundaries:** Students probe only lab hosts and edit rules only on the firewall host via the `firewall` SSH account and its limited `sudo` helper — not platform operator commands.
+-   **Instructor recovery:** Portal **Reset** restores the vulnerable rules. A student who breaks connectivity should End Lab and Start again; the reload helper keeps active and persistent rules aligned when used correctly.
+
 ## Expected Evidence by Phase
 
 | Phase     | Expected Student Evidence                                                                                      |
@@ -26,13 +34,19 @@ and use a lab-local health path to distinguish hardening from service breakage.
 | Remediate | Student replaces the source-port rule, updates `/etc/iptables/rules.v4`, and reloads it                        |
 | Verify    | Portal checker reports `fixed`; bypass is blocked, stateful policy persists, and service/DNAT health is intact |
 
-## Hint Ladder and Reveal Policy
+## Reveal Policy and Intervention
 
-| Level | When to Reveal         | Content                                                                                                   |
-| ----- | ---------------------- | --------------------------------------------------------------------------------------------------------- |
-| 1     | Student asks for help  | Think about the difference between allowing return traffic and allowing any traffic from a specific port. |
-| 2     | Student stuck > 10 min | Look at the iptables `conntrack` module - it can track connection state instead of matching ports.        |
-| 3     | Student stuck > 20 min | See `man iptables-extensions` (conntrack section) and the iptables-restore(8) man page.                   |
+The student guide already contains three written hints. Do not restate them. Escalate on the student's state, not the clock.
+
+| Trigger                                                                    | Instructor Response                                                                                                |
+| -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| Student asks for help before probing from a controlled source port         | Redirect to the investigation questions; do not name the source-port trick.                                        |
+| Student sees the bypass but cannot explain it                              | Ask what the rule actually matches on, and whether a source port is something the sender chooses.                  |
+| Student fixed the active rules but not the persistent file (or vice versa) | Ask whether the running policy and `/etc/iptables/rules.v4` currently agree, and how they would after a reload.    |
+| Student blocked the bypass but also broke the internal service             | Ask them to check the internal health path from the firewall's inside interface.                                   |
+| Student stuck after all three written hints                                | Point at the conntrack section of `iptables-extensions` and the `iptables-restore` man page; do not give the rule. |
+
+**Do not reveal:** the exact conntrack rule syntax or the states to match. If a student cannot reach it, record it as guide-design evidence.
 
 ## Common Mistakes
 

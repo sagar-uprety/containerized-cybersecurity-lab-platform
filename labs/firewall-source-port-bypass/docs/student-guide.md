@@ -1,18 +1,34 @@
-# Firewall Rule Misconfiguration - Source-Port Bypass
+# The Firewall Nobody Tested
 
-You are auditing a firewall whose previous administrator used packet port
-numbers to identify reply traffic. Management wants you to determine whether a
-new connection from the external network can reach an internal web server, fix
-the policy, and verify that the protected service remains healthy.
+You are auditing a perimeter firewall whose previous administrator used packet
+port numbers as a shortcut for recognizing reply traffic. Management wants you to
+determine whether a new connection from the external network can reach an
+internal web server that the firewall is supposed to protect, correct the policy
+if it cannot hold, and confirm the protected service stays healthy.
+
+## Why This Matters
+
+A firewall is the most basic network control there is, which is exactly why a
+flawed rule is so dangerous: it provides a false sense of security while quietly
+admitting traffic. The first Internet-wide study of this class of mistake found
+2,488,958 services on 2.1 million hosts that were reachable only because of
+misconfigured firewalls, spread across 15,837 networks in 221 countries (Deng et
+al., IEEE S&P 2025). The authors put it plainly - "firewall rules are subtle and
+error-prone", and a single flawed rule can compromise the whole boundary.
+
+The specific misconception this lab targets is the belief that a packet arriving
+from a service's port must be a legitimate reply. It need not be. Recognizing a
+reply and trusting any packet that claims to be one are very different things.
 
 ## Objectives
 
 By the end of this lab you should be able to:
 
--   Identify and explain the security issue in your own words
--   Demonstrate the impact using only the lab environment
--   Apply an appropriate fix
--   Verify your fix using the portal checker
+-   Explain the difference between stateless packet filtering and stateful connection tracking
+-   Probe a firewall from an unexpected angle - controlling your own source port - to test what it really matches
+-   Identify a rule that trusts a packet's source port and explain why that creates a bypass
+-   Replace a source-port shortcut with connection-state tracking so replies are recognized without admitting new connections
+-   Confirm a firewall change from more than one vantage point, including that the protected service still works
 
 ## Prerequisites
 
@@ -28,24 +44,34 @@ If you need to review these topics, see:
 -   TCP/IP networking basics: <https://datatracker.ietf.org/doc/html/rfc1180>
 -   Firewall fundamentals: <https://csrc.nist.gov/glossary/term/firewall>
 
-## Getting Started
+## Your Lab Environment
 
-Read the incident brief to understand your mission:
+Your browser terminal starts on the **workstation**, which sits on the
+**external** network. A **firewall host** separates the external network from an
+**internal** network, and an **internal web server** sits behind the firewall on
+that internal side. Keep track of which host each shell prompt belongs to - it
+matters here.
 
-```bash
-cat ~/SITREP.txt
-```
+Paths and access you will need:
 
-Your lab environment includes a workstation on the external network, a firewall
-that separates the external and internal networks, and an internal web server
-behind the firewall. Use the portal to **Start Lab**, **Run Check**, **Reset**,
-or **End Lab** as needed.
+-   `/lab/config/fw_external_ip.txt` - on the workstation; holds the firewall's external address, which you will need to aim your probes at.
+-   The IPv4 rule file, `/etc/iptables/rules.v4`, lives on the **firewall host**, not the workstation. Connect there over SSH as the `firewall` account, using your own lab password. That account can inspect, save, restore, and reload the IPv4 rules through a limited passwordless `sudo` helper.
 
-The browser terminal starts on the external workstation. The firewall's rule
-file lives on `firewall-host`; connect there as user `firewall` with your lab
-password when you need to inspect or change it. Keep track of which host each
-shell prompt belongs to. The firewall account can inspect, save, restore, and
-reload the IPv4 rules through its limited passwordless `sudo` permissions.
+Use the portal to **Start Lab**, **Run Check**, **Reset**, or **End Lab** at any
+time. **Reset** restores the original vulnerable baseline, so it is not a way to
+reload a fix.
+
+If the browser terminal is unavailable, use the SSH fallback endpoint shown on
+the portal's Workstation Access page.
+
+## Your Mission
+
+1. Map the lab network and identify the firewall and the internal web server it is meant to protect.
+2. Test whether the internal server is reachable from the external network, and establish under what conditions it answers.
+3. Inspect the firewall's rules and explain, in your own words, why the boundary does or does not hold.
+4. Bring the policy to a state where reply traffic is still recognized but a new external connection cannot reach the internal server, with the active and persistent rules in agreement, and the protected service still healthy.
+5. Run **Run Check** in the portal and record the result.
+6. Complete the feedback form after ending the lab.
 
 ## Investigation
 
@@ -54,52 +80,98 @@ real.
 
 **Guiding questions:**
 
--   What hosts are reachable from the workstation on the lab network?
--   Does the internal web server respond when you connect from a random high port?
--   What changes when a new connection uses source port 80?
--   Which packets does the firewall rule actually match, regardless of connection history?
--   What is the difference between recognizing a reply and trusting any packet from a service port?
+-   Which hosts are reachable from the workstation on the lab network?
+-   Does the internal web server respond when you connect from an ordinary high source port?
+-   Does anything change when a new connection is made from a particular source port?
+-   Which packets does the firewall rule actually match, regardless of whether a connection already existed?
+-   What is the real difference between recognizing a reply to an established connection and trusting any packet that carries a service port number?
 
-Use network scanners, HTTP clients, and standard Linux utilities to explore the
-environment. The workstation has `nmap`, `curl`, `ncat`, and access to the
-firewall's iptables rules.
+The workstation has `nmap`, `curl`, and `ncat`, and can read the firewall's
+iptables rules once you are on the firewall host. Command shapes to start from -
+note that some tools let you dictate your own source port:
 
-**Proving impact:** Once you've identified the issue, demonstrate that the
-firewall's rules allow traffic that should be blocked. Use only what the lab
-environment provides - do not introduce real credentials or external resources.
+```bash
+nmap -sV <internal-server>
+curl --local-port <port> http://<internal-server>:<port>/
+ncat -p <source-port> <internal-server> <port>
+```
+
+**Proving impact:** Demonstrate that the firewall admits traffic it should
+block - that a new connection, made under the right conditions, reaches a server
+that is supposed to be protected. Showing the difference between a blocked
+attempt and a successful one is the proof; a single successful request on its own
+does not explain _why_. Use only what the lab environment provides.
 
 ## Remediate
 
-Now fix the issue.
+Now fix the policy.
 
-**Goal:** Replace the source-port shortcut with IPv4 connection-state tracking
-so that reply traffic can be identified without admitting a new connection.
+**Goal:** When you are done: reply traffic to connections that were legitimately
+established from inside is still recognized and allowed; a new connection
+arriving from the external network can no longer reach the internal web server,
+regardless of which source port it uses; the running rules and the persistent
+rule file agree after you reload through the firewall's helper; and the internal
+web service is still healthy from the firewall's internal side.
 
-**Constraints:** The active rules and `/etc/iptables/rules.v4` must agree after
-using the firewall's reload helper. The internal web service must remain healthy
-from the firewall's internal side.
+**Constraints:** The active rules and `/etc/iptables/rules.v4` must match after
+you use the firewall's reload helper. The internal web service must remain
+reachable and healthy from the firewall's internal side.
+
+**Where to work:** The IPv4 rules are in `/etc/iptables/rules.v4` on the firewall
+host; edit them there and reload with the account's `sudo` helper. The portal's
+**Reset** action restores the vulnerable baseline, so it is not the right tool
+for reloading a fix.
 
 **References:**
 
 -   Official documentation: <https://manpages.debian.org/bookworm/iptables/iptables-extensions.8.en.html> (conntrack section)
 -   Local: `man iptables-extensions`, `man iptables-restore`, `iptables -m conntrack --help`
 
-**Need a hint?**
+**If you're stuck:**
 
--   Think about what "stateful" means - can a firewall track whether a connection was initiated from inside?
--   Look at the `conntrack` match module in the iptables extensions documentation.
--   The `iptables-restore` man page explains the rules file format used in `/etc/iptables/`.
+-   The whole problem comes down to how a firewall decides that a packet belongs to a conversation. A source-port number is a claim the sender makes; a firewall that can track connection _state_ does not have to take that claim on trust. Which of those is this firewall doing?
+-   Look at the connection-tracking match module rather than at port numbers. The goal is to admit packets that belong to an established or related connection, and nothing else, on the path into the internal network.
+-   The conntrack section of the iptables-extensions documentation describes the states you can match on, and the `iptables-restore` man page describes the rules-file format so your persistent change reloads cleanly.
 
 ## Verify
 
-After applying your fix, confirm:
+After applying your fix, confirm each of the following:
 
-1. The source-port bypass no longer works
-2. The active and persistent rules use connection state rather than source port 80
+1. The source-port bypass no longer reaches the internal server, from any source port
+2. The active and persistent rules both express connection state rather than a trusted source port
 3. The internal web service still responds from the firewall's internal side
 
-Use the same tools from your investigation to re-test. When satisfied, click
-**Run Check** in the portal.
+Use the same tools from your investigation to re-test each one. When satisfied,
+click **Run Check** in the portal.
+
+## Real-World Context
+
+The bypass you just closed is not a textbook curiosity - it is one of the most
+widespread firewall mistakes on the Internet. Deng et al. conducted the first
+comprehensive study of hosts hidden behind misconfigured firewalls, scanning the
+entire IPv4 space, and found nearly 2.5 million services made reachable this way
+across 15,837 networks. Italy (303,000 hosts), the United States (290,000), and
+China (216,000) topped the list, and well-known enterprises had thousands of
+affected hosts each. A four-month honeypot showed the abuse potential was real
+even though no mass campaign was exploiting it yet - which is the good time to
+fix a thing, before it is being used.
+
+The root cause is conceptual, not technical. A stateless rule that permits any
+packet with source port 80 was written to mean "let replies from web servers back
+in", but a firewall reading only the port field cannot tell a genuine reply from
+an attacker who simply set their source port to 80. Connection-state tracking
+closes the gap by remembering which connections were actually established from
+inside, so a reply is recognized by its place in a real conversation rather than
+by a number anyone can forge.
+
+A related lesson worth carrying away: administrators who carefully configure IPv4
+rules frequently leave the IPv6 firewall empty or permissive, opening a second
+door on the same host. Whenever you harden one address family, check the other.
+
+**Sources:**
+
+-   Deng, Q., Pu, J., Tan, Z., Qian, Z., & Krishnamurthy, S. V. (2025). Beyond the Horizon: Uncovering Hosts and Services Behind Misconfigured Firewalls. IEEE S&P 2025. <https://doi.org/10.1109/SP61157.2025.00164>
+-   netfilter/iptables conntrack documentation. <https://manpages.debian.org/bookworm/iptables/iptables-extensions.8.en.html>
 
 ---
 

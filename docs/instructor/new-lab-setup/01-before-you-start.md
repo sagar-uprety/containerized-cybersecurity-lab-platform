@@ -64,7 +64,6 @@ labs/ftp-anonymous-access/
 |-- sample-service.py
 |-- intentional-risk-allowlist.yaml
 `-- docs/
-    |-- SITREP.txt
     |-- student-guide.md
     |-- instructor-guide.md
     `-- solution-notes.md
@@ -82,9 +81,10 @@ after removing all matching references from Dockerfile and `scenario.yaml`.
 **The rename is a literal substring replacement of `sample-lab` only** — it
 does not touch every sample-prefixed identifier. After cloning, `scenario.yaml`
 still contains `sample-service`, `sample-net`, `sample_config`/`sample_data`,
-`SAMPLE_SERVICE_HOST`/`SAMPLE_SERVICE_PORT`, and `sampleadmin`; `docs/SITREP.txt`
-still says `/lab/sample` in its useful-paths list. None of these contain the
-literal string `sample-lab`, so the generator leaves them for you. Work
+`SAMPLE_SERVICE_HOST`/`SAMPLE_SERVICE_PORT`, and `sampleadmin`; the student
+guide's **Your Lab Environment** section still says `/lab/sample` in its paths
+list. None of these contain the literal string `sample-lab`, so the generator
+leaves them for you. Work
 through `labs/sample-lab/docs/AUTHORING.md`'s file map deliberately, service
 name by service name, rather than assuming the generator caught everything.
 
@@ -102,7 +102,7 @@ name by service name, rather than assuming the generator caught everything.
 -   a single narrow sudo reload helper
 -   behavior and persistence objectives
 -   authorized-use and health guardrails
--   complete student, instructor, SITREP, and solution boundaries
+-   complete student, instructor, and solution boundaries
 
 Read `labs/sample-lab/docs/AUTHORING.md` side-by-side with every sample file.
 Run the sample once after deployment before using it as a template. Seeing its

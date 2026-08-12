@@ -1,13 +1,13 @@
 id: ldap-anonymous-bind
-title: LDAP Directory Exposure with Anonymous Bind
+title: The Unassessed Directory Service
 difficulty: intermediate
 
 story:
   role: Security auditor
   situation: >
-    An LDAP directory service is running on the internal network. Its
-    security posture is unknown. Assess whether directory data is exposed
-    to unauthenticated users and harden the service.
+    A directory service is running on the internal network, but its security
+    posture has never been formally assessed. Determine what organizational
+    data it hands out and to whom, then harden the service.
 
 documentation:
   student_guide_url: /docs/labs/ldap-anonymous-bind/

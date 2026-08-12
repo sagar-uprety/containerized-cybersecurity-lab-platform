@@ -113,7 +113,7 @@ all containers honestly.
 ## Workstation
 
 labctl generates workstation ports, credentials, standard volumes, health
-checks, command logging, and SITREP mount. Add only scenario-specific values:
+checks, and command logging. Add only scenario-specific values:
 
 ```yaml
 workstation:

@@ -49,7 +49,6 @@ each layer.
 | `reload-sample-service.sh`        | Narrow service-admin action                                         | Rename and implement target service's supported validate/reload flow       |
 | `sample-service.py`               | Tiny runnable target                                                | Delete after replacing with a real package or application                  |
 | `intentional-risk-allowlist.yaml` | Documents deliberate scanner findings                               | Every risk, file, pattern/rule, and teaching justification                 |
-| `docs/SITREP.txt`                 | Student mission brief mounted at `~/SITREP.txt`                     | Mission, deliverables, paths, and guide URL; never solution details        |
 | `docs/solution-notes.md`          | Sole exact answer key                                               | Every command, transition, expected result, and rationale                  |
 | `docs/instructor-guide.md`        | Assessment and intervention guide                                   | Objectives, evidence, hints, mistakes, checker states, teaching notes      |
 | `docs/student-guide.md`           | Guided-discovery student path                                       | Write last; no exact investigation/remediation/verification commands       |
@@ -150,11 +149,10 @@ network. A router/firewall/proxy container can join multiple networks.
 5. Replace checker commands and state conditions.
 6. Write exact `solution-notes.md` and execute every block through student CLI.
 7. Write `instructor-guide.md` and its checker-coverage matrix.
-8. Rewrite `SITREP.txt` without fix hints.
-9. Write `student-guide.md` last, using solution notes as the anti-spoiler source.
-10. Replace intentional-risk allowlist entries.
-11. Delete sample-only files and text that the new service no longer uses.
-12. Run all local checks, deploy through Ansible, and complete a fresh live pass.
+8. Write `student-guide.md` last, using solution notes as the anti-spoiler source; put topology, paths, access, and mission deliverables in its Your Lab Environment and Your Mission sections (there is no SITREP.txt).
+9. Replace intentional-risk allowlist entries.
+10. Delete sample-only files and text that the new service no longer uses.
+11. Run all local checks, deploy through Ansible, and complete a fresh live pass.
 
 ## Required Validation
 
@@ -229,6 +227,6 @@ broken-service guardrail, reset to vulnerable, and end the lab.
     directions.
 -   Student guide contains no copied solution commands, exact secret, or exact
     remediation line.
--   Student, instructor, solution, and SITREP documents render at expected URLs.
+-   Student, instructor, and solution documents render at expected URLs.
 -   Full pre-commit, Ansible syntax, deployment, and live student-path checks
     pass before marking record work done.

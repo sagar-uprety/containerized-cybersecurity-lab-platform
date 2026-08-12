@@ -18,6 +18,14 @@ Apache remains 2.4.49, so this is not presented as patching the binary.
 | 4   | Apply a compensating control when patching is not immediate | Student hardens `<Directory />`, disables `mod_cgi`, removes the CGI mapping/grant, then reloads Apache |
 | 5   | Verify service continuity after remediation                 | Student confirms the home page still serves correctly                                                   |
 
+## Safety and Scope Boundaries
+
+-   **Contained blast radius:** The Apache server and workstation run in a per-student isolated Podman network. The vulnerable server is reachable only inside the lab; there is no route to any external host.
+-   **Synthetic data only:** The server serves placeholder web content and a sentinel file used to demonstrate traversal. No real data is present.
+-   **Intentional risks:** Apache 2.4.49 with a permissive CGI/root configuration (CVE-2021-41773) is deliberately installed (`intentional-risk-allowlist.yaml`). Safe because the host is disposable, isolated, and holds no real data; the exploit cannot reach beyond the lab.
+-   **Student boundaries:** Students exercise the vulnerability only against the lab server, using only the lab environment — no external exploit infrastructure or real payloads.
+-   **Instructor recovery:** Portal **Reset** restores the vulnerable baseline. Emphasise in debrief that the mitigation is virtual patching, not a real fix; the binary stays vulnerable by design.
+
 ## Expected Evidence by Phase
 
 | Phase     | Expected Student Evidence                                                                                                                            |
@@ -27,13 +35,19 @@ Apache remains 2.4.49, so this is not presented as patching the binary.
 | Remediate | Student denies root access, comments out `LoadModule cgi_module` and the CGI alias, removes the CGI directory grant, then reloads through nested SSH |
 | Verify    | Portal checker reports `fixed`; exploit gets 403/404 and home page returns actual HTTP 200                                                           |
 
-## Hint Ladder and Reveal Policy
+## Reveal Policy and Intervention
 
-| Level | When to Reveal         | Content                                                                                                       |
-| ----- | ---------------------- | ------------------------------------------------------------------------------------------------------------- |
-| 1     | Student asks for help  | The vulnerability is related to how the server handles special URL-encoded characters in paths.               |
-| 2     | Student stuck > 10 min | Look at the modules loaded and the aliases configured in the main configuration file.                         |
-| 3     | Student stuck > 20 min | See <https://httpd.apache.org/docs/2.4/mod/mod_alias.html> and search for CVE-2021-41773 official advisories. |
+The student guide already contains three written hints. Do not restate them. Escalate on the student's state, not the clock.
+
+| Trigger                                              | Instructor Response                                                                               |
+| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------- |
+| Student asks for help before identifying the version | Redirect to version detection and advisory lookup; do not name the CVE.                           |
+| Student named the CVE but cannot demonstrate it      | Ask them to show the server actually returning content it should not, not just cite the advisory. |
+| Student believes upgrading is the only option        | Ask what configuration-level control could block the attack path without replacing the binary.    |
+| Student mitigated but broke the normal home page     | Ask them to confirm an ordinary request still succeeds, not just that the exploit fails.          |
+| Student stuck after all three written hints          | Point at Apache's URL-mapping and authorization documentation; do not give the directives.        |
+
+**Do not reveal:** the specific directives to change or the exact mitigation edits. Reinforce that this is virtual patching — the binary stays vulnerable by design. If a student cannot reach the mitigation, record it as guide-design evidence.
 
 ## Common Mistakes
 
@@ -51,11 +65,12 @@ Apache remains 2.4.49, so this is not presented as patching the binary.
 
 ## Interpreting Feedback
 
-How to use combined feedback form responses for this lab:
+How to read this lab's combined feedback form responses:
 
--   Prior vs post confidence gap indicates learning gain.
--   Clarity scores below 3 suggest guide needs revision.
--   Stuck-point free text reveals guide gaps.
+-   A prior-vs-post confidence gap on "virtual patching vs upgrading" indicates whether students grasped that a compensating control buys time but does not fix the software — the central judgment this lab teaches.
+-   Low clarity scores usually point at the Remediate section: students who upgraded, or tried to, instead of applying a config mitigation need the "do not upgrade the binary" constraint stated more prominently.
+-   Stuck-point free text mentioning "still returns the file" or "home page broken" reveals whether the mitigation was incomplete or too aggressive — both recoverable, both worth surfacing in debrief.
+-   Confusion about the `apacheadmin` reload privilege is guide-design signal: strengthen the reload-path pointer in "Your Lab Environment".
 
 ## Teaching Notes
 

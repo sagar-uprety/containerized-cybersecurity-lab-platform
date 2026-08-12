@@ -68,6 +68,16 @@ def _extract_verifier_bash_blocks(content: str) -> list[str]:
     return [m.group(1).strip() for m in _BASH_VERIFIER_BLOCK_RE.finditer(content)]
 
 
+def _normalize_bash(block: str) -> str:
+    """Collapse whitespace so a reformatted copy of a solution block still matches.
+
+    Comparison for the anti-spoiler duplicate check must not be defeated by a
+    stray extra space or a rewrapped line, so we normalize runs of whitespace to
+    single spaces and strip the ends.
+    """
+    return re.sub(r"\s+", " ", block).strip()
+
+
 def _extract_section(content: str, heading: str) -> str:
     """Extract content under a markdown heading (case-insensitive)."""
     pattern = re.compile(
@@ -110,6 +120,30 @@ def validate_scenario(schema: dict[str, Any], scenario_path: Path) -> list[str]:
         errors.append(
             f"{scenario_path}: scenario id {scenario.get('id')!r} must match directory {lab_id!r}"
         )
+
+    # Portal reveal boundary (tier 1): title and story.situation render on the
+    # student's lab card BEFORE they start, so neither may name the defect, the
+    # technique, or the fix. Consequence/anomaly words ("exposed", "unexpected")
+    # are allowed; mechanism/technique/fix vocabulary is not.
+    spoiler_terms = re.compile(
+        r"\b("
+        r"anonymous bind|open relay|open share|unauthenticated|no-?auth|"
+        r"brute[- ]?force|source[- ]?port|bypass|misconfigur|weak (?:config|ssh|password)|"
+        r"default (?:password|creds?|credential)|requirepass|permitrootlogin|"
+        r"cve-\d|olcaccess|mynetworks|conntrack|nosql"
+        r")\b",
+        re.IGNORECASE,
+    )
+    title = str(scenario.get("title", ""))
+    situation = str(scenario.get("story", {}).get("situation", ""))
+    for field, text in (("title", title), ("story.situation", situation)):
+        hit = spoiler_terms.search(text)
+        if hit:
+            errors.append(
+                f"{scenario_path}: {field} reveals the defect/technique "
+                f"({hit.group(0)!r}); the portal card is shown before the student "
+                f"starts. Keep it at anomaly level."
+            )
 
     expected_docs = {
         "student_guide_url": f"/docs/labs/{lab_id}/",
@@ -315,14 +349,16 @@ def validate_lab_docs(
     if not solution_notes.is_file():
         errors.append(f"missing lab docs: {solution_notes}")
 
-    sitrep = docs_dir / "SITREP.txt"
-    if not sitrep.is_file():
-        errors.append(f"missing lab docs: {sitrep}")
-    else:
-        sitrep_content = sitrep.read_text(encoding="utf-8")
-        expected_guide_path = f"/docs/labs/{lab_id}/"
-        if expected_guide_path not in sitrep_content:
-            errors.append(f"{sitrep}: must mention browser guide path {expected_guide_path}")
+    # SITREP.txt was retired: the student guide's "Your Lab Environment" and
+    # "Your Mission" sections now carry the mission brief, paths, and access
+    # facts always-visibly. A lingering SITREP.txt would leak the old
+    # over-specified mission list, so its presence is an error.
+    stale_sitrep = docs_dir / "SITREP.txt"
+    if stale_sitrep.is_file():
+        errors.append(
+            f"{stale_sitrep}: SITREP.txt is retired; move its content into the "
+            f"student guide's 'Your Lab Environment' and 'Your Mission' sections"
+        )
 
     mkdocs_includes = {
         repo_root / "docs" / "labs" / f"{lab_id}.md": f"labs/{lab_id}/docs/student-guide.md",
@@ -361,14 +397,24 @@ def validate_lab_docs(
             errors.append(f"{solution_notes}: must contain student-executable bash blocks")
 
         # Exact remediation blocks must not be copied into the discovery guide.
-        sg_bash = _extract_bash_blocks(sg_content)
+        # Diagnostic bash IS allowed in the student guide (generic command shapes
+        # with placeholders); solution-revealing remediation bash is not. The
+        # verb list below covers the config-mutating commands the labs actually
+        # use, and comparison is whitespace-normalized so a reformatted copy of a
+        # solution block cannot slip through a verbatim check.
+        sg_bash = [_normalize_bash(b) for b in _extract_bash_blocks(sg_content)]
         remediation_commands = re.compile(
-            r"(^|\n)\s*(sed|ldapmodify|iptables|ip6tables|usermod|passwd|rm|cat\s+>)\b"
+            r"(^|\n)\s*("
+            r"sed|tee|ldapmodify|ldapadd|iptables|ip6tables|nft|firewall-cmd|"
+            r"usermod|useradd|passwd|smbpasswd|chpasswd|systemctl|service|"
+            r"postconf|postmap|a2enmod|a2dismod|htpasswd|rm|"
+            r"printf|echo\b.*(>>|>)|cat\s+.*(>>|>)"
+            r")\b"
         )
         for block in solution_bash:
             if not remediation_commands.search(block):
                 continue
-            if block in sg_bash:
+            if _normalize_bash(block) in sg_bash:
                 errors.append(
                     f"{student_guide}: bash block duplicates remediation content from "
                     f"{solution_notes} (anti-spoiler violation)"

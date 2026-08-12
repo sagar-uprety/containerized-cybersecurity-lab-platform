@@ -10,7 +10,7 @@
 id: sample-lab
 
 # Short portal title. Describe the learning problem, not implementation details.
-title: "Sample Lab: Access Control Misconfiguration"
+title: "Sample Records Review"
 difficulty: beginner
 
 # Portal preview only. Do not reveal the exact vulnerable setting here.
@@ -165,7 +165,7 @@ resources:
     memory: "256m"
 
 # labctl generates standard workstation ports, credentials, health checks,
-# command logging, and SITREP mount. Declare only scenario-specific additions.
+# and command logging. Declare only scenario-specific additions.
 workstation:
   environment:
     SAMPLE_SERVICE_HOST: sample-service

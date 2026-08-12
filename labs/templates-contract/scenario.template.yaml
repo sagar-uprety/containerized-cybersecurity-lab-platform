@@ -205,8 +205,8 @@ containers:
       - name: service_config
         target: /etc/service
     # Optional: bind-mount a file from the lab source tree on the host.
-    # - host_path: "$platform.lab_source_root/$platform.lab_id/docs/SITREP.txt"
-    #   target: /opt/lab/student/SITREP.txt
+    # - host_path: "$platform.lab_source_root/$platform.lab_id/config/seed.txt"
+    #   target: /opt/lab/seed.txt
     #   read_only: true
     healthcheck:
       command:

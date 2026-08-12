@@ -122,7 +122,7 @@ repos:
         additional_dependencies:
           - jsonschema==4.23.0
           - pyyaml==6.0.2
-        files: ^(labs/.*/scenario\.yaml|labs/.*/docs/.*\.md|labs/.*/docs/SITREP\.txt|labs/templates-contract/.*\.md|labs/templates-contract/scenario\.schema\.json|docs/labs/.*\.md)$
+        files: ^(labs/.*/scenario\.yaml|labs/.*/docs/.*\.md|labs/templates-contract/.*\.md|labs/templates-contract/scenario\.schema\.json|docs/labs/.*\.md)$
         pass_filenames: false
 
       # Catch YAML '>' folded-scalar indentation bugs that silently split

@@ -63,7 +63,7 @@ Every credential and path used by `solution-notes.md` must be available to a
 student through one of these:
 
 -   portal Workstation Access page
--   `SITREP.txt`
+-   the student guide's **Your Lab Environment** section
 -   a student-readable file inside the lab
 -   a value discoverable from target configuration or service behavior
 

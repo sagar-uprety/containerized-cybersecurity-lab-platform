@@ -101,9 +101,9 @@ so coordinate this test only when concurrent capacity is configured.
 ### Documentation
 
 -   Solution notes are complete and student-CLI executable.
--   Instructor guide contains assessment/reveal/feedback guidance, not copied solution.
--   SITREP contains mission, paths, guide, and credential source without fix hints.
--   Student guide was written last and passes anti-spoiler review.
+-   Instructor guide contains assessment/reveal/safety/feedback guidance, not copied solution.
+-   Student guide was written last and passes anti-spoiler review; its Your Lab Environment and Your Mission sections carry all paths, access, and deliverables.
+-   Scenario `title` and `story.situation` stay at anomaly level and name no defect/technique/fix.
 -   Three MkDocs include files contain only exact snippet directives.
 -   Student page is public; solution/instructor pages require instructor auth.
 

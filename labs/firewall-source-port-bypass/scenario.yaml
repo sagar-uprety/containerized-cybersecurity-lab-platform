@@ -1,14 +1,14 @@
 id: firewall-source-port-bypass
-title: Firewall Rule Misconfiguration — Source-Port Bypass
+title: The Firewall Nobody Tested
 difficulty: intermediate
 
 story:
   role: Network security auditor
   situation: >
-    The organization's perimeter firewall was configured by a previous
-    administrator with a source-port shortcut for identifying reply traffic.
-    Management wants you to verify that an internal web service is protected
-    from new connections arriving from the external network.
+    The organization's perimeter firewall was set up by a previous
+    administrator and has never been independently tested. Management wants
+    you to verify that an internal web service is genuinely protected from
+    new connections arriving from the external network.
 
 documentation:
   student_guide_url: /docs/labs/firewall-source-port-bypass/

@@ -1,14 +1,14 @@
 id: ssh-weak-config
-title: Weak SSH Configuration and Brute-Force Vulnerability
+title: The Server That Logged Someone In
 difficulty: intermediate
 
 story:
   role: Incident responder
   situation: >
-    A server was flagged after suspicious SSH login activity was detected in
-    the logs. The previous administrator may have left weak configurations in
-    place. Audit the SSH service, determine how attackers could have gained
-    access, and harden the server.
+    A server was flagged after suspicious SSH login activity appeared in the
+    authentication logs, and there are signs someone may already have gained
+    access. Audit the SSH service, establish how an intruder could get in, and
+    harden the server.
 
 documentation:
   student_guide_url: /docs/labs/ssh-weak-config/

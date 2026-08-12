@@ -36,9 +36,6 @@ fi
 
 cp /etc/skel/.bashrc /home/student/.bashrc || true
 cp /etc/skel/.profile /home/student/.profile || true
-if [ -f /opt/lab/student/SITREP.txt ] && [ ! -f /home/student/SITREP.txt ]; then
-  cp /opt/lab/student/SITREP.txt /home/student/SITREP.txt
-fi
 if ! grep -q 'thesis-command-logger.bash' /home/student/.bashrc 2>/dev/null; then
   printf '\n# Thesis lab command/session logging.\n[ -r /usr/local/lib/thesis-command-logger.bash ] && . /usr/local/lib/thesis-command-logger.bash\n' >> /home/student/.bashrc
 fi

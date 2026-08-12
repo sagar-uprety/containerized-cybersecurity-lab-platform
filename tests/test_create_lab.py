@@ -128,12 +128,10 @@ def main() -> None:
         workstation = next(
             item for item in manifest["containers"] if item["hostname"] == "workstation"
         )
-        sitrep_mount = next(
-            item
-            for item in workstation["volumes"]
-            if item["target"] == "/opt/lab/student/SITREP.txt"
+        # SITREP.txt was retired; the workstation must no longer carry its mount.
+        assert not any(
+            vol["target"] == "/opt/lab/student/SITREP.txt" for vol in workstation["volumes"]
         )
-        assert sitrep_mount["read_only"] is True
         args = container_run_args(
             {
                 "name": "read-only-test",

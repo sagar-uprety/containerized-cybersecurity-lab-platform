@@ -32,8 +32,8 @@ Volumes in containers[].volumes come in two forms:
     target: /home/student
 
   # Bind-mount from the lab source tree
-  - host_path: $platform.lab_source_root/$platform.lab_id/docs/SITREP.txt
-    target: /opt/lab/student/SITREP.txt
+  - host_path: $platform.lab_source_root/$platform.lab_id/config/seed.txt
+    target: /opt/lab/seed.txt
 """
 
 from __future__ import annotations
@@ -341,13 +341,6 @@ def build_manifest(scenario: dict, ctx: dict) -> dict:
         {"source": f"{runtime_project}_{svol['name']}", "target": svol["target"]}
         for svol in ws_shared_vols
     ]
-    ws_volumes.append(
-        {
-            "source": _resolve(f"{ctx['lab_source_root']}/{ctx['lab_id']}/docs/SITREP.txt", ctx),
-            "target": "/opt/lab/student/SITREP.txt",
-            "read_only": True,
-        }
-    )
 
     ws_security = {
         "privileged": False,

@@ -1,14 +1,14 @@
 id: smb-open-share
-title: Open SMB Share with Sensitive Data Exposure
+title: The Shared Drive
 difficulty: intermediate
 
 story:
   role: Junior IT administrator
   situation: >
-    A file server used by several teams for backups and shared documents has
-    been flagged during a routine internal network scan. The server is
-    reachable on the lab network and may be exposing data without proper
-    access controls. Assess what is accessible and harden the service.
+    A file server used by several teams for backups and shared documents was
+    flagged during a routine internal network scan. Nobody is sure whether the
+    data it holds is properly protected. Find out what is actually accessible,
+    then harden the service.
 
 documentation:
   student_guide_url: /docs/labs/smb-open-share/

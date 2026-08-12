@@ -9,8 +9,14 @@ complete answer key:
 
 1. `docs/solution-notes.md`
 2. `docs/instructor-guide.md`
-3. `docs/SITREP.txt`
-4. `docs/student-guide.md`
+3. `docs/student-guide.md`
+
+> **SITREP.txt is retired.** Earlier labs shipped a `docs/SITREP.txt` mission
+> brief mounted into the workstation. It over-specified the task and leaked fix
+> direction, so it was removed. Its content — topology, paths, access, and the
+> mission deliverables — now lives always-visibly in the student guide's
+> **Your Lab Environment** and **Your Mission** sections. Do not create a new
+> SITREP.txt; the scenario validator rejects it.
 
 ### Solution Notes
 
@@ -37,26 +43,26 @@ phase evidence, progressive reveal policy, common mistakes with interventions,
 all checker states, feedback interpretation, and teaching notes. Link to
 solution notes rather than copying commands.
 
-### SITREP
-
-Keep it brief: situation, numbered mission, useful student paths, browser guide
-URL, credential source when needed, and SSH fallback. Do not include exact fix,
-directive, secret, or command sequence.
-
 ### Student Guide
 
-Write last. It is guided discovery, not a walkthrough. It may contain exactly
-one standard command: `cat ~/SITREP.txt`. Otherwise it should provide:
+Write last. It is guided discovery, not a walkthrough. It follows
+`STUDENT_GUIDE_TEMPLATE.md` and its reveal tiers. It should provide:
 
--   natural scenario narrative
--   measurable outcomes
+-   natural scenario narrative (no defect name in the title or intro)
+-   a **Why This Matters** paragraph with measured scale and a citation
+-   measurable, lab-specific outcomes (sourced from the scenario selection report)
 -   concrete prerequisites and official references
+-   a **Your Lab Environment** section carrying topology, every path, and access
+    (this is where the retired SITREP's facts now live — omitting a path strands
+    the student)
+-   a **Your Mission** section stating deliverables as outcomes, never steps
 -   guiding investigation questions
--   tool families, not exact commands/flags
+-   diagnostic command shapes with placeholders, never target-bound values
 -   impact students must prove
--   remediation goal and constraints, not config lines
+-   remediation goal stated as an observable end state, and constraints — not config lines
 -   three progressive hints without exact values
--   verification outcomes and portal Run Check
+-   a **Verify** section that mirrors the goal's clauses and adds none
+-   a **Real-World Context** debrief with figures, citations, and prevention
 -   feedback/reflection reminder
 
 Compare it directly with solution notes. Remove copied commands, exact
