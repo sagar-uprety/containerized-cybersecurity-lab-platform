@@ -1,0 +1,17 @@
+lab_id: sample-dependent-app
+
+intentional_findings:
+  - id: sample-dependent-app-disabled-access-control
+    tool: semgrep
+    files:
+      - backend.env.vulnerable
+    patterns:
+      - ACCESS_CONTROL=disabled
+    reason: Disabled backend access control is the isolated synthetic teaching vulnerability students identify and remediate; the dependent app must keep working after the fix.
+  - id: sample-dependent-app-dummy-token
+    tool: gitleaks
+    files:
+      - backend.env.vulnerable
+    patterns:
+      - sample-demo-token
+    reason: This clearly marked demo token supports the dependent-app continuity guardrail and has no value outside the isolated lab.

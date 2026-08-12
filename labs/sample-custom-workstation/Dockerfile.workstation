@@ -1,0 +1,22 @@
+# PATTERN D AUTHORING REFERENCE - custom workstation image
+#
+# This is the heart of Pattern D. The shared workstation base already ships the
+# common Linux security clients (curl, nmap, ldap-utils, smbclient, redis-tools,
+# swaks, and so on). When a single lab needs an extra client that is NOT in the
+# base, DO NOT modify the global workstation image - extend it here, add this
+# image under build.images, and point services.workstation.image at it in
+# scenario.yaml.
+#
+# This reference adds HTTPie (the `http` / `https` command), an ergonomic HTTP
+# client that is not part of the base image, so the lab's investigation can use
+# it. Replace HTTPie with whatever single tool your lab genuinely needs.
+#
+# The shared workstation base is published only as :latest (no version tag),
+# matching how scenario.yaml references it across all labs.
+# hadolint ignore=DL3007
+FROM thesis-labs/workstation-base:latest
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+      httpie \
+    && rm -rf /var/lib/apt/lists/*

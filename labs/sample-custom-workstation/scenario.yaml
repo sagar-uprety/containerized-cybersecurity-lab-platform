@@ -1,0 +1,196 @@
+# PATTERN D AUTHORING REFERENCE - Custom Workstation
+#
+# Copy this lab when a single lab needs a client tool that is NOT in the shared
+# workstation base image. The topology is an ordinary standalone service
+# (Pattern A):
+#
+#   workstation (custom image) --> records-service
+#
+# What makes it Pattern D is that build.images builds a lab-specific workstation
+# image (Dockerfile.workstation) and services.workstation.image points at it,
+# instead of the shared thesis-labs/workstation-base. Do NOT modify the global
+# workstation image for a tool only one lab needs.
+
+id: sample-custom-workstation
+title: "Sample Custom Workstation Review"
+difficulty: beginner
+
+story:
+  role: Junior Linux administrator
+  situation: >
+    A small internal records service was deployed from an unfinished template.
+    Monitoring suggests clients may be receiving records without proving who they
+    are. Investigate with the tools on your workstation, preserve legitimate
+    access, and correct the configuration.
+
+documentation:
+  student_guide_url: /docs/labs/sample-custom-workstation/
+  solution_notes_url: /docs/labs/sample-custom-workstation-solution/
+  instructor_guide_url: /docs/labs/sample-custom-workstation-instructor/
+
+access:
+  ssh_port_base: 22000
+  browser_terminal_port_base: 19000
+
+lifecycle:
+  idle_timeout_minutes: 30
+  max_runtime_minutes: 120
+  evaluation_idle_timeout_minutes: null
+  retention_after_stop_minutes: 180
+
+checker:
+  version: 1
+  states:
+    - vulnerable
+    - fixed
+  checks:
+    - name: unauthorized_access
+      label: "OBJECTIVE: unauthenticated record access is blocked"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        ready=false;
+        for attempt in 1 2 3 4 5 6 7 8 9 10; do
+        if [ "$(curl -fsS --max-time 3 http://records-service:8080/health 2>/dev/null || true)" = ok ];
+        then ready=true; break; fi;
+        sleep 1;
+        done;
+        if [ "$ready" != true ]; then echo UNAUTHORIZED_UNKNOWN;
+        else body=$(mktemp);
+        code=$(curl -sS --max-time 5 -o "$body" -w '%{http_code}'
+        http://records-service:8080/records 2>/dev/null || true);
+        if [ "$code" = 200 ] && grep -q 'sample-record-001' "$body"; then
+        echo UNAUTHORIZED_ALLOWED;
+        elif [ "$code" = 401 ]; then echo UNAUTHORIZED_BLOCKED;
+        else echo UNAUTHORIZED_UNKNOWN; fi;
+        rm -f "$body"; fi
+      states:
+        vulnerable: "output_eq: UNAUTHORIZED_ALLOWED"
+        fixed: "output_eq: UNAUTHORIZED_BLOCKED"
+
+    - name: persistent_config
+      label: "OBJECTIVE: hardened configuration is persisted"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        mode=$(sed -n 's/^ACCESS_CONTROL=//p' /lab/records/config.env | tail -n 1);
+        if [ "$mode" = disabled ]; then echo CONFIG_VULNERABLE;
+        elif [ "$mode" = enabled ]; then echo CONFIG_HARDENED;
+        else echo CONFIG_UNKNOWN; fi
+      states:
+        vulnerable: "output_eq: CONFIG_VULNERABLE"
+        fixed: "output_eq: CONFIG_HARDENED"
+
+    - name: authorized_access
+      label: "GUARDRAIL: authorized record access still works"
+      kind: guardrail
+      exec_in: workstation
+      run: >-
+        token=$(sed -n 's/^AUTHORIZED_TOKEN=//p' /lab/records/config.env | tail -n 1);
+        if [ -n "$token" ] && curl -fsS --max-time 5
+        -H "Authorization: Bearer $token" http://records-service:8080/records
+        | grep -q 'sample-record-001'; then echo AUTHORIZED_OK;
+        else echo AUTHORIZED_BROKEN; fi
+      states:
+        vulnerable: "output_eq: AUTHORIZED_OK"
+        fixed: "output_eq: AUTHORIZED_OK"
+
+    - name: service_healthy
+      label: "GUARDRAIL: target service remains healthy"
+      kind: guardrail
+      exec_in: workstation
+      run: >-
+        if [ "$(curl -fsS --max-time 5 http://records-service:8080/health)" = ok ];
+        then echo SERVICE_HEALTHY; else echo SERVICE_BROKEN; fi
+      states:
+        vulnerable: "output_eq: SERVICE_HEALTHY"
+        fixed: "output_eq: SERVICE_HEALTHY"
+
+# TWO images: the target service AND a lab-specific workstation image. This is
+# the defining feature of Pattern D.
+build:
+  images:
+    - service: records-service
+      name: thesis-labs/sample-custom-workstation-service:latest
+      context: .
+      dockerfile: Dockerfile
+    - service: workstation
+      name: thesis-labs/sample-custom-workstation-ws:latest
+      context: .
+      dockerfile: Dockerfile.workstation
+
+services:
+  workstation:
+    # Points at the lab-specific image, not the shared workstation-base. labctl
+    # uses whatever image is declared here for the auto-generated workstation.
+    image: thesis-labs/sample-custom-workstation-ws:latest
+    role: Student browser terminal and SSH fallback, with the extra HTTPie client.
+    internal_ports:
+      browser_terminal: 19000
+      ssh: 22
+  records-service:
+    image: thesis-labs/sample-custom-workstation-service:latest
+    role: Standalone records service with an intentionally weak access-control baseline.
+    internal_ports:
+      http: 8080
+      ssh: 22
+
+networks:
+  - name: sample-net
+
+resources:
+  workstation:
+    cpus: "0.50"
+    memory: "256m"
+  records-service:
+    cpus: "0.50"
+    memory: "256m"
+
+workstation:
+  environment:
+    RECORDS_SERVICE_HOST: records-service
+    RECORDS_SERVICE_PORT: "8080"
+  shared_volumes:
+    - name: records_config
+      target: /lab/records
+  depends_on:
+    - records-service
+
+containers:
+  - service: records-service
+    hostname: records-service
+    networks:
+      - sample-net
+    init: true
+    restart: unless-stopped
+    environment:
+      LAB_ADMIN_USER: recadmin
+      LAB_CONFIG_SRC: /opt/lab/baseline/config.env
+      LAB_CONFIG_DST: /etc/records-service/config.env
+      LAB_SERVICE_CMD: "/usr/bin/python3 /opt/lab/records-service.py"
+      LAB_DATA_DIR: /var/lib/records-service
+      LAB_DATA_USER: recadmin
+      LAB_SETUP_SCRIPT: /opt/lab/hooks/pre-start.sh
+      LAB_LOG_FILE: /var/log/records-service.log
+      SERVICE_ADMIN_PASSWORD: "$platform.student_password"
+    expose:
+      - 22
+      - 8080
+    volumes:
+      - name: records_config
+        target: /etc/records-service
+      - name: records_data
+        target: /var/lib/records-service
+    healthcheck:
+      command:
+        - CMD-SHELL
+        - "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)\""
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    security:
+      privileged: false
+      host_network: false
+      cap_add:
+        - AUDIT_WRITE

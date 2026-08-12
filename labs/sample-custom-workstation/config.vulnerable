@@ -1,0 +1,9 @@
+# PATTERN D - VULNERABLE BASELINE
+# The service is an ordinary standalone records service; the Pattern D lesson is
+# the custom workstation image, not a novel vulnerability.
+
+# Intentional teaching vulnerability: unauthenticated requests can read records.
+ACCESS_CONTROL=disabled
+
+# Dummy lab credential only. Never use production or personal credentials.
+AUTHORIZED_TOKEN=sample-demo-token

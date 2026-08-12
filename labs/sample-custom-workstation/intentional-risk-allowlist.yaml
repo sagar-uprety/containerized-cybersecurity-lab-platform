@@ -1,0 +1,17 @@
+lab_id: sample-custom-workstation
+
+intentional_findings:
+  - id: sample-custom-workstation-disabled-access-control
+    tool: semgrep
+    files:
+      - config.vulnerable
+    patterns:
+      - ACCESS_CONTROL=disabled
+    reason: Disabled access control is the isolated synthetic teaching vulnerability students identify and remediate; this lab exists mainly to demonstrate the custom-workstation image wiring.
+  - id: sample-custom-workstation-dummy-token
+    tool: gitleaks
+    files:
+      - config.vulnerable
+    patterns:
+      - sample-demo-token
+    reason: This clearly marked demo token supports the authorized-use guardrail and has no value outside the isolated lab.

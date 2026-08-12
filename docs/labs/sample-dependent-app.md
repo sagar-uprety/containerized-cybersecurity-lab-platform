@@ -1,0 +1,1 @@
+--8<-- "labs/sample-dependent-app/docs/student-guide.md"

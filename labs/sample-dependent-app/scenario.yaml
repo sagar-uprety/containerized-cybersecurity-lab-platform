@@ -1,0 +1,251 @@
+# PATTERN B AUTHORING REFERENCE - Service With Dependent Application
+#
+# Copy this lab when your scenario has a SHARED service that a dependent
+# application relies on, and the lesson is to harden the shared service without
+# breaking the app (e.g. a database/cache behind an application). Topology:
+#
+#   workstation --> records-backend <-- records-app
+#   workstation ----------------------> records-app
+#
+# The two runtime services come from ONE image (see Dockerfile); each container
+# selects its script and config through LAB_* variables. Only add a dependent
+# app when its continuity is genuinely part of the lesson - unnecessary services
+# add build time, failure modes, and student cognitive load.
+
+id: sample-dependent-app
+title: "Sample Dependent App Review"
+difficulty: beginner
+
+story:
+  role: Junior Linux administrator
+  situation: >
+    A small records service is shared by an internal application. Monitoring
+    suggests the records service may be handing out data without checking who is
+    asking. Investigate, correct the shared service, and make sure the
+    application that depends on it keeps working.
+
+documentation:
+  student_guide_url: /docs/labs/sample-dependent-app/
+  solution_notes_url: /docs/labs/sample-dependent-app-solution/
+  instructor_guide_url: /docs/labs/sample-dependent-app-instructor/
+
+access:
+  ssh_port_base: 22000
+  browser_terminal_port_base: 19000
+
+lifecycle:
+  idle_timeout_minutes: 30
+  max_runtime_minutes: 120
+  evaluation_idle_timeout_minutes: null
+  retention_after_stop_minutes: 180
+
+checker:
+  version: 1
+  states:
+    - vulnerable
+    - fixed
+  checks:
+    # OBJECTIVE: the shared backend must reject direct unauthenticated reads.
+    - name: backend_unauth_blocked
+      label: "OBJECTIVE: unauthenticated backend access is blocked"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        ready=false;
+        for attempt in 1 2 3 4 5 6 7 8 9 10; do
+        if [ "$(curl -fsS --max-time 3 http://records-backend:8080/health 2>/dev/null || true)" = ok ];
+        then ready=true; break; fi;
+        sleep 1;
+        done;
+        if [ "$ready" != true ]; then echo BACKEND_UNAUTH_UNKNOWN;
+        else body=$(mktemp);
+        code=$(curl -sS --max-time 5 -o "$body" -w '%{http_code}'
+        http://records-backend:8080/records 2>/dev/null || true);
+        if [ "$code" = 200 ] && grep -q 'sample-record-001' "$body"; then
+        echo BACKEND_UNAUTH_ALLOWED;
+        elif [ "$code" = 401 ]; then echo BACKEND_UNAUTH_BLOCKED;
+        else echo BACKEND_UNAUTH_UNKNOWN; fi;
+        rm -f "$body"; fi
+      states:
+        vulnerable: "output_eq: BACKEND_UNAUTH_ALLOWED"
+        fixed: "output_eq: BACKEND_UNAUTH_BLOCKED"
+
+    # OBJECTIVE: the hardened backend setting must be persisted, not only live.
+    - name: backend_config_persisted
+      label: "OBJECTIVE: hardened backend configuration is persisted"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        mode=$(sed -n 's/^ACCESS_CONTROL=//p' /lab/backend/config.env | tail -n 1);
+        if [ "$mode" = disabled ]; then echo BACKEND_CONFIG_VULNERABLE;
+        elif [ "$mode" = enabled ]; then echo BACKEND_CONFIG_HARDENED;
+        else echo BACKEND_CONFIG_UNKNOWN; fi
+      states:
+        vulnerable: "output_eq: BACKEND_CONFIG_VULNERABLE"
+        fixed: "output_eq: BACKEND_CONFIG_HARDENED"
+
+    # GUARDRAIL: the dependent app must keep serving in BOTH states. In the fixed
+    # state this only passes if the student also gave the app the backend token,
+    # which is the whole point of Pattern B: harden without breaking dependents.
+    - name: app_continuity
+      label: "GUARDRAIL: dependent app still reads the backend"
+      kind: guardrail
+      exec_in: workstation
+      run: >-
+        ready=false;
+        for attempt in 1 2 3 4 5 6 7 8 9 10; do
+        if [ "$(curl -fsS --max-time 3 http://records-app:8080/health 2>/dev/null || true)" = ok ];
+        then ready=true; break; fi;
+        sleep 1;
+        done;
+        if [ "$ready" != true ]; then echo APP_CONTINUITY_BROKEN;
+        elif curl -fsS --max-time 5 http://records-app:8080/summary
+        | grep -q 'records available:'; then echo APP_CONTINUITY_OK;
+        else echo APP_CONTINUITY_BROKEN; fi
+      states:
+        vulnerable: "output_eq: APP_CONTINUITY_OK"
+        fixed: "output_eq: APP_CONTINUITY_OK"
+
+    # GUARDRAIL: both services healthy, bounded so a broken service cannot hang.
+    - name: services_healthy
+      label: "GUARDRAIL: backend and app remain healthy"
+      kind: guardrail
+      exec_in: workstation
+      run: >-
+        b=$(curl -fsS --max-time 5 http://records-backend:8080/health 2>/dev/null || true);
+        a=$(curl -fsS --max-time 5 http://records-app:8080/health 2>/dev/null || true);
+        if [ "$b" = ok ] && [ "$a" = ok ]; then echo SERVICES_HEALTHY;
+        else echo SERVICES_BROKEN; fi
+      states:
+        vulnerable: "output_eq: SERVICES_HEALTHY"
+        fixed: "output_eq: SERVICES_HEALTHY"
+
+build:
+  images:
+    - service: records-backend
+      name: thesis-labs/sample-dependent-app-service:latest
+      context: .
+      dockerfile: Dockerfile
+
+services:
+  workstation:
+    image: thesis-labs/workstation-base:latest
+    role: Student browser terminal and SSH fallback.
+    internal_ports:
+      browser_terminal: 19000
+      ssh: 22
+  records-backend:
+    image: thesis-labs/sample-dependent-app-service:latest
+    role: Shared records service with an intentionally weak access-control baseline.
+    internal_ports:
+      http: 8080
+      ssh: 22
+  records-app:
+    # Same image as the backend; the container picks the app script and config.
+    image: thesis-labs/sample-dependent-app-service:latest
+    role: Dependent application that reads records from the backend.
+    internal_ports:
+      http: 8080
+      ssh: 22
+
+networks:
+  - name: sample-net
+
+resources:
+  workstation:
+    cpus: "0.50"
+    memory: "256m"
+  records-backend:
+    cpus: "0.50"
+    memory: "256m"
+  records-app:
+    cpus: "0.50"
+    memory: "256m"
+
+workstation:
+  environment:
+    BACKEND_HOST: records-backend
+    APP_HOST: records-app
+  # Two shared config volumes: the student edits both the backend and the app
+  # configuration from the workstation. Each is also mounted into its service.
+  shared_volumes:
+    - name: backend_config
+      target: /lab/backend
+    - name: app_config
+      target: /lab/app
+  depends_on:
+    - records-backend
+    - records-app
+
+containers:
+  - service: records-backend
+    hostname: records-backend
+    networks:
+      - sample-net
+    init: true
+    restart: unless-stopped
+    environment:
+      LAB_ADMIN_USER: appadmin
+      LAB_CONFIG_SRC: /opt/lab/baseline/backend.env
+      LAB_CONFIG_DST: /etc/records-backend/config.env
+      LAB_SERVICE_CMD: "/usr/bin/python3 /opt/lab/records-backend.py"
+      LAB_DATA_DIR: /var/lib/records-backend
+      LAB_DATA_USER: appadmin
+      LAB_SETUP_SCRIPT: /opt/lab/hooks/setup-backend.sh
+      LAB_LOG_FILE: /var/log/records-backend.log
+      SERVICE_ADMIN_PASSWORD: "$platform.student_password"
+    expose:
+      - 22
+      - 8080
+    volumes:
+      - name: backend_config
+        target: /etc/records-backend
+      - name: backend_data
+        target: /var/lib/records-backend
+    healthcheck:
+      command:
+        - CMD-SHELL
+        - "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)\""
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    security:
+      privileged: false
+      host_network: false
+      cap_add:
+        - AUDIT_WRITE
+
+  - service: records-app
+    hostname: records-app
+    networks:
+      - sample-net
+    init: true
+    restart: unless-stopped
+    environment:
+      LAB_ADMIN_USER: appadmin
+      LAB_CONFIG_SRC: /opt/lab/baseline/app.env
+      LAB_CONFIG_DST: /etc/records-app/config.env
+      LAB_SERVICE_CMD: "/usr/bin/python3 /opt/lab/records-app.py"
+      LAB_SETUP_SCRIPT: /opt/lab/hooks/setup-app.sh
+      LAB_LOG_FILE: /var/log/records-app.log
+      SERVICE_ADMIN_PASSWORD: "$platform.student_password"
+    expose:
+      - 22
+      - 8080
+    volumes:
+      - name: app_config
+        target: /etc/records-app
+    healthcheck:
+      command:
+        - CMD-SHELL
+        - "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)\""
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    security:
+      privileged: false
+      host_network: false
+      cap_add:
+        - AUDIT_WRITE
