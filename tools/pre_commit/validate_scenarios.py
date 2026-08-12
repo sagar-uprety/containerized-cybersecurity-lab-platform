@@ -396,6 +396,12 @@ def validate_lab_docs(
         if not solution_bash:
             errors.append(f"{solution_notes}: must contain student-executable bash blocks")
 
+        # Survey/familiarization labs are the deliberate exception to the reveal
+        # boundary: they are explicit guided walkthroughs so a first-time student
+        # can tour the platform, so their student guide MAY show the exact fix.
+        # Skip the remediation-duplication anti-spoiler check for them.
+        is_survey_lab = lab_id.startswith("survey-")
+
         # Exact remediation blocks must not be copied into the discovery guide.
         # Diagnostic bash IS allowed in the student guide (generic command shapes
         # with placeholders); solution-revealing remediation bash is not. The
@@ -412,6 +418,8 @@ def validate_lab_docs(
             r")\b"
         )
         for block in solution_bash:
+            if is_survey_lab:
+                break
             if not remediation_commands.search(block):
                 continue
             if _normalize_bash(block) in sg_bash:

@@ -1,0 +1,1 @@
+--8<-- "labs/survey-nginx-hardening/docs/student-guide.md"

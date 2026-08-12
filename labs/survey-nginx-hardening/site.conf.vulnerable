@@ -1,0 +1,32 @@
+# SURVEY LAB - VULNERABLE NGINX SITE CONFIG
+# Two intentional, real information-disclosure weaknesses a student flips to
+# secure. Both are CIS NGINX Benchmark hardening items.
+
+server {
+    listen 8080 default_server;
+    server_name _;
+    root /var/www/html;
+    index index.html;
+
+    # WEAKNESS 1 (CWE-200): the version banner is advertised in the Server
+    # header, handing attackers free reconnaissance. Secure value: off.
+    server_tokens on;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    # WEAKNESS 2 (CWE-548): directory listing is enabled for /files/, so anyone
+    # can browse and download everything in it - including the backup and notes
+    # that were never meant to be listed. Secure value: off.
+    location /files/ {
+        alias /var/www/html/files/;
+        autoindex on;
+    }
+
+    location = /health {
+        access_log off;
+        return 200 "ok\n";
+        add_header Content-Type text/plain;
+    }
+}

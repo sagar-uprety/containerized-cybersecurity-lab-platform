@@ -1,0 +1,4 @@
+SYNTHETIC DEMO NOTES - not real data.
+Internal-only notes that were exposed by the open directory listing.
+VPN gateway (demo): vpn.example.invalid
+Shared mailbox (demo): ops@example.invalid

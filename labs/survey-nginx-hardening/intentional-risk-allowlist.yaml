@@ -1,0 +1,24 @@
+lab_id: survey-nginx-hardening
+
+intentional_findings:
+  - id: survey-nginx-server-tokens
+    tool: semgrep
+    files:
+      - site.conf.vulnerable
+    patterns:
+      - server_tokens on
+    reason: Version-banner disclosure (CWE-200) is one of the two intentional teaching weaknesses students flip to secure in this familiarization lab.
+  - id: survey-nginx-autoindex
+    tool: semgrep
+    files:
+      - site.conf.vulnerable
+    patterns:
+      - autoindex on
+    reason: Directory-listing exposure (CWE-548) is the primary intentional teaching weakness; it exposes the seeded synthetic files students must close off.
+  - id: survey-nginx-demo-backup-secret
+    tool: gitleaks
+    files:
+      - files/db-backup.sql
+    patterns:
+      - not-a-real-secret-demo-only
+    reason: Clearly-marked synthetic credential in the seeded backup file; it exists only to make the directory-listing exposure tangible and has no value outside the isolated lab.

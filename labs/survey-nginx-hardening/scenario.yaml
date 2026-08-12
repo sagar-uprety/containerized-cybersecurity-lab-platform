@@ -1,0 +1,189 @@
+# SURVEY / FAMILIARIZATION LAB - Securing an Nginx Web Server (Pattern A)
+#
+# Intentionally simple: a first-time student flips two real, documented nginx
+# information-disclosure weaknesses (server_tokens, autoindex) from on to off,
+# reloads, and re-checks. The point is to let survey participants exercise the
+# platform (Start / browser terminal / edit / reload / Run Check / Reset), not
+# to test deep skill. The student guide for this lab is a deliberate, explicit
+# walkthrough (the one exception to the reveal boundary), gated by the "survey-"
+# id prefix.
+
+id: survey-nginx-hardening
+title: "Survey: Securing an Nginx Web Server"
+difficulty: beginner
+
+story:
+  role: New IT support hire
+  situation: >
+    Welcome. This short warm-up lab lets you try the platform end to end on a
+    small web server before the real exercises. A colleague set up an internal
+    nginx site quickly and asked you to tidy up two settings that are leaking
+    more than they should. Everything you need is spelled out in the guide.
+
+documentation:
+  student_guide_url: /docs/labs/survey-nginx-hardening/
+  solution_notes_url: /docs/labs/survey-nginx-hardening-solution/
+  instructor_guide_url: /docs/labs/survey-nginx-hardening-instructor/
+
+access:
+  ssh_port_base: 22000
+  browser_terminal_port_base: 19000
+
+lifecycle:
+  idle_timeout_minutes: 30
+  max_runtime_minutes: 120
+  evaluation_idle_timeout_minutes: null
+  retention_after_stop_minutes: 180
+
+checker:
+  version: 1
+  states:
+    - vulnerable
+    - fixed
+  checks:
+    # OBJECTIVE 1: the version banner must not advertise the nginx version.
+    - name: version_banner_hidden
+      label: "OBJECTIVE: nginx version banner is not disclosed"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        ready=false;
+        for attempt in 1 2 3 4 5 6 7 8 9 10; do
+        if [ "$(curl -fsS --max-time 3 http://nginx-host:8080/health 2>/dev/null || true)" = ok ];
+        then ready=true; break; fi;
+        sleep 1;
+        done;
+        if [ "$ready" != true ]; then echo VERSION_UNKNOWN;
+        else server=$(curl -sI --max-time 5 http://nginx-host:8080/ 2>/dev/null
+        | tr -d '\r' | sed -n 's/^[Ss]erver: //p');
+        if printf '%s' "$server" | grep -Eq 'nginx/[0-9]'; then echo VERSION_EXPOSED;
+        elif printf '%s' "$server" | grep -Eq '^nginx$'; then echo VERSION_HIDDEN;
+        else echo VERSION_UNKNOWN; fi; fi
+      states:
+        vulnerable: "output_eq: VERSION_EXPOSED"
+        fixed: "output_eq: VERSION_HIDDEN"
+
+    # OBJECTIVE 2: the directory listing for /files/ must be closed off.
+    - name: directory_listing_disabled
+      label: "OBJECTIVE: directory listing is disabled"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        body=$(mktemp);
+        code=$(curl -sS --max-time 5 -o "$body" -w '%{http_code}'
+        http://nginx-host:8080/files/ 2>/dev/null || true);
+        if [ "$code" = 200 ] && grep -q 'Index of' "$body"; then echo LISTING_EXPOSED;
+        elif [ "$code" = 403 ]; then echo LISTING_DISABLED;
+        else echo LISTING_UNKNOWN; fi;
+        rm -f "$body"
+      states:
+        vulnerable: "output_eq: LISTING_EXPOSED"
+        fixed: "output_eq: LISTING_DISABLED"
+
+    # OBJECTIVE 3: both hardened directives must be persisted in the config file.
+    - name: config_persisted
+      label: "OBJECTIVE: hardened directives are persisted in the config"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        c=/lab/nginx/site.conf;
+        if grep -Eq '^[[:space:]]*server_tokens[[:space:]]+off;' "$c"
+        && grep -Eq '^[[:space:]]*autoindex[[:space:]]+off;' "$c"; then echo CONFIG_HARDENED;
+        elif grep -Eq '^[[:space:]]*server_tokens[[:space:]]+on;' "$c"
+        || grep -Eq '^[[:space:]]*autoindex[[:space:]]+on;' "$c"; then echo CONFIG_VULNERABLE;
+        else echo CONFIG_UNKNOWN; fi
+      states:
+        vulnerable: "output_eq: CONFIG_VULNERABLE"
+        fixed: "output_eq: CONFIG_HARDENED"
+
+    # GUARDRAIL: the website must still serve its home page in BOTH states.
+    - name: site_healthy
+      label: "GUARDRAIL: the website still serves its home page"
+      kind: guardrail
+      exec_in: workstation
+      run: >-
+        if curl -fsS --max-time 5 http://nginx-host:8080/ 2>/dev/null
+        | grep -q 'Acme Records Portal'; then echo SITE_HEALTHY;
+        else echo SITE_BROKEN; fi
+      states:
+        vulnerable: "output_eq: SITE_HEALTHY"
+        fixed: "output_eq: SITE_HEALTHY"
+
+build:
+  images:
+    - service: nginx-host
+      name: thesis-labs/survey-nginx-hardening-nginx:latest
+      context: .
+      dockerfile: Dockerfile
+
+services:
+  workstation:
+    image: thesis-labs/workstation-base:latest
+    role: Student browser terminal and SSH fallback.
+    internal_ports:
+      browser_terminal: 19000
+      ssh: 22
+  nginx-host:
+    image: thesis-labs/survey-nginx-hardening-nginx:latest
+    role: Small internal nginx web server with two intentional disclosure weaknesses.
+    internal_ports:
+      http: 8080
+      ssh: 22
+
+networks:
+  - name: survey-net
+
+resources:
+  workstation:
+    cpus: "0.50"
+    memory: "256m"
+  nginx-host:
+    cpus: "0.50"
+    memory: "256m"
+
+workstation:
+  environment:
+    NGINX_HOST: nginx-host
+    NGINX_PORT: "8080"
+  shared_volumes:
+    - name: nginx_config
+      target: /lab/nginx
+  depends_on:
+    - nginx-host
+
+containers:
+  - service: nginx-host
+    hostname: nginx-host
+    networks:
+      - survey-net
+    init: true
+    restart: unless-stopped
+    environment:
+      LAB_ADMIN_USER: nginxadmin
+      LAB_CONFIG_SRC: /opt/lab/baseline/site.conf
+      LAB_CONFIG_DST: /etc/nginx/conf.d/site.conf
+      LAB_SERVICE_CMD: "nginx -g 'daemon off;'"
+      LAB_DATA_DIR: /var/www/html
+      LAB_DATA_USER: root
+      LAB_SETUP_SCRIPT: /opt/lab/hooks/pre-start.sh
+      LAB_LOG_FILE: /var/log/nginx/access.log
+      SERVICE_ADMIN_PASSWORD: "$platform.student_password"
+    expose:
+      - 22
+      - 8080
+    volumes:
+      - name: nginx_config
+        target: /etc/nginx/conf.d
+    healthcheck:
+      command:
+        - CMD-SHELL
+        - "curl -fsS http://127.0.0.1:8080/health >/dev/null 2>&1 || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    security:
+      privileged: false
+      host_network: false
+      cap_add:
+        - AUDIT_WRITE
