@@ -187,7 +187,7 @@ They are paths inside the target container's own filesystem. A path only
 becomes reachable from the workstation (for shared-volume editing, per the
 "Shared Student Editing" pattern) when the _same_ named volume is also listed
 under that container's `volumes` **and** under `workstation.shared_volumes`
-with a `workstation`-side `target`. Compare `labs/sample-lab/scenario.yaml`'s
+with a `workstation`-side `target`. Compare `labs/sample-a-standalone/scenario.yaml`'s
 `sample_config` volume (declared in both places, so `/etc/sample-service` on
 the target is reachable as `/lab/sample` on the workstation) against its
 `sample_data` volume (declared only under the target container's `volumes`,

@@ -2,7 +2,7 @@
 # scenario.template.yaml
 #
 # This is a field-oriented reference, not the recommended starting package.
-# Create a runnable copy of labs/sample-lab with tools/create_lab.py, then use
+# Create a runnable copy of labs/sample-a-standalone with tools/create_lab.py, then use
 # this file and scenario.schema.json when looking up optional fields.
 #
 # Fields marked REQUIRED must be present. All others are optional.

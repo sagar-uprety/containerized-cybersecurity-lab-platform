@@ -34,7 +34,7 @@ python3 tools/create_lab.py <lab-id> \
   --difficulty beginner
 ```
 
-Start with [`labs/sample-lab/`](labs/sample-lab/) and follow the complete
+Start with [`labs/sample-a-standalone/`](labs/sample-a-standalone/) and follow the complete
 instructor guide at `docs/instructor/new-lab-setup/` or the deployed protected
 URL `/docs/instructor/new-lab-setup/`.
 

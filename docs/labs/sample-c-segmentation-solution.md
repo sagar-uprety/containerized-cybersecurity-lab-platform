@@ -1,0 +1,1 @@
+--8<-- "labs/sample-c-segmentation/docs/solution-notes.md"

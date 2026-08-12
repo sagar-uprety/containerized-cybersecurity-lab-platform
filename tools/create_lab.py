@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Create a new runnable lab package by cloning labs/sample-lab."""
+"""Create a new runnable lab package by cloning labs/sample-a-standalone."""
 
 from __future__ import annotations
 
@@ -10,14 +10,16 @@ import shutil
 from pathlib import Path
 
 LAB_ID_RE = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
-SAMPLE_ID = "sample-lab"
-SAMPLE_TITLE = "Sample Lab: Access Control Misconfiguration"
+SAMPLE_ID = "sample-a-standalone"
+SAMPLE_TITLE = "Sample A: Standalone Service"
 TEXT_SUFFIXES = {".json", ".md", ".py", ".sh", ".txt", ".yaml", ".yml"}
 
 
 def create_lab(repo_root: Path, lab_id: str, title: str, difficulty: str) -> list[Path]:
     if not LAB_ID_RE.fullmatch(lab_id) or lab_id == SAMPLE_ID:
-        raise ValueError("lab_id must match ^[a-z0-9][a-z0-9-]{0,63}$ and cannot be sample-lab")
+        raise ValueError(
+            "lab_id must match ^[a-z0-9][a-z0-9-]{0,63}$ and cannot be sample-a-standalone"
+        )
     if not title.strip() or "\n" in title or "\r" in title:
         raise ValueError("title must be one non-empty line")
     if difficulty not in {"beginner", "intermediate", "advanced"}:

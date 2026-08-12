@@ -1,0 +1,28 @@
+# PATTERN B - SHARED BACKEND image (one of TWO images this lab builds)
+#
+# Real multi-service labs give each distinct service its own image and
+# Dockerfile (see redis-exposed: a redis image plus a demo-app image). This
+# sample follows that convention: Dockerfile.backend builds the shared records
+# backend, Dockerfile.app builds the dependent app. build.images lists both.
+FROM thesis-labs/lab-service-base:1.0
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd --uid 1000 --create-home --shell /bin/bash appadmin \
+    && printf '%s\n' \
+      'appadmin ALL=(root) NOPASSWD: /usr/local/sbin/reload-records-backend' \
+      > /etc/sudoers.d/appadmin \
+    && chmod 0440 /etc/sudoers.d/appadmin
+
+COPY reload-records-backend.sh /usr/local/sbin/reload-records-backend
+RUN chmod 0755 /usr/local/sbin/reload-records-backend
+
+COPY backend.env.vulnerable /opt/lab/baseline/config.env
+COPY seed.txt /opt/lab/seed/seed.txt
+COPY setup-backend.sh /opt/lab/hooks/pre-start.sh
+COPY records-backend.py /opt/lab/records-backend.py
+RUN chmod 0755 /opt/lab/hooks/pre-start.sh /opt/lab/records-backend.py
+
+EXPOSE 8080

@@ -1,1 +1,0 @@
---8<-- "labs/sample-lab/docs/instructor-guide.md"

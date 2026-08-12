@@ -1,0 +1,1 @@
+--8<-- "labs/sample-b-dependent-app/docs/solution-notes.md"

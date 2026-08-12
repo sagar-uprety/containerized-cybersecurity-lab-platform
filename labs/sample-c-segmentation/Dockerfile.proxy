@@ -1,0 +1,27 @@
+# PATTERN C - EDGE PROXY image (one of TWO images this lab builds)
+#
+# Real segmentation labs build one image per role (compare the firewall lab:
+# Dockerfile.firewall plus Dockerfile.server). This sample follows that:
+# Dockerfile.proxy builds the middlebox, Dockerfile.backend builds the internal
+# target. This reference segments at the application layer, so no NET_ADMIN.
+FROM thesis-labs/lab-service-base:1.0
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends python3 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN useradd --uid 1000 --create-home --shell /bin/bash proxyadmin \
+    && printf '%s\n' \
+      'proxyadmin ALL=(root) NOPASSWD: /usr/local/sbin/reload-edge-proxy' \
+      > /etc/sudoers.d/proxyadmin \
+    && chmod 0440 /etc/sudoers.d/proxyadmin
+
+COPY reload-edge-proxy.sh /usr/local/sbin/reload-edge-proxy
+RUN chmod 0755 /usr/local/sbin/reload-edge-proxy
+
+COPY proxy.env.vulnerable /opt/lab/baseline/config.env
+COPY setup-proxy.sh /opt/lab/hooks/pre-start.sh
+COPY edge-proxy.py /opt/lab/edge-proxy.py
+RUN chmod 0755 /opt/lab/hooks/pre-start.sh /opt/lab/edge-proxy.py
+
+EXPOSE 8080

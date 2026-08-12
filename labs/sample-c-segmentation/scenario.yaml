@@ -1,0 +1,239 @@
+# PATTERN C AUTHORING REFERENCE - Proxy / Firewall / Segmentation
+#
+# Copy this lab when your scenario spans a network boundary enforced by a
+# middlebox (proxy, firewall, or router). Topology:
+#
+#   workstation -- ext-net --> edge-proxy -- int-net --> internal-backend
+#
+# The workstation joins the FIRST declared network (ext-net). The middlebox
+# (edge-proxy) joins BOTH networks and is the only path to the internal backend,
+# which joins int-net only - so the workstation cannot reach the backend
+# directly. This reference uses an application-layer proxy (no NET_ADMIN). For a
+# packet-filter firewall variant, see the firewall lab (iptables + NET_ADMIN).
+
+id: sample-c-segmentation
+title: "Sample C: Network Segmentation"
+difficulty: intermediate
+
+story:
+  role: Network security auditor
+  situation: >
+    An internal service sits behind an edge proxy on a separate network. Nobody
+    has checked whether the proxy keeps the internal-only parts of that service
+    away from the outside. Verify what the proxy exposes and correct it.
+
+documentation:
+  student_guide_url: /docs/labs/sample-c-segmentation/
+  solution_notes_url: /docs/labs/sample-c-segmentation-solution/
+  instructor_guide_url: /docs/labs/sample-c-segmentation-instructor/
+
+access:
+  ssh_port_base: 22000
+  browser_terminal_port_base: 19000
+
+lifecycle:
+  idle_timeout_minutes: 30
+  max_runtime_minutes: 120
+  evaluation_idle_timeout_minutes: null
+  retention_after_stop_minutes: 180
+
+checker:
+  version: 1
+  states:
+    - vulnerable
+    - fixed
+  checks:
+    # OBJECTIVE: the internal-only path must not be reachable through the proxy.
+    - name: internal_path_blocked
+      label: "OBJECTIVE: internal-only path is not exposed through the proxy"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        ready=false;
+        for attempt in 1 2 3 4 5 6 7 8 9 10; do
+        if [ "$(curl -fsS --max-time 3 http://edge-proxy:8080/health 2>/dev/null || true)" = ok ];
+        then ready=true; break; fi;
+        sleep 1;
+        done;
+        if [ "$ready" != true ]; then echo INTERNAL_PATH_UNKNOWN;
+        else body=$(mktemp);
+        code=$(curl -sS --max-time 5 -o "$body" -w '%{http_code}'
+        http://edge-proxy:8080/internal/status 2>/dev/null || true);
+        if [ "$code" = 200 ] && grep -q 'sample-demo-internal-marker' "$body"; then
+        echo INTERNAL_PATH_EXPOSED;
+        elif [ "$code" = 403 ]; then echo INTERNAL_PATH_BLOCKED;
+        else echo INTERNAL_PATH_UNKNOWN; fi;
+        rm -f "$body"; fi
+      states:
+        vulnerable: "output_eq: INTERNAL_PATH_EXPOSED"
+        fixed: "output_eq: INTERNAL_PATH_BLOCKED"
+
+    # OBJECTIVE: the restricted proxy mode must be persisted, not only live.
+    - name: proxy_config_persisted
+      label: "OBJECTIVE: restricted proxy mode is persisted"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        mode=$(sed -n 's/^PROXY_MODE=//p' /lab/proxy/config.env | tail -n 1);
+        if [ "$mode" = open ]; then echo PROXY_CONFIG_VULNERABLE;
+        elif [ "$mode" = restricted ]; then echo PROXY_CONFIG_HARDENED;
+        else echo PROXY_CONFIG_UNKNOWN; fi
+      states:
+        vulnerable: "output_eq: PROXY_CONFIG_VULNERABLE"
+        fixed: "output_eq: PROXY_CONFIG_HARDENED"
+
+    # GUARDRAIL: the public path must keep working through the proxy in BOTH states.
+    - name: public_path_works
+      label: "GUARDRAIL: public path still works through the proxy"
+      kind: guardrail
+      exec_in: workstation
+      run: >-
+        if curl -fsS --max-time 5 http://edge-proxy:8080/public/records
+        | grep -q 'sample-record-001'; then echo PUBLIC_PATH_OK;
+        else echo PUBLIC_PATH_BROKEN; fi
+      states:
+        vulnerable: "output_eq: PUBLIC_PATH_OK"
+        fixed: "output_eq: PUBLIC_PATH_OK"
+
+    # GUARDRAIL: the segmentation itself - the workstation must NOT reach the
+    # internal backend directly, only through the proxy. True in both states; it
+    # teaches that the boundary is the network topology, not just the proxy rule.
+    - name: segmentation_intact
+      label: "GUARDRAIL: internal backend is not directly reachable"
+      kind: guardrail
+      exec_in: workstation
+      run: >-
+        if curl -fsS --max-time 3 http://internal-backend:8080/health 2>/dev/null;
+        then echo SEGMENTATION_LEAK; else echo SEGMENTATION_INTACT; fi
+      states:
+        vulnerable: "output_eq: SEGMENTATION_INTACT"
+        fixed: "output_eq: SEGMENTATION_INTACT"
+
+# TWO images, each from its own Dockerfile - the multi-service convention.
+build:
+  images:
+    - service: edge-proxy
+      name: thesis-labs/sample-c-segmentation-proxy:latest
+      context: .
+      dockerfile: Dockerfile.proxy
+    - service: internal-backend
+      name: thesis-labs/sample-c-segmentation-backend:latest
+      context: .
+      dockerfile: Dockerfile.backend
+
+services:
+  workstation:
+    image: thesis-labs/workstation-base:latest
+    role: Student browser terminal and SSH fallback, on the external network.
+    internal_ports:
+      browser_terminal: 19000
+      ssh: 22
+  edge-proxy:
+    image: thesis-labs/sample-c-segmentation-proxy:latest
+    role: Edge reverse proxy bridging the external and internal networks.
+    internal_ports:
+      http: 8080
+      ssh: 22
+  internal-backend:
+    image: thesis-labs/sample-c-segmentation-backend:latest
+    role: Internal service reachable only through the proxy.
+    internal_ports:
+      http: 8080
+      ssh: 22
+
+# Two networks. The workstation joins the first (external). The proxy joins both;
+# the backend joins the internal one only.
+networks:
+  - name: ext-net
+  - name: int-net
+
+resources:
+  workstation:
+    cpus: "0.50"
+    memory: "256m"
+  edge-proxy:
+    cpus: "0.50"
+    memory: "256m"
+  internal-backend:
+    cpus: "0.50"
+    memory: "256m"
+
+workstation:
+  environment:
+    PROXY_HOST: edge-proxy
+  # Only the proxy configuration is student-editable; the backend is static.
+  shared_volumes:
+    - name: proxy_config
+      target: /lab/proxy
+  depends_on:
+    - edge-proxy
+    - internal-backend
+
+containers:
+  - service: edge-proxy
+    hostname: edge-proxy
+    networks:
+      - ext-net
+      - int-net
+    init: true
+    restart: unless-stopped
+    environment:
+      LAB_ADMIN_USER: proxyadmin
+      LAB_CONFIG_SRC: /opt/lab/baseline/config.env
+      LAB_CONFIG_DST: /etc/edge-proxy/config.env
+      LAB_SERVICE_CMD: "/usr/bin/python3 /opt/lab/edge-proxy.py"
+      LAB_SETUP_SCRIPT: /opt/lab/hooks/pre-start.sh
+      LAB_LOG_FILE: /var/log/edge-proxy.log
+      SERVICE_ADMIN_PASSWORD: "$platform.student_password"
+    expose:
+      - 22
+      - 8080
+    volumes:
+      - name: proxy_config
+        target: /etc/edge-proxy
+    healthcheck:
+      command:
+        - CMD-SHELL
+        - "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)\""
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    security:
+      privileged: false
+      host_network: false
+      cap_add:
+        - AUDIT_WRITE
+
+  - service: internal-backend
+    hostname: internal-backend
+    networks:
+      - int-net
+    init: true
+    restart: unless-stopped
+    environment:
+      LAB_ADMIN_USER: proxyadmin
+      LAB_CONFIG_SRC: /opt/lab/baseline/config.env
+      LAB_CONFIG_DST: /etc/internal-backend/config.env
+      LAB_SERVICE_CMD: "/usr/bin/python3 /opt/lab/internal-backend.py"
+      LAB_DATA_DIR: /var/lib/internal-backend
+      LAB_DATA_USER: proxyadmin
+      LAB_SETUP_SCRIPT: /opt/lab/hooks/pre-start.sh
+      LAB_LOG_FILE: /var/log/internal-backend.log
+      SERVICE_ADMIN_PASSWORD: "$platform.student_password"
+    expose:
+      - 22
+      - 8080
+    healthcheck:
+      command:
+        - CMD-SHELL
+        - "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)\""
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    security:
+      privileged: false
+      host_network: false
+      cap_add:
+        - AUDIT_WRITE

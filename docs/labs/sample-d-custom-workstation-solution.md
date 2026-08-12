@@ -1,0 +1,1 @@
+--8<-- "labs/sample-d-custom-workstation/docs/solution-notes.md"

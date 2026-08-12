@@ -126,7 +126,7 @@ condition:
 Prefer `output_eq` with short tokens. A shell expression returning status alone
 can use exit-code conditions, but output tokens produce clearer evidence.
 
-`sample-lab`'s checks all emit a token from an HTTP response. Other
+`sample-a-standalone`'s checks all emit a token from an HTTP response. Other
 vulnerability classes need their own token-emitting pattern; for example, a
 file-permission or ownership check reads the mode bits and maps them to a
 token instead of matching response text:

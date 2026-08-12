@@ -3,7 +3,7 @@
 This guide is for an instructor creating a lab for the first time without an automation
 assistant or prior knowledge of this repository. It explains what the platform
 supports, how to turn a teaching idea into a complete lab package, how to use
-the runnable `sample-lab`, how to validate every artifact, and how you run
+the runnable `sample-a-standalone`, how to validate every artifact, and how you run
 Ansible and `labctl` yourself to deploy and verify the result.
 
 The shortest safe workflow is:
@@ -119,7 +119,7 @@ GitHub Action, or workflow dispatch is required — everything is operator-run.
 Use these in this order:
 
 2. `labs/templates-contract/scenario.schema.json` defines accepted machine fields.
-3. `labs/sample-lab/` is the runnable, commented authoring reference.
+3. `labs/sample-a-standalone/` is the runnable, commented authoring reference.
 4. `platform-images/lab-service-base/entrypoint.sh` defines exactly what the
    shared service base does with every `LAB_*` environment variable before,
    during, and after your service starts — read it, don't infer its behavior
@@ -129,4 +129,4 @@ Use these in this order:
 7. Existing real labs show scenario-specific variations, not new contracts.
 
 Do not copy Redis-specific names or behavior into unrelated labs. Redis is one
-real implementation; `sample-lab` is the neutral authoring starting point.
+real implementation; `sample-a-standalone` is the neutral authoring starting point.

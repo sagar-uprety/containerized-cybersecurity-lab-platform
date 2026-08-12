@@ -31,7 +31,9 @@ def main() -> None:
             ROOT / "labs" / "templates-contract" / "scenario.schema.json",
             templates / "scenario.schema.json",
         )
-        shutil.copytree(ROOT / "labs" / "sample-lab", temp_root / "labs" / "sample-lab")
+        shutil.copytree(
+            ROOT / "labs" / "sample-a-standalone", temp_root / "labs" / "sample-a-standalone"
+        )
         (temp_root / "docs" / "labs").mkdir(parents=True)
 
         created = create_lab(
@@ -58,7 +60,7 @@ def main() -> None:
         assert scenario["build"]["images"][0]["name"] == (
             "thesis-labs/example-security-lab-service:latest"
         )
-        assert "sample-lab" not in scenario_path.read_text(encoding="utf-8")
+        assert "sample-a-standalone" not in scenario_path.read_text(encoding="utf-8")
 
         unsafe_mount = deepcopy(scenario)
         unsafe_mount["containers"][0]["volumes"].append(
@@ -108,12 +110,12 @@ def main() -> None:
             raise AssertionError("invalid lab id was accepted")
 
         sample = yaml.safe_load(
-            (ROOT / "labs" / "sample-lab" / "scenario.yaml").read_text(encoding="utf-8")
+            (ROOT / "labs" / "sample-a-standalone" / "scenario.yaml").read_text(encoding="utf-8")
         )
         context = {
-            "lab_id": "sample-lab",
+            "lab_id": "sample-a-standalone",
             "student_id": "student01",
-            "runtime_project": "sample-lab_student01",
+            "runtime_project": "sample-a-standalone_student01",
             "thesis_platform_name": "thesis-labs",
             "student_password": "dummy-password",
             "ttyd_credential": "student01:dummy-password",

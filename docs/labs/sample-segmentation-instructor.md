@@ -1,1 +1,0 @@
---8<-- "labs/sample-segmentation/docs/instructor-guide.md"

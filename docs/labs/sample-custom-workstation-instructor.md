@@ -1,1 +1,0 @@
---8<-- "labs/sample-custom-workstation/docs/instructor-guide.md"

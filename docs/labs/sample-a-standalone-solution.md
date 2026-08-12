@@ -1,0 +1,1 @@
+--8<-- "labs/sample-a-standalone/docs/solution-notes.md"

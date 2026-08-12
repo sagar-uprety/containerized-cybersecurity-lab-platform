@@ -1,0 +1,1 @@
+--8<-- "labs/sample-a-standalone/docs/student-guide.md"

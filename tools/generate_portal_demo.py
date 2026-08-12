@@ -131,7 +131,7 @@ COMMANDS = {
         "nc -v smtp-host 25",
         "vim /etc/postfix/main.cf",
     ],
-    "sample-lab": [
+    "sample-a-standalone": [
         "curl http://localhost:8080/records",
         'curl -X POST http://localhost:8080/records -d \'{"name":"test"}\'',
         "vim /opt/records-service/records-service.py",
