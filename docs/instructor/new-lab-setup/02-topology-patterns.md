@@ -202,26 +202,90 @@ whatever single tool your lab actually needs.
 
 ---
 
-## Do these four cover everything?
+## Scaling a pattern: there is no fixed size
 
-Yes — deliberately. The platform's degrees of freedom are: how many target images
-you build, how many private networks you declare, how many containers you run,
-and whether the workstation needs extra tooling. The four patterns are the
-canonical points in that space:
+The samples are small on purpose, but **nothing in the platform caps the
+numbers.** `scenario.yaml` sets no maximum on how many images you build, how many
+networks you declare, or how many containers you run (the only minimums are: at
+least one container, at least one built image). A pattern is a _shape_, not a
+size.
 
--   **A** — one target, one network.
--   **B** — multiple targets on one network with a dependency between them.
--   **C** — multiple targets across multiple networks with a middlebox between them.
--   **D** — any of the above, with a lab-specific workstation image.
+**Pattern C is the one that grows.** A, B, and D have essentially fixed
+cardinality — A is one target, B is a two-part dependency, D adds a single
+workstation image. Pattern C is the extensible shape: to build a multi-tier
+network you keep adding uniquely-named service keys and networks. For example, a
+segmented three-tier lab might declare:
 
-Anything more elaborate (several clients and servers behind a firewall, a
-multi-tier segmented network) is a **larger instance of C** — more uniquely-named
-service keys and networks, same shape. There is no supported scenario that falls
-outside these four. What the platform intentionally does **not** do — privileged
-containers, host networking, kernel modules, real data, an LMS/CTF engine — is
-covered in [Before You Start](01-before-you-start.md) and the platform-fit
-section of the [guide overview](index.md); those limits are about safety and
-reproducibility, not about topology.
+```text
+workstation --edge-net--> proxy --app-net--> app-server --data-net--> database
+```
+
+That is **four service containers** (proxy, app-server, database, plus the
+workstation), **three networks** (edge, app, data), and **three target images**
+(proxy, app-server, database images) — still Pattern C, just larger. Each
+middlebox/server/client is its own service key with its own image and its own set
+of network memberships. The shipped labs top out at two containers / two networks
+/ two images (`redis-exposed`, `firewall-source-port-bypass`); going beyond that
+is a bigger Pattern C, not a new pattern.
+
+## The full set of degrees of freedom
+
+The four patterns describe **topology** — how containers, networks, and images
+wire together. Topology is not the only thing you can vary. When you design a
+lab, you are choosing along several independent axes. The first group is what the
+patterns cover; the rest apply _within_ whatever pattern you pick.
+
+**Topology axes (these are the patterns):**
+
+-   **Target images** — how many distinct service images you build (`build.images`,
+    one per service role). Grows with Pattern B/C.
+-   **Networks** — how many private networks (`networks`). Grows with Pattern C.
+-   **Containers and their wiring** — how many service containers, and _which
+    network(s) each one joins_ (`containers[].networks`, `network_aliases`). The
+    wiring — not just the count — is what makes segmentation work. Grows with
+    Pattern C.
+-   **Workstation image** — stock base, or a lab-specific image with extra tooling
+    (Pattern D).
+
+**Orthogonal axes (independent of the pattern — set them on any lab):**
+
+-   **Capabilities and privilege** — extra Linux capabilities per container
+    (`security.cap_add`) and `sysctls`. `NET_ADMIN` for an in-container firewall,
+    `NET_RAW` for raw-socket tools like `nmap`, `AUDIT_WRITE` for SSH PTYs. This
+    axis is what distinguishes the two flavours of Pattern C (an application-layer
+    proxy needs nothing; a packet-filter firewall needs `NET_ADMIN`). Privileged
+    containers and host networking are **not** available — see the platform-fit
+    limits.
+-   **Published student endpoint** — whether the target exposes a browser-reachable
+    HTTP port to the student (`access.app_port_base` plus a container `ports`
+    mapping), or stays private and is only reached from the workstation. Most labs
+    keep the target private; publish a port only when a browser-facing app is part
+    of the exercise.
+-   **State and persistence** — named volumes for data that must survive a restart,
+    a shared config volume the student edits from the workstation, and the seed
+    data/setup hook that establishes the baseline. This axis decides what Reset
+    restores and what survives a reload.
+-   **Student administration path** — whether the student edits a shared config
+    volume directly, or SSHes into the service host as a narrow admin account with
+    a single sudo reload helper (or both). A design choice available in every
+    pattern.
+
+**Always-present machinery (not a design axis, but present in every lab):** the
+`checker` (objective vs guardrail checks, `exec_in`, condition operators),
+`lifecycle` limits (idle/runtime/retention), per-container `resources`
+(CPU/memory), and health checks. These are covered in
+[Build the Image and Design the Checker](04-build-and-checker.md).
+
+## So do the four patterns cover everything?
+
+For **topology**, yes — every supported scenario shape is A, B, C, or a larger C,
+optionally with D layered on. There is no supported topology that falls outside
+them. The capability, endpoint, storage, and administration axes above are then
+chosen independently on top of the topology you picked. What the platform
+intentionally does **not** support — privileged containers, host networking,
+kernel modules, real data, an LMS/CTF engine — is a safety-and-reproducibility
+boundary, not a topology limit; see [Before You Start](01-before-you-start.md)
+and the platform-fit section of the [guide overview](index.md).
 
 ---
 
