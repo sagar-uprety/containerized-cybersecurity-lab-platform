@@ -1,4 +1,4 @@
-# Sample Dependent App Review
+# Shared-Service Hardening Without Breaking Dependents (Pattern B Reference)
 
 You are supporting a small records service that an internal application depends
 on. Monitoring suggests the records service may be handing out data without

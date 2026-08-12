@@ -1,4 +1,4 @@
-# The Shared Drive
+# SMB File Share Access Control
 
 You've been brought in as the junior IT administrator for a small file server
 that several teams use for backups and shared documents. A routine internal

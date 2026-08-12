@@ -1,4 +1,4 @@
-# Sample Records Review
+# Standalone Service Hardening (Pattern A Reference)
 
 You are supporting a small internal records service that was deployed from an
 unfinished template. Monitoring suggests clients may be receiving records

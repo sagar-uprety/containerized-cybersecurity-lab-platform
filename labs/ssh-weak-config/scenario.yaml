@@ -1,5 +1,5 @@
 id: ssh-weak-config
-title: The Server That Logged Someone In
+title: "SSH Authentication Hardening"
 difficulty: intermediate
 
 story:

@@ -1,4 +1,4 @@
-# The Unassessed Directory Service
+# LDAP Directory Access Control
 
 You've been brought in as a security auditor. A directory service is running on
 the internal network, but nobody has ever formally assessed its security

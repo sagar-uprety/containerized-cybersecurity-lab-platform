@@ -1,4 +1,4 @@
-# Sample Custom Workstation Review
+# Custom Workstation Tooling (Pattern D Reference)
 
 You are supporting a small internal records service that was deployed from an
 unfinished template. Monitoring suggests clients may be receiving records without

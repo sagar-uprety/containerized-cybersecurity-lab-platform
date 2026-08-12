@@ -1,6 +1,6 @@
 # <Lab Title>
 
-<2-3 sentence narrative setting the scene: the student's role, what has been observed, and what they need to do. Write naturally - do not name the vulnerability and do not use bold labels. Let the situation unfold like a real work assignment.>
+<2-3 sentence narrative setting the scene: the student's role, what has been observed, and what they need to do. Write naturally - do not name the specific defect and do not use bold labels. Let the situation unfold like a real work assignment.>
 
 ## Why This Matters
 

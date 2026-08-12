@@ -1,5 +1,5 @@
 id: ldap-anonymous-bind
-title: The Unassessed Directory Service
+title: "LDAP Directory Access Control"
 difficulty: intermediate
 
 story:

@@ -1,5 +1,5 @@
 id: smtp-open-relay
-title: Unexpected Mail Traffic
+title: "SMTP Relay Access Control"
 difficulty: intermediate
 
 story:

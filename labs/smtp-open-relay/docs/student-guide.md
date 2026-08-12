@@ -1,4 +1,4 @@
-# Unexpected Mail Traffic
+# SMTP Relay Access Control
 
 Your team manages a small internal mail relay that handles outgoing mail for
 several applications. Network monitoring recently flagged a spike in outbound

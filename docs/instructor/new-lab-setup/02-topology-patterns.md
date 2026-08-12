@@ -276,12 +276,9 @@ patterns cover; the rest apply _within_ whatever pattern you pick.
 (CPU/memory), and health checks. These are covered in
 [Build the Image and Design the Checker](04-build-and-checker.md).
 
-## So do the four patterns cover everything?
-
-For **topology**, yes — every supported scenario shape is A, B, C, or a larger C,
-optionally with D layered on. There is no supported topology that falls outside
-them. The capability, endpoint, storage, and administration axes above are then
-chosen independently on top of the topology you picked. What the platform
+Every supported scenario shape is A, B, C, or a larger C, optionally with D
+layered on; the capability, endpoint, storage, and administration axes above are
+chosen independently on top of the topology you pick. What the platform
 intentionally does **not** support — privileged containers, host networking,
 kernel modules, real data, an LMS/CTF engine — is a safety-and-reproducibility
 boundary, not a topology limit; see [Before You Start](01-before-you-start.md)

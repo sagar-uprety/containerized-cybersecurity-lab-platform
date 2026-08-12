@@ -10,7 +10,7 @@
 id: sample-a-standalone
 
 # Short portal title. Describe the learning problem, not implementation details.
-title: "Sample A: Standalone Service"
+title: "Standalone Service Hardening (Pattern A Reference)"
 difficulty: beginner
 
 # Portal preview only. Do not reveal the exact vulnerable setting here.

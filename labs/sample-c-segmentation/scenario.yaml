@@ -12,7 +12,7 @@
 # packet-filter firewall variant, see the firewall lab (iptables + NET_ADMIN).
 
 id: sample-c-segmentation
-title: "Sample C: Network Segmentation"
+title: "Network Segmentation and Boundary Control (Pattern C Reference)"
 difficulty: intermediate
 
 story:

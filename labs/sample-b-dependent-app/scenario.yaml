@@ -13,7 +13,7 @@
 # dependent app when its continuity is genuinely part of the lesson.
 
 id: sample-b-dependent-app
-title: "Sample B: Service With Dependent App"
+title: "Shared-Service Hardening Without Breaking Dependents (Pattern B Reference)"
 difficulty: beginner
 
 story:

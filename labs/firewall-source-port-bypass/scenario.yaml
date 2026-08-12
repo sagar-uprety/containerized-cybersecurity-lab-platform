@@ -1,5 +1,5 @@
 id: firewall-source-port-bypass
-title: The Firewall Nobody Tested
+title: "Stateful Firewall Configuration"
 difficulty: intermediate
 
 story:

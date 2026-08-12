@@ -12,7 +12,7 @@
 # workstation image for a tool only one lab needs.
 
 id: sample-d-custom-workstation
-title: "Sample D: Custom Workstation"
+title: "Custom Workstation Tooling (Pattern D Reference)"
 difficulty: beginner
 
 story:

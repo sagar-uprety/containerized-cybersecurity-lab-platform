@@ -1,4 +1,4 @@
-# Sample Segmented Service Review
+# Network Segmentation and Boundary Control (Pattern C Reference)
 
 You are auditing an internal service that sits behind an edge proxy on a separate
 network. Nobody has checked whether the proxy keeps the internal-only parts of

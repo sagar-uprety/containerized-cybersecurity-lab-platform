@@ -1,5 +1,5 @@
 id: redis-exposed
-title: The Exposed Order Cache
+title: "In-Memory Cache Access Control"
 difficulty: beginner
 
 story:

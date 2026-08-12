@@ -1,4 +1,4 @@
-# The Legacy Web Server
+# Web Server Vulnerability Mitigation
 
 You've been assigned as a security assessor for a small research lab. During a
 routine asset inventory, a legacy web server was discovered still running on the

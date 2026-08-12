@@ -1,4 +1,4 @@
-# The Firewall Nobody Tested
+# Stateful Firewall Configuration
 
 You are auditing a perimeter firewall whose previous administrator used packet
 port numbers as a shortcut for recognizing reply traffic. Management wants you to

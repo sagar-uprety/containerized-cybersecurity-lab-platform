@@ -1,4 +1,4 @@
-# The Server That Logged Someone In
+# SSH Authentication Hardening
 
 You've been called in as an incident responder. A server was flagged after
 suspicious SSH login activity appeared in the authentication logs. The previous

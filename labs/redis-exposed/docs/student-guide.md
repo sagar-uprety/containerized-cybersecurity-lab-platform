@@ -1,4 +1,4 @@
-# The Exposed Order Cache
+# In-Memory Cache Access Control
 
 You've been assigned as the junior administrator for a small order-processing
 application. Monitoring has flagged unusual direct connections to the
