@@ -192,12 +192,16 @@ export default function SignupPage({ onSignup, onSwitchToLogin }: SignupPageProp
               onCheckedChange={(checked) => setAgreedToPrivacy(checked === true)}
               className="mt-0.5"
             />
-            <Label htmlFor="signup-privacy" className="text-xs font-normal leading-snug text-muted-foreground">
+            <Label
+              htmlFor="signup-privacy"
+              className="block gap-0 text-xs font-normal leading-snug text-muted-foreground"
+            >
               I have read and agree to the{" "}
               <a
                 href="/privacy-policy"
                 target="_blank"
                 rel="noopener noreferrer"
+                onClick={(e) => e.stopPropagation()}
                 className="text-primary hover:underline"
               >
                 Privacy Policy
