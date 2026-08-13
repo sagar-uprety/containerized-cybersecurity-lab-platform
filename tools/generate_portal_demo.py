@@ -138,6 +138,15 @@ COMMANDS = {
     ],
 }
 
+# Generic fallback for any lab without lab-specific demo commands (new samples,
+# survey labs, or future scenarios). Keeps demo-dataset generation robust so a
+# newly added lab id never breaks the portal deploy.
+DEFAULT_COMMANDS = [
+    "nmap -sV target-host",
+    "curl -sI http://target-host:8080/",
+    "vim /lab/config",
+]
+
 
 def iso(value: datetime) -> str:
     return value.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
@@ -459,7 +468,9 @@ def main():
                             "operation_duration_seconds": round(RNG.uniform(0.5, 2.5), 3),
                         }
                     )
-                for command_position, command in enumerate(RNG.sample(COMMANDS[lab["id"]], 2)):
+                for command_position, command in enumerate(
+                    RNG.sample(COMMANDS.get(lab["id"], DEFAULT_COMMANDS), 2)
+                ):
                     commands.append(
                         {
                             "id": f"demo-command-{session_counter:05d}-{command_position}",
