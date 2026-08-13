@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import { CircleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -39,6 +40,7 @@ export default function SignupPage({ onSignup, onSwitchToLogin }: SignupPageProp
   const [confirm, setConfirm] = useState("");
   const [semester, setSemester] = useState("");
   const [program, setProgram] = useState("");
+  const [agreedToPrivacy, setAgreedToPrivacy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -50,7 +52,8 @@ export default function SignupPage({ onSignup, onSwitchToLogin }: SignupPageProp
     passwordErrors.length === 0 &&
     password === confirm &&
     !!semester &&
-    !!program;
+    !!program &&
+    agreedToPrivacy;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -70,6 +73,10 @@ export default function SignupPage({ onSignup, onSwitchToLogin }: SignupPageProp
     }
     if (!program) {
       setError("Please select a study program");
+      return;
+    }
+    if (!agreedToPrivacy) {
+      setError("Please agree to the Privacy Policy to continue");
       return;
     }
 
@@ -176,6 +183,27 @@ export default function SignupPage({ onSignup, onSwitchToLogin }: SignupPageProp
             {confirm.length > 0 && password !== confirm && (
               <div className="text-xs text-destructive">Portal passwords do not match</div>
             )}
+          </div>
+
+          <div className="flex items-start gap-2">
+            <Checkbox
+              id="signup-privacy"
+              checked={agreedToPrivacy}
+              onCheckedChange={(checked) => setAgreedToPrivacy(checked === true)}
+              className="mt-0.5"
+            />
+            <Label htmlFor="signup-privacy" className="text-xs font-normal leading-snug text-muted-foreground">
+              I have read and agree to the{" "}
+              <a
+                href="/privacy-policy"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-primary hover:underline"
+              >
+                Privacy Policy
+              </a>
+              , which explains what lab and account activity is recorded.
+            </Label>
           </div>
 
           <Button type="submit" className="w-full" disabled={loading || !allValid}>

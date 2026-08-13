@@ -158,6 +158,14 @@ export default function AppShell({ user, onLogout, roleLabel, brandHref, navItem
                 </DropdownMenu>
               </SidebarMenuItem>
             </SidebarMenu>
+            <div className="px-2 pt-1 group-data-[collapsible=icon]:hidden">
+              <Link
+                href="/privacy-policy"
+                className="text-xs text-muted-foreground hover:text-foreground hover:underline"
+              >
+                Privacy Policy
+              </Link>
+            </div>
           </SidebarFooter>
         </Sidebar>
 

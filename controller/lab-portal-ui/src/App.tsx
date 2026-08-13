@@ -10,6 +10,7 @@ import NotFound from "./components/NotFound";
 
 const LoginPage = lazy(() => import("./pages/LoginPage"));
 const SignupPage = lazy(() => import("./pages/SignupPage"));
+const PrivacyPolicyPage = lazy(() => import("./pages/PrivacyPolicyPage"));
 const Overview = lazy(() => import("./pages/Overview"));
 const LabDetail = lazy(() => import("./pages/LabDetail"));
 const Feedback = lazy(() => import("./pages/Feedback"));
@@ -79,6 +80,7 @@ function parseRoute(): Route {
   if (/^\/instructor\/login\/?$/.test(path)) return { page: "instructor-login" };
   if (/^\/instructor\/?$/.test(path)) return { page: "instructor" };
   if (/^\/signup\/?$/.test(path)) return { page: "signup" };
+  if (/^\/privacy-policy\/?$/.test(path)) return { page: "privacy-policy" };
 
   const feedbackMatch = path.match(/^\/labs\/([^/]+)\/feedback\/?$/);
   if (feedbackMatch) return { page: "feedback", labId: feedbackMatch[1] };
@@ -150,6 +152,16 @@ function AppContent() {
   if (checking) return <LoadingScreen />;
 
   const suspenseFallback = <LoadingScreen />;
+
+  if (route.page === "privacy-policy") {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={suspenseFallback}>
+          <PrivacyPolicyPage />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
 
   if (route.page === "signup" && !user) {
     return (
