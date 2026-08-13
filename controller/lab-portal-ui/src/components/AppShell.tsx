@@ -46,7 +46,7 @@ interface AppShellProps {
   contextLabel?: string;
   contextItems?: NavItem[];
   accountPasswordHref?: string;
-  /** Opt out of the centered max-width content column — for workspace views (e.g. the lab terminal split-pane) that should use all available width. */
+  /** Opt out of the centered max-width content column, for workspace views (e.g. the lab terminal split-pane) that should use all available width. */
   fullWidth?: boolean;
   children: ReactNode;
 }

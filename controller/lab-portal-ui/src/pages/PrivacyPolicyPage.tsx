@@ -4,7 +4,7 @@ import Link from "../components/Link";
 import { Card } from "@/components/ui/card";
 
 interface PrivacyPolicyPageProps {
-  /** Where the "Back" link should go — differs for a logged-in vs. logged-out visitor. */
+  /** Where the "Back" link should go; differs for a logged-in vs. logged-out visitor. */
   backHref?: string;
   backLabel?: string;
 }
@@ -28,7 +28,7 @@ export default function PrivacyPolicyPage({ backHref = "/", backLabel = "← Bac
             </div>
             <div>
               <h1 className="text-lg font-semibold tracking-tight text-foreground">Privacy Policy</h1>
-              <div className="text-sm text-muted-foreground">Thesis Lab Portal — Cybersecurity Lab Platform</div>
+              <div className="text-sm text-muted-foreground">Thesis Lab Portal: Cybersecurity Lab Platform</div>
             </div>
           </div>
 
@@ -62,7 +62,7 @@ export default function PrivacyPolicyPage({ backHref = "/", backLabel = "← Bac
             <section className="space-y-2">
               <h2 className="text-sm font-semibold text-foreground">Terminal command history</h2>
               <p>
-                Inside a lab workstation, the commands you run in the terminal are logged as text —
+                Inside a lab workstation, the commands you run in the terminal are logged as text:
                 each command line, once you press Enter, along with when your session started and
                 ended. This is used to help instructors troubleshoot a session and to support the
                 automated checks, not to watch you work in real time.
@@ -70,7 +70,7 @@ export default function PrivacyPolicyPage({ backHref = "/", backLabel = "← Bac
               <p>
                 We deliberately do <strong>not</strong> capture screenshots, screen or video recordings,
                 keystroke-level input, full terminal output, or browser activity. Only the command
-                lines themselves are logged — nothing you type into a text editor, and nothing that
+                lines themselves are logged, nothing you type into a text editor, and nothing that
                 appears on screen as output.
               </p>
               <p>
@@ -87,7 +87,7 @@ export default function PrivacyPolicyPage({ backHref = "/", backLabel = "← Bac
                 page can show accurate progress. After a lab, the short feedback form you submit
                 (rating, comments) is stored linked to your student ID so instructors can follow up if
                 needed. If this data is used in academic research or publication, it is anonymized
-                first — your student ID is replaced with a pseudonym.
+                first, and your student ID is replaced with a pseudonym.
               </p>
             </section>
 
