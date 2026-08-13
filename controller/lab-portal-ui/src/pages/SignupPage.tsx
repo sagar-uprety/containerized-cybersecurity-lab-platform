@@ -205,8 +205,8 @@ export default function SignupPage({ onSignup, onSwitchToLogin }: SignupPageProp
                 className="text-primary hover:underline"
               >
                 Privacy Policy
-              </a>
-              , which explains what lab and account activity is recorded.
+              </a>{" "}
+              of the platform.
             </Label>
           </div>
 
