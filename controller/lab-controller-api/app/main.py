@@ -2001,6 +2001,11 @@ def signup_spa():
     return _serve_spa()
 
 
+@app.get("/privacy-policy", response_class=HTMLResponse)
+def privacy_policy_spa():
+    return _serve_spa()
+
+
 @app.get("/", response_class=HTMLResponse)
 def index():
     return _serve_spa()
