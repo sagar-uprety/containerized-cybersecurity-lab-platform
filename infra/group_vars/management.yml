@@ -16,7 +16,7 @@ management_directories:
 # TLS / Let's Encrypt (M?: public HTTPS access for survey students)
 thesis_portal_public_hostname: x02lp1.ucc.cit.tum.de
 # Contact address Let's Encrypt uses for expiry/problem notices - set to a real, monitored inbox before requesting.
-thesis_portal_letsencrypt_email: "CHANGE_ME@tum.de"
+thesis_portal_letsencrypt_email: "sagar.uprety@tum.de"
 # One-time gate: only attempt certonly issuance when explicitly requested (-e thesis_portal_tls_request=true),
 # so routine deploys never hammer Let's Encrypt with a doomed request while port 80 is still VPN/campus-only.
 thesis_portal_tls_request: false
