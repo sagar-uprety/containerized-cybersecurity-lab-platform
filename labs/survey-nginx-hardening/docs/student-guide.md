@@ -1,17 +1,12 @@
 # Survey: Securing an Nginx Web Server
 
-Welcome. This is a short **warm-up lab** to help you get comfortable with the
-platform before the real exercises. It is meant to be easy: anyone with basic IT
-knowledge can finish it in a few minutes by following the steps below. Every
-command you need is written out for you — copy, paste, and watch what happens.
-
 A colleague set up a small internal web server (nginx) in a hurry and asked you
-to tidy up **two settings that are leaking more than they should**. You will look
+to tidy up **settings that are leaking more than they should**. You will look
 at the problem, change two lines, reload the server, and confirm it is fixed.
 
-> This warm-up is deliberately a step-by-step walkthrough. The real labs ask you
+> This lab is deliberately a step-by-step walkthrough. The real labs ask you
 > to investigate and figure out the fix yourself — here we just want you to try
-> the platform's buttons and terminal.
+> the platform's features, and integrated terminal.
 
 ## Why This Matters
 
@@ -27,16 +22,13 @@ first-hand and close it.
 
 By the end of this lab you should be able to:
 
--   Use the platform: start a lab, open the browser terminal, edit a file, reload a service, and run the checker
 -   See how a web server can leak its version and expose a private directory
 -   Turn off both weaknesses by changing two configuration lines
 -   Confirm the fix with the portal checker
 
 ## Prerequisites
 
-You only need:
-
--   Comfort typing commands in a Linux terminal (copy-paste is fine)
+-   Basic linux terminal usage
 -   The idea that a web server has a configuration file you can edit
 
 If you want a little background, these are optional:
@@ -47,7 +39,7 @@ If you want a little background, these are optional:
 
 ## Your Lab Environment
 
-Your browser terminal opens on the **workstation**. The **web server**
+One you "Start Lab", your browser terminal opens on the **workstation**. The **web server**
 (`nginx-host`) runs on the same small lab network.
 
 What you will use:
@@ -76,7 +68,7 @@ First, see the two problems for yourself. Run these on the workstation terminal:
 
 ```bash
 # 1) The server tells everyone its exact version in the "Server:" header:
-curl -sI http://nginx-host:8080/ | grep -i '^server:'
+curl -sI http://nginx-host:8080/
 
 # 2) The /files/ directory is wide open - you can list and download everything:
 curl -s http://nginx-host:8080/files/
@@ -95,22 +87,19 @@ You need to change **two lines** in `/lab/nginx/site.conf`, then reload nginx.
 **What to change:** in that file, `server_tokens on;` should become
 `server_tokens off;`, and `autoindex on;` should become `autoindex off;`.
 
-**Option A — edit by hand.** Open the file with `nano /lab/nginx/site.conf`,
+**Edit the config** Open the file with `nano /lab/nginx/site.conf`,
 change those two words from `on` to `off`, and save (`Ctrl-O`, `Enter`,
 `Ctrl-X`).
 
-**Option B — do it in one step.** Paste these two commands:
+You can also use vim or sed command if you are comfortable toe edit files.
+
+**Now reload nginx** so the change takes effect.
+
+For this, you need to log in (ssh) to the web server from the workstation and run
+its reload helper:
 
 ```bash
-sed -i 's/server_tokens on;/server_tokens off;/' /lab/nginx/site.conf
-sed -i 's/autoindex on;/autoindex off;/' /lab/nginx/site.conf
-```
-
-**Now reload nginx** so the change takes effect. Log in to the web server and run
-its reload helper (it checks the config first, then reloads):
-
-```bash
-# Use YOUR lab password when prompted (from the Workstation Access page).
+# Use YOUR lab password when prompted (You can find this in the Workstation Access page from the left sidebar of the portal. This is going to say same for all lab that needs).
 ssh nginxadmin@nginx-host 'sudo /usr/local/sbin/reload-nginx'
 ```
 
@@ -133,13 +122,13 @@ Run the same checks again — they should look different now:
 
 ```bash
 # Version no longer shown (just "Server: nginx"):
-curl -sI http://nginx-host:8080/ | grep -i '^server:'
+curl -sI http://nginx-host:8080/
 
 # Directory listing is now refused (403):
 curl -s -o /dev/null -w '%{http_code}\n' http://nginx-host:8080/files/
 
 # The normal home page still works:
-curl -s http://nginx-host:8080/ | grep -q 'Acme Records Portal' && echo "home page OK"
+curl -s http://nginx-host:8080/
 ```
 
 When those look right, click **Run Check** in the portal. All checks should turn
@@ -169,6 +158,6 @@ warm-up was just to get you moving.
 
 ---
 
-_When you're done, end the lab through the portal and complete the short feedback
+_When you're done, end the lab through the portal (End Lab) and complete the short feedback
 form. Tell us how the platform itself felt to use — that is what this warm-up is
 for._
