@@ -17,6 +17,7 @@ import type {
   StudentLabResultsData,
   InstructorAnalyticsData,
   WorkstationAccess,
+  Instructor,
 } from "./types";
 
 const API_BASE = "/api";
@@ -365,4 +366,37 @@ export function getStudentsProgress(): Promise<StudentsProgressEntry[]> {
 
 export function getGroupExportCsvUrl(groupId: number): string {
   return `${API_BASE}/instructor/groups/${groupId}/export-csv`;
+}
+
+export function getAdminCsrf(): Promise<{ csrf_token: string }> {
+  return request("/admin/csrf");
+}
+
+async function adminPost<T>(path: string, body: Record<string, unknown> = {}): Promise<T> {
+  const csrf = (await getAdminCsrf()).csrf_token;
+  return request(path, {
+    method: "POST",
+    body: JSON.stringify({ ...body, csrf_token: csrf }),
+    headers: { "Content-Type": "application/json" },
+  });
+}
+
+export function getInstructors(): Promise<Instructor[]> {
+  return request("/admin/instructors");
+}
+
+export function createInstructor(email: string): Promise<Instructor & { initial_password: string }> {
+  return adminPost("/admin/instructors", { email });
+}
+
+export function disableInstructor(instructorId: number): Promise<unknown> {
+  return adminPost(`/admin/instructors/${instructorId}/disable`);
+}
+
+export function enableInstructor(instructorId: number): Promise<unknown> {
+  return adminPost(`/admin/instructors/${instructorId}/enable`);
+}
+
+export function resetInstructorPassword(instructorId: number): Promise<{ new_password: string }> {
+  return adminPost(`/admin/instructors/${instructorId}/reset-password`);
 }

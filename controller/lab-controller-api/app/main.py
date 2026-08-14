@@ -74,7 +74,7 @@ from app.scenarios import (
     user_student_id,
     validate_lab_id,
 )
-from app.seed import seed_if_empty
+from app.seed import ensure_admin_bootstrap, seed_if_empty
 from app.ssh_client import run_labctl
 
 logger = logging.getLogger(__name__)
@@ -102,6 +102,7 @@ SESSION_MAX_AGE = 86400
 def _startup_init_db() -> None:
     init_db()
     seed_if_empty()
+    ensure_admin_bootstrap()
     sync_assignment_obligations()
 
 
@@ -1018,9 +1019,134 @@ def require_instructor(user: dict) -> None:
         raise HTTPException(status_code=403, detail="Instructor access required")
 
 
+def require_admin(user: dict) -> None:
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin access required")
+
+
+def _owner_group_ids(session, owner_id: int) -> set:
+    return repo.owned_group_ids(session, owner_id)
+
+
+def _owner_student_ids(session, owner_id: int) -> set:
+    """student_id (internal_id/email) values visible to this instructor —
+    the roster of any student who is a member of one of their own groups."""
+    return {
+        student.internal_id or student.email
+        for student in repo.list_students_for_owner(session, owner_id)
+    }
+
+
+def _instructor_to_dict(user) -> dict:
+    return {
+        "id": user.id,
+        "email": user.email,
+        "active": bool(user.active),
+        "must_change_password": bool(user.must_change_password),
+        "created_at": user.created_at.isoformat() if user.created_at else None,
+    }
+
+
+@app.get("/api/admin/csrf")
+def api_admin_csrf(user: dict = Depends(get_authenticated_user)):
+    require_admin(user)
+    return {"csrf_token": generate_token(user)}
+
+
+@app.get("/api/admin/instructors")
+def api_list_instructors(user: dict = Depends(get_authenticated_user)):
+    require_admin(user)
+    with SessionLocal() as session:
+        return [_instructor_to_dict(i) for i in repo.list_instructors(session)]
+
+
+@app.post("/api/admin/instructors")
+async def api_create_instructor(request: Request, user: dict = Depends(get_authenticated_user)):
+    require_admin(user)
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON body") from None
+    _require_instructor_csrf(request, user, body)
+    email = body.get("email", "").strip()
+    if not email:
+        raise HTTPException(status_code=400, detail="email is required")
+    with SessionLocal() as session:
+        try:
+            instructor, initial_password = repo.create_instructor(session, email)
+            session.commit()
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        return {
+            **_instructor_to_dict(instructor),
+            # Shown to the admin exactly once; only the hash is stored.
+            "initial_password": initial_password,
+        }
+
+
+@app.post("/api/admin/instructors/{instructor_id}/disable")
+async def api_disable_instructor(
+    instructor_id: int, request: Request, user: dict = Depends(get_authenticated_user)
+):
+    require_admin(user)
+    try:
+        body = await request.json()
+    except Exception:
+        body = None
+    _require_instructor_csrf(request, user, body)
+    with SessionLocal() as session:
+        target = repo.get_user_by_id(session, instructor_id)
+        if target is None or target.role != "instructor":
+            raise HTTPException(status_code=404, detail="Instructor not found")
+        repo.set_user_active(session, instructor_id, False)
+        session.commit()
+    return {"ok": True}
+
+
+@app.post("/api/admin/instructors/{instructor_id}/enable")
+async def api_enable_instructor(
+    instructor_id: int, request: Request, user: dict = Depends(get_authenticated_user)
+):
+    require_admin(user)
+    try:
+        body = await request.json()
+    except Exception:
+        body = None
+    _require_instructor_csrf(request, user, body)
+    with SessionLocal() as session:
+        target = repo.get_user_by_id(session, instructor_id)
+        if target is None or target.role != "instructor":
+            raise HTTPException(status_code=404, detail="Instructor not found")
+        repo.set_user_active(session, instructor_id, True)
+        session.commit()
+    return {"ok": True}
+
+
+@app.post("/api/admin/instructors/{instructor_id}/reset-password")
+async def api_reset_instructor_password(
+    instructor_id: int, request: Request, user: dict = Depends(get_authenticated_user)
+):
+    require_admin(user)
+    try:
+        body = await request.json()
+    except Exception:
+        body = None
+    _require_instructor_csrf(request, user, body)
+    with SessionLocal() as session:
+        target = repo.get_user_by_id(session, instructor_id)
+        if target is None or target.role != "instructor":
+            raise HTTPException(status_code=404, detail="Instructor not found")
+        new_password = repo.reset_password(session, target)
+        session.commit()
+        # Shown to the admin exactly once; only the hash is stored.
+        return {"ok": True, "new_password": new_password}
+
+
 @app.get("/api/instructor/labs")
 def api_instructor_labs(user: dict = Depends(get_authenticated_user)):
     require_instructor(user)
+    with SessionLocal() as session:
+        owner_students = _owner_student_ids(session, user["id"])
     runtime_states = dict(tracked_runtime_items())
     labs = []
     for scenario in list_scenarios():
@@ -1028,6 +1154,8 @@ def api_instructor_labs(user: dict = Depends(get_authenticated_user)):
         active_count = 0
         total_students = 0
         for student in get_student_users().values():
+            if student["student_id"] not in owner_students:
+                continue
             total_students += 1
             if (
                 runtime_states.get(state_key(lab_id, student["student_id"]), {}).get("status")
@@ -1060,9 +1188,13 @@ def api_instructor_lab_detail(lab_id: str, user: dict = Depends(get_authenticate
     active_sessions = []
     completed_sessions = []
     runtime_states = dict(tracked_runtime_items())
+    with SessionLocal() as session:
+        owner_students = _owner_student_ids(session, user["id"])
 
     for student in get_student_users().values():
         student_id = student["student_id"]
+        if student_id not in owner_students:
+            continue
         runtime_state = runtime_states.get(state_key(lab_id, student_id), {})
         status_text = runtime_state.get("status", "not_created")
         session_id = runtime_state.get("session_id", "")
@@ -1127,7 +1259,9 @@ def api_instructor_lab_detail(lab_id: str, user: dict = Depends(get_authenticate
         "scenario": scenario,
         "active_sessions": active_sessions,
         "completed_sessions": completed_sessions,
-        "feedback_count": len(list_feedback(lab_id)),
+        "feedback_count": sum(
+            1 for record in list_feedback(lab_id) if record["student_id"] in owner_students
+        ),
     }
 
 
@@ -1137,6 +1271,9 @@ def api_instructor_session_detail(
 ):
     require_instructor(user)
     validate_lab_id(lab_id)
+    with SessionLocal() as session:
+        if student_id not in _owner_student_ids(session, user["id"]):
+            raise HTTPException(status_code=404, detail="Student not found")
     status_text = _fast_lab_status(lab_id, student_id)
     runtime_state = runtime_state_for(lab_id, student_id)
     session_id = runtime_state.get("session_id", "")
@@ -1178,7 +1315,8 @@ def api_instructor_session_detail(
 def api_instructor_students(user: dict = Depends(get_authenticated_user)):
     require_instructor(user)
     with SessionLocal() as session:
-        students = repo.list_users(session, role="student")
+        owner_ids = _owner_group_ids(session, user["id"])
+        students = repo.list_students_for_owner(session, user["id"])
         return [
             {
                 # student_id/username kept for backward compatibility with the UI
@@ -1191,7 +1329,7 @@ def api_instructor_students(user: dict = Depends(get_authenticated_user)):
                 "groups": [
                     {"id": m.group.id, "name": m.group.name}
                     for m in s.memberships
-                    if m.status == "approved"
+                    if m.status == "approved" and m.group_id in owner_ids
                 ],
             }
             for s in students
@@ -1205,7 +1343,13 @@ def api_instructor_student_detail(
     user: dict = Depends(get_authenticated_user),
 ):
     require_instructor(user)
-    return analytics_service.student_detail(student_id, group_id=group_id)
+    with SessionLocal() as session:
+        owner_ids = _owner_group_ids(session, user["id"])
+        if student_id not in _owner_student_ids(session, user["id"]):
+            raise HTTPException(status_code=404, detail="Student not found")
+        if group_id is not None and group_id not in owner_ids:
+            raise HTTPException(status_code=404, detail="Group not found")
+    return analytics_service.student_detail(student_id, group_id=group_id, group_ids=owner_ids)
 
 
 def _aware_utc(dt: Optional[datetime]) -> Optional[datetime]:
@@ -1272,8 +1416,12 @@ def _build_session_history(lifecycle):
 def api_instructor_feedback(lab_id: str, user: dict = Depends(get_authenticated_user)):
     require_instructor(user)
     validate_lab_id(lab_id)
-    summary = feedback_analytics(lab_id)
-    responses = list_feedback(lab_id)
+    with SessionLocal() as session:
+        owner_students = _owner_student_ids(session, user["id"])
+    summary = feedback_analytics(lab_id, student_ids=owner_students)
+    responses = [
+        record for record in list_feedback(lab_id) if record["student_id"] in owner_students
+    ]
     summary["responses"] = (
         [
             {
@@ -1299,8 +1447,12 @@ def api_instructor_analytics(
     user: dict = Depends(get_authenticated_user),
 ):
     require_instructor(user)
+    with SessionLocal() as session:
+        owner_ids = _owner_group_ids(session, user["id"])
+        if group_id is not None and group_id not in owner_ids:
+            raise HTTPException(status_code=404, detail="Group not found")
     return analytics_service.instructor_analytics(
-        group_id=group_id, include_inactive=include_inactive
+        owner_ids, group_id=group_id, include_inactive=include_inactive
     )
 
 
@@ -1426,6 +1578,8 @@ def api_delete_student(
         target = repo.get_user_by_internal_id(session, student_id)
         if target is None or target.role != "student":
             raise HTTPException(status_code=404, detail="Student not found")
+        if student_id not in _owner_student_ids(session, user["id"]):
+            raise HTTPException(status_code=404, detail="Student not found")
         user_id = target.id
     # Tear down running labs before deleting (releases ports for number reuse).
     _destroy_student_labs(student_id)
@@ -1467,7 +1621,7 @@ def _group_summary(group) -> dict:
 def api_list_groups(user: dict = Depends(get_authenticated_user)):
     require_instructor(user)
     with SessionLocal() as session:
-        return [_group_summary(g) for g in repo.list_groups(session)]
+        return [_group_summary(g) for g in repo.list_groups(session, owner_id=user["id"])]
 
 
 @app.post("/api/instructor/groups")
@@ -1485,7 +1639,9 @@ async def api_create_group(request: Request, user: dict = Depends(get_authentica
     is_active = bool(body.get("is_active", True))
     with SessionLocal() as session:
         try:
-            group = repo.create_group(session, name, semester=semester, is_active=is_active)
+            group = repo.create_group(
+                session, name, user["id"], semester=semester, is_active=is_active
+            )
             session.commit()
             return _group_to_dict(group)
         except ValueError as exc:
@@ -1497,8 +1653,9 @@ def api_delete_group(group_id: int, request: Request, user: dict = Depends(get_a
     require_instructor(user)
     _require_instructor_csrf(request, user)
     with SessionLocal() as session:
-        if not repo.delete_group(session, group_id):
+        if repo.get_owned_group(session, group_id, user["id"]) is None:
             raise HTTPException(status_code=404, detail="Group not found")
+        repo.delete_group(session, group_id)
         session.commit()
     return {"ok": True}
 
@@ -1519,6 +1676,8 @@ async def api_rename_group(
     semester = body.get("semester")
     is_active = body.get("is_active")
     with SessionLocal() as session:
+        if repo.get_owned_group(session, group_id, user["id"]) is None:
+            raise HTTPException(status_code=404, detail="Group not found")
         try:
             group = repo.rename_group(
                 session,
@@ -1527,8 +1686,6 @@ async def api_rename_group(
                 semester=semester,
                 is_active=None if is_active is None else bool(is_active),
             )
-            if group is None:
-                raise HTTPException(status_code=404, detail="Group not found")
             session.commit()
             return _group_summary(group)
         except ValueError as exc:
@@ -1549,6 +1706,8 @@ async def api_add_member(
     if not student_id:
         raise HTTPException(status_code=400, detail="student_id is required")
     with SessionLocal() as session:
+        if repo.get_owned_group(session, group_id, user["id"]) is None:
+            raise HTTPException(status_code=404, detail="Group not found")
         target = repo.get_user_by_internal_id(session, student_id)
         if target is None or target.role != "student":
             raise HTTPException(status_code=404, detail="Student not found")
@@ -1572,6 +1731,8 @@ def api_remove_member(
     require_instructor(user)
     _require_instructor_csrf(request, user)
     with SessionLocal() as session:
+        if repo.get_owned_group(session, group_id, user["id"]) is None:
+            raise HTTPException(status_code=404, detail="Group not found")
         target = repo.get_user_by_internal_id(session, student_id)
         if target is None:
             raise HTTPException(status_code=404, detail="Student not found")
@@ -1608,6 +1769,8 @@ async def api_assign_lab(
         except (ValueError, TypeError):
             raise HTTPException(status_code=400, detail="Invalid deadline format") from None
     with SessionLocal() as session:
+        if repo.get_owned_group(session, group_id, user["id"]) is None:
+            raise HTTPException(status_code=404, detail="Group not found")
         try:
             repo.assign_lab(session, group_id, lab_id, deadline=deadline)
             session.commit()
@@ -1628,6 +1791,8 @@ def api_unassign_lab(
     require_instructor(user)
     _require_instructor_csrf(request, user)
     with SessionLocal() as session:
+        if repo.get_owned_group(session, group_id, user["id"]) is None:
+            raise HTTPException(status_code=404, detail="Group not found")
         if not repo.unassign_lab(session, group_id, lab_id):
             raise HTTPException(status_code=404, detail="Assignment not found")
         session.commit()
@@ -1639,7 +1804,7 @@ def api_unassign_lab(
 def api_group_detail(group_id: int, user: dict = Depends(get_authenticated_user)):
     require_instructor(user)
     with SessionLocal() as session:
-        group = repo.get_group(session, group_id)
+        group = repo.get_owned_group(session, group_id, user["id"])
         if group is None:
             raise HTTPException(status_code=404, detail="Group not found")
         pending = [
@@ -1706,6 +1871,8 @@ async def api_approve_members(
     if not isinstance(user_ids, list) or not user_ids:
         raise HTTPException(status_code=400, detail="user_ids list required")
     with SessionLocal() as session:
+        if repo.get_owned_group(session, group_id, user["id"]) is None:
+            raise HTTPException(status_code=404, detail="Group not found")
         try:
             count = repo.approve_members(session, group_id, user_ids)
             session.commit()
@@ -1729,6 +1896,8 @@ async def api_reject_members(
     if not isinstance(user_ids, list) or not user_ids:
         raise HTTPException(status_code=400, detail="user_ids list required")
     with SessionLocal() as session:
+        if repo.get_owned_group(session, group_id, user["id"]) is None:
+            raise HTTPException(status_code=404, detail="Group not found")
         try:
             count = repo.reject_members(session, group_id, user_ids)
             session.commit()
@@ -1740,6 +1909,9 @@ async def api_reject_members(
 @app.get("/api/instructor/groups/{group_id}/progress")
 def api_group_progress(group_id: int, user: dict = Depends(get_authenticated_user)):
     require_instructor(user)
+    with SessionLocal() as session:
+        if repo.get_owned_group(session, group_id, user["id"]) is None:
+            raise HTTPException(status_code=404, detail="Group not found")
     result = analytics_service.group_progress(group_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Group not found")
@@ -1852,7 +2024,7 @@ def api_group_export_csv(group_id: int, user: dict = Depends(get_authenticated_u
     require_instructor(user)
 
     with SessionLocal() as session:
-        group = repo.get_group(session, group_id)
+        group = repo.get_owned_group(session, group_id, user["id"])
         if group is None:
             raise HTTPException(status_code=404, detail="Group not found")
         approved = [m for m in group.members if m.status == "approved"]
@@ -1906,7 +2078,9 @@ def api_group_export_csv(group_id: int, user: dict = Depends(get_authenticated_u
 @app.get("/api/instructor/students-progress")
 def api_instructor_students_progress(user: dict = Depends(get_authenticated_user)):
     require_instructor(user)
-    return analytics_service.students_progress()
+    with SessionLocal() as session:
+        owner_ids = _owner_group_ids(session, user["id"])
+    return analytics_service.students_progress(group_ids=owner_ids)
 
 
 def _legacy_api_instructor_students_progress():
@@ -2072,6 +2246,21 @@ def instructor_pending_spa():
 
 @app.get("/instructor/account/password", response_class=HTMLResponse)
 def instructor_account_password_spa():
+    return _serve_spa()
+
+
+@app.get("/admin/login", response_class=HTMLResponse)
+def admin_login_spa():
+    return _serve_spa()
+
+
+@app.get("/admin", response_class=HTMLResponse)
+def admin_spa():
+    return _serve_spa()
+
+
+@app.get("/admin/account/password", response_class=HTMLResponse)
+def admin_account_password_spa():
     return _serve_spa()
 
 

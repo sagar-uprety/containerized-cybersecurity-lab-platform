@@ -69,7 +69,13 @@ class Group(Base):
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
     synthetic: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    # Owning instructor. Every instructor-facing route scopes groups to this id
+    # so instructors are isolated from each other's groups/labs/deadlines.
+    owner_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True
+    )
 
+    owner: Mapped[Optional["User"]] = relationship()
     members: Mapped[list["GroupMember"]] = relationship(
         back_populates="group", cascade="all, delete-orphan"
     )

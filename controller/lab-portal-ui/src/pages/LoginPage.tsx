@@ -11,7 +11,7 @@ import { Card } from "@/components/ui/card";
 import { CircleAlert } from "lucide-react";
 
 export interface LoginPageProps {
-  mode?: "student" | "instructor";
+  mode?: "student" | "instructor" | "admin";
   onLogin: (user: User) => void;
   onSwitchToSignup?: () => void;
   onSwitchToInstructor?: () => void;
@@ -31,8 +31,10 @@ export default function LoginPage({
   const [loading, setLoading] = useState(false);
 
   const isInstructor = mode === "instructor";
+  const isAdmin = mode === "admin";
+  const isStaff = isInstructor || isAdmin;
 
-  useDocumentTitle(isInstructor ? "Instructor Login" : "Sign In");
+  useDocumentTitle(isAdmin ? "Admin Login" : isInstructor ? "Instructor Login" : "Sign In");
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -57,7 +59,7 @@ export default function LoginPage({
             <ShieldCheck className="size-5.5" />
           </div>
           <h1 className="text-lg font-semibold tracking-tight text-foreground">
-            {isInstructor ? "Instructor login" : "Thesis Lab Portal"}
+            {isAdmin ? "Admin login" : isInstructor ? "Instructor login" : "Thesis Lab Portal"}
           </h1>
           <div className="mt-0.5 text-sm text-muted-foreground">Cybersecurity Lab Platform</div>
         </div>
@@ -101,7 +103,7 @@ export default function LoginPage({
         </form>
 
         <div className="mt-5 text-center text-sm text-muted-foreground">
-          {isInstructor ? (
+          {isStaff ? (
             <a
               href="/"
               onClick={(e) => { e.preventDefault(); onSwitchToLogin?.(); }}

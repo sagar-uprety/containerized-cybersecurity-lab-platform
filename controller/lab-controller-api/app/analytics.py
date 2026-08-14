@@ -53,10 +53,12 @@ def _title(lab_id: str) -> str:
     return scenario.get("title", lab_id) if scenario else lab_id
 
 
-def _obligations(session, group_id=None, student_id=None, lab_id=None):
+def _obligations(session, group_id=None, group_ids=None, student_id=None, lab_id=None):
     query = select(AssignmentObligation).where(AssignmentObligation.removed_at.is_(None))
     if group_id is not None:
         query = query.where(AssignmentObligation.group_id == group_id)
+    if group_ids is not None:
+        query = query.where(AssignmentObligation.group_id.in_(group_ids))
     if student_id is not None:
         query = query.where(AssignmentObligation.student_id == student_id)
     if lab_id is not None:
@@ -274,10 +276,12 @@ def _review_reasons(session, obligation) -> list[dict]:
     return reasons
 
 
-def student_detail(student_id: str, group_id=None):
+def student_detail(student_id: str, group_id=None, group_ids=None):
     sync_assignment_obligations()
     with SessionLocal() as session:
-        obligations = _obligations(session, group_id=group_id, student_id=student_id)
+        obligations = _obligations(
+            session, group_id=group_id, group_ids=group_ids, student_id=student_id
+        )
         _prime_evidence_cache(session, obligations)
         labs = []
         for obligation in obligations:
@@ -477,10 +481,10 @@ def group_progress(group_id: int):
         }
 
 
-def students_progress():
+def students_progress(group_ids=None):
     sync_assignment_obligations()
     with SessionLocal() as session:
-        obligations = _obligations(session)
+        obligations = _obligations(session, group_ids=group_ids)
         _prime_evidence_cache(session, obligations)
         by_student = defaultdict(list)
         for obligation in obligations:
@@ -508,11 +512,15 @@ def _week_start(value: datetime) -> datetime:
     return start.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-def instructor_analytics(group_id=None, include_inactive=False):
+def instructor_analytics(owner_group_ids, group_id=None, include_inactive=False):
+    """owner_group_ids restricts every candidate group to the caller's own
+    groups; group_id (already ownership-checked by the route) further narrows
+    to a single group within that scope."""
     sync_assignment_obligations()
     now = datetime.now(timezone.utc)
     with SessionLocal() as session:
-        obligations = _obligations(session, group_id=group_id)
+        scope_ids = {group_id} if group_id is not None else set(owner_group_ids)
+        obligations = _obligations(session, group_ids=scope_ids)
         if group_id is None and not include_inactive:
             active_group_ids = set(
                 session.scalars(select(Group.id).where(Group.is_active.is_(True))).all()
@@ -665,11 +673,11 @@ def instructor_analytics(group_id=None, include_inactive=False):
         if group_id is not None:
             group_candidate_ids = {group_id}
         elif include_inactive:
-            group_candidate_ids = set(session.scalars(select(Group.id)).all())
+            group_candidate_ids = set(owner_group_ids)
         else:
             group_candidate_ids = set(
                 session.scalars(select(Group.id).where(Group.is_active.is_(True))).all()
-            )
+            ) & set(owner_group_ids)
         groups = []
         for candidate_id in sorted(group_candidate_ids):
             group = session.get(Group, candidate_id)

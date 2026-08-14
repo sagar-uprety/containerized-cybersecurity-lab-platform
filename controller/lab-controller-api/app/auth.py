@@ -19,6 +19,7 @@ from app.models import User
 
 def _user_to_dict(user: User) -> dict:
     return {
+        "id": user.id,
         "username": user.email,
         "email": user.email,
         "role": user.role,

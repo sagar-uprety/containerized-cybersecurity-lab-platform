@@ -56,11 +56,23 @@ def _migrate_columns() -> None:
         ("groups", "synthetic", "BOOLEAN NOT NULL DEFAULT 0"),
         ("groups", "semester", "TEXT"),
         ("groups", "is_active", "BOOLEAN NOT NULL DEFAULT 1"),
+        ("groups", "owner_id", "INTEGER REFERENCES users(id)"),
     ]
     with engine.connect() as conn:
         for table, column, col_type in migrations:
             with contextlib.suppress(Exception):
                 conn.execute(sqlalchemy.text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
+        # One-time backfill: groups created before per-instructor ownership
+        # existed have no owner_id. Assign them to the original instructor
+        # account so nothing goes ownerless/invisible after the upgrade.
+        conn.execute(
+            sqlalchemy.text(
+                "UPDATE groups SET owner_id = "
+                "(SELECT id FROM users WHERE email = 'instructor@thesis.local') "
+                "WHERE owner_id IS NULL "
+                "AND EXISTS (SELECT 1 FROM users WHERE email = 'instructor@thesis.local')"
+            )
+        )
         conn.commit()
 
 

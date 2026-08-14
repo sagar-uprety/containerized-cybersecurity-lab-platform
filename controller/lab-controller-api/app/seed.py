@@ -80,3 +80,25 @@ def seed_if_empty() -> int:
         session.commit()
         logger.info("Seeded %d users from %s", seeded, path)
         return seeded
+
+
+def ensure_admin_bootstrap() -> None:
+    """Create the first admin account if none exists yet.
+
+    Chicken-and-egg: the admin panel manages instructor accounts, but nothing
+    can create the first admin account through the panel itself. Runs on every
+    startup and is a no-op once an admin exists. The generated password is
+    logged once (WARNING, so it survives default log levels) — the admin must
+    change it on first login (must_change_password=True).
+    """
+    with SessionLocal() as session:
+        if session.execute(select(User).where(User.role == "admin").limit(1)).first() is not None:
+            return
+        admin, password = repo.create_admin(session, "admin@thesis.local")
+        session.commit()
+        logger.warning(
+            "Bootstrapped initial admin account %s with password: %s "
+            "(change it on first login; this is logged only once)",
+            admin.email,
+            password,
+        )

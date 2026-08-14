@@ -1,8 +1,16 @@
 export interface User {
   username: string;
-  role: "student" | "instructor";
+  role: "student" | "instructor" | "admin";
   student_id?: string;
   must_change_password?: boolean;
+}
+
+export interface Instructor {
+  id: number;
+  email: string;
+  active: boolean;
+  must_change_password: boolean;
+  created_at: string | null;
 }
 
 export interface WorkstationAccess {

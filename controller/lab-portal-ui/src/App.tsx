@@ -31,6 +31,8 @@ const InstructorPending = lazy(() => import("./pages/InstructorPending"));
 const InstructorResults = lazy(() => import("./pages/InstructorResults"));
 const InstructorAnalytics = lazy(() => import("./pages/InstructorAnalytics"));
 const InstructorAccountPassword = lazy(() => import("./pages/InstructorAccountPassword"));
+const AdminInstructors = lazy(() => import("./pages/AdminInstructors"));
+const AdminAccountPassword = lazy(() => import("./pages/AdminAccountPassword"));
 
 function parseRoute(): Route {
   const path = window.location.pathname;
@@ -79,6 +81,9 @@ function parseRoute(): Route {
   if (/^\/instructor\/account\/password\/?$/.test(path)) return { page: "instructor-account-password" };
   if (/^\/instructor\/login\/?$/.test(path)) return { page: "instructor-login" };
   if (/^\/instructor\/?$/.test(path)) return { page: "instructor" };
+  if (/^\/admin\/account\/password\/?$/.test(path)) return { page: "admin-account-password" };
+  if (/^\/admin\/login\/?$/.test(path)) return { page: "admin-login" };
+  if (/^\/admin\/?$/.test(path)) return { page: "admin" };
   if (/^\/signup\/?$/.test(path)) return { page: "signup" };
   if (/^\/privacy-policy\/?$/.test(path)) return { page: "privacy-policy" };
 
@@ -115,7 +120,11 @@ function AppContent() {
   useEffect(() => {
     setSessionExpiredHandler(() => {
       setUser(null);
-      const dest = route.page.startsWith("instructor") ? "/instructor/login" : "/";
+      const dest = route.page.startsWith("admin")
+        ? "/admin/login"
+        : route.page.startsWith("instructor")
+        ? "/instructor/login"
+        : "/";
       window.history.pushState({}, "", dest);
       setRoute(parseRoute());
     });
@@ -135,16 +144,17 @@ function AppContent() {
 
   const handleLogin = useCallback((loggedInUser: User) => {
     setUser(loggedInUser);
-    const dest = loggedInUser.role === "instructor" ? "/instructor" : "/";
+    const dest =
+      loggedInUser.role === "admin" ? "/admin" : loggedInUser.role === "instructor" ? "/instructor" : "/";
     window.history.pushState({}, "", dest);
     setRoute(parseRoute());
   }, []);
 
   const handleLogout = useCallback(async () => {
-    const wasInstructor = user?.role === "instructor";
+    const role = user?.role;
     try { await logout(); } catch {}
     setUser(null);
-    const dest = wasInstructor ? "/instructor/login" : "/";
+    const dest = role === "admin" ? "/admin/login" : role === "instructor" ? "/instructor/login" : "/";
     window.history.pushState({}, "", dest);
     setRoute(parseRoute());
   }, [user]);
@@ -178,6 +188,16 @@ function AppContent() {
       <ErrorBoundary>
         <Suspense fallback={suspenseFallback}>
           <LoginPage mode="instructor" onLogin={handleLogin} onSwitchToLogin={() => navigate("/")} />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  }
+
+  if (route.page === "admin-login" && !user) {
+    return (
+      <ErrorBoundary>
+        <Suspense fallback={suspenseFallback}>
+          <LoginPage mode="admin" onLogin={handleLogin} onSwitchToLogin={() => navigate("/")} />
         </Suspense>
       </ErrorBoundary>
     );
@@ -255,6 +275,17 @@ function AppContent() {
         />
       );
       break;
+    case "admin":
+      page = <AdminInstructors user={user} onLogout={handleLogout} />;
+      break;
+    case "admin-account-password":
+      page = (
+        <AdminAccountPassword
+          onChanged={() => navigate("/admin")}
+          onLogout={handleLogout}
+        />
+      );
+      break;
     case "feedback":
       page = <Feedback user={user} labId={route.labId!} onLogout={handleLogout} />;
       break;
@@ -282,7 +313,10 @@ function AppContent() {
       page = <WorkstationAccess user={user} onLogout={handleLogout} />;
       break;
     case "overview":
-      if (user.role === "instructor") {
+      if (user.role === "admin") {
+        window.history.replaceState({}, "", "/admin");
+        page = <AdminInstructors user={user} onLogout={handleLogout} />;
+      } else if (user.role === "instructor") {
         window.history.replaceState({}, "", "/instructor");
         page = <InstructorOverview user={user} onLogout={handleLogout} />;
       } else {

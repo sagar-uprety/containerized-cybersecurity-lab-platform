@@ -187,20 +187,76 @@ def register_student(
     return user
 
 
-def create_instructor(session: Session, email: str, *, portal_password: str) -> User:
+def create_instructor(
+    session: Session, email: str, *, portal_password: str | None = None
+) -> tuple[User, str]:
+    """Create an instructor account. Returns (user, initial_portal_password).
+
+    The caller (admin) shows the returned plaintext password once; only the
+    hash is stored. `must_change_password` forces a change on first login.
+    """
     email = (email or "").strip().lower()
     if not email:
         raise ValueError("email is required")
+    if get_user_by_email(session, email) is not None:
+        raise ValueError(f"user with email {email} already exists")
+    initial_password = portal_password or generate_password()
     user = User(
         email=email,
-        password_hash=hash_password(portal_password),
+        password_hash=hash_password(initial_password),
         role="instructor",
-        must_change_password=False,
+        must_change_password=True,
         active=True,
     )
     session.add(user)
     session.flush()
+    return user, initial_password
+
+
+def create_admin(
+    session: Session, email: str, *, portal_password: str | None = None
+) -> tuple[User, str]:
+    """Create an admin account. Same shape as create_instructor; admins manage
+    instructor accounts but do not own groups/labs themselves."""
+    email = (email or "").strip().lower()
+    if not email:
+        raise ValueError("email is required")
+    if get_user_by_email(session, email) is not None:
+        raise ValueError(f"user with email {email} already exists")
+    initial_password = portal_password or generate_password()
+    user = User(
+        email=email,
+        password_hash=hash_password(initial_password),
+        role="admin",
+        must_change_password=True,
+        active=True,
+    )
+    session.add(user)
+    session.flush()
+    return user, initial_password
+
+
+def list_instructors(session: Session) -> list[User]:
+    return list_users(session, role="instructor")
+
+
+def set_user_active(session: Session, user_id: int, active: bool) -> User | None:
+    user = session.get(User, user_id)
+    if user is None:
+        return None
+    user.active = active
+    session.flush()
     return user
+
+
+def reset_password(session: Session, user: User) -> str:
+    """Admin/self-service reset: generates a new random password and forces
+    a change on next login. Returns the plaintext password to show once."""
+    new_password = generate_password()
+    user.password_hash = hash_password(new_password)
+    user.must_change_password = True
+    session.flush()
+    return new_password
 
 
 def remove_user(session: Session, user_id: int) -> bool:
@@ -224,7 +280,11 @@ def set_password(session: Session, user: User, new_password: str) -> None:
 # Groups
 # --------------------------------------------------------------------------- #
 def create_group(
-    session: Session, name: str, semester: str | None = None, is_active: bool = True
+    session: Session,
+    name: str,
+    owner_id: int,
+    semester: str | None = None,
+    is_active: bool = True,
 ) -> Group:
     name = (name or "").strip()
     semester = (semester or "").strip()
@@ -232,10 +292,12 @@ def create_group(
         raise ValueError("group name is required")
     if not semester:
         raise ValueError("group semester is required")
+    if not owner_id:
+        raise ValueError("owner_id is required")
     existing = session.execute(select(Group).where(Group.name == name)).scalar_one_or_none()
     if existing is not None:
         raise ValueError(f"group {name} already exists")
-    group = Group(name=name, semester=semester, is_active=is_active)
+    group = Group(name=name, semester=semester, is_active=is_active, owner_id=owner_id)
     session.add(group)
     session.flush()
     return group
@@ -277,12 +339,42 @@ def delete_group(session: Session, group_id: int) -> bool:
     return True
 
 
-def list_groups(session: Session) -> list[Group]:
-    return list(session.execute(select(Group).order_by(Group.name)).scalars())
+def list_groups(session: Session, owner_id: int | None = None) -> list[Group]:
+    stmt = select(Group)
+    if owner_id is not None:
+        stmt = stmt.where(Group.owner_id == owner_id)
+    return list(session.execute(stmt.order_by(Group.name)).scalars())
 
 
 def get_group(session: Session, group_id: int) -> Group | None:
     return session.get(Group, group_id)
+
+
+def get_owned_group(session: Session, group_id: int, owner_id: int) -> Group | None:
+    """Fetch a group only if it belongs to owner_id; otherwise None (treated
+    as 404 by callers so instructors can't probe other instructors' groups)."""
+    group = session.get(Group, group_id)
+    if group is None or group.owner_id != owner_id:
+        return None
+    return group
+
+
+def owned_group_ids(session: Session, owner_id: int) -> set[int]:
+    return set(session.execute(select(Group.id).where(Group.owner_id == owner_id)).scalars())
+
+
+def list_students_for_owner(session: Session, owner_id: int) -> list[User]:
+    """Students who are (pending or approved) members of any group owned by
+    owner_id — the instructor's own visible roster."""
+    stmt = (
+        select(User)
+        .join(GroupMember, GroupMember.user_id == User.id)
+        .join(Group, Group.id == GroupMember.group_id)
+        .where(Group.owner_id == owner_id, User.role == "student")
+        .distinct()
+        .order_by(User.id)
+    )
+    return list(session.execute(stmt).scalars())
 
 
 # --------------------------------------------------------------------------- #
