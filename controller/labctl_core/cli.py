@@ -1,8 +1,10 @@
+import json
 import logging
 import re
 import sys
 
 from labctl_core.lifecycle import LabctlError, LabRuntime
+from labctl_core.system_status import system_status
 
 LAB_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 STUDENT_ID_PATTERN = re.compile(r"^student[0-9]{2,4}$")
@@ -22,6 +24,10 @@ def main() -> None:
         sys.exit(1)
 
     verb, args = sys.argv[1], sys.argv[2:]
+
+    if verb == "system-status":
+        print(json.dumps(system_status()))
+        return
 
     if verb == "destroy-all":
         runtime = LabRuntime()

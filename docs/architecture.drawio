@@ -31,10 +31,10 @@
         <mxCell id="nginx" parent="x02" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=12;fontStyle=1;" value="Nginx Reverse Proxy" vertex="1">
           <mxGeometry height="40" width="200" x="175" y="38" as="geometry" />
         </mxCell>
-        <mxCell id="fastapi" parent="x02" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" value="FastAPI App — controller/lab-controller-api/app&#xa;main.py: instructor + group-mgmt + workstation-access" vertex="1">
+        <mxCell id="fastapi" parent="x02" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontSize=11;fontStyle=1;" value="FastAPI App - controller/lab-controller-api/app&#xa;main.py: instructor + group-mgmt + workstation-access" vertex="1">
           <mxGeometry height="55" width="280" x="140" y="105" as="geometry" />
         </mxCell>
-        <mxCell id="spa" parent="x02" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" value="React SPA — lab-portal-ui&#xa;(Vite, TS, shadcn), role-based" vertex="1">
+        <mxCell id="spa" parent="x02" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=11;" value="React SPA - lab-portal-ui&#xa;(Vite, TS, shadcn), role-based" vertex="1">
           <mxGeometry height="50" width="200" x="20" y="190" as="geometry" />
         </mxCell>
         <mxCell id="sqlite" parent="x02" style="shape=cylinder3;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontSize=10;boundedLbl=1;" value="SQLite DB&#xa;users, groups, sessions, labs, checks" vertex="1">

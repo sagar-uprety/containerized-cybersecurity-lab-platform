@@ -85,7 +85,7 @@ image-copied configuration did not change. When uncertain, use both tags.
 
 **An ordinary new lab needs only the command above.** Add `labctl` to the tag
 list only if you also changed `controller/labctl_core/` itself (the Python
-package that implements `labctl start/stop/reset/check`) — for example, a
+package that implements `labctl start/stop/reset/check`) - for example, a
 platform-level runtime behavior change, not a scenario-level one:
 
 ```bash
@@ -102,11 +102,11 @@ ANSIBLE_CONFIG=config/ansible.cfg .venv/bin/ansible-playbook \
 
 The docs tag discovers direct `labs/*/scenario.yaml` packages, copies scenario
 source used by the portal, rebuilds MkDocs, and restarts the portal when scenario
-source changes. **An ordinary new lab needs only the command above** — no
+source changes. **An ordinary new lab needs only the command above** - no
 frontend build, no extra tags.
 
 Only add `portal-api` and `nginx` if you also changed backend code outside
-`labs/` — the schema at `labs/templates-contract/scenario.schema.json`, the
+`labs/` - the schema at `labs/templates-contract/scenario.schema.json`, the
 portal's Python routes, or the Nginx instructor-doc auth gate itself:
 
 ```bash
@@ -145,7 +145,7 @@ This removes platform services, generated lab state, and host-level
 configuration that Ansible provisioned. It does not touch the host OS itself.
 
 There is no separate "monitoring" teardown because no monitoring stack exists
-in the current prototype — Prometheus/Grafana/full agent monitoring were
+in the current prototype - Prometheus/Grafana/full agent monitoring were
 stack is added later, its teardown tasks belong in the same playbook.
 
 After teardown, reprovision both VMs from a clean snapshot, then re-run

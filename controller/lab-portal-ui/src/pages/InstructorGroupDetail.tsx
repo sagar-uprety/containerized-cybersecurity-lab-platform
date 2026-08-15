@@ -11,7 +11,7 @@ import ProgressRing from "../components/ProgressRing";
 import DeadlinePicker from "../components/DeadlinePicker";
 import IconButton from "../components/IconButton";
 import { showToast } from "../components/Toast";
-import { Users, MoreHorizontal, Pencil, Trash2, ExternalLink, Plus, AlertTriangle } from "lucide-react";
+import { Users, MoreHorizontal, Pencil, Trash2, ExternalLink, Plus, AlertTriangle, Archive } from "lucide-react";
 import { navigate } from "../utils/navigate";
 import { fmtTime, timeAgo } from "../utils/time";
 import { outcomeStyle } from "../utils/outcome";
@@ -26,12 +26,16 @@ import {
   unassignGroupLab,
   deleteGroup,
   renameGroup,
+  archiveGroup,
+  unarchiveGroup,
 } from "../api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SEMESTERS } from "../utils/semesters";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -50,7 +54,7 @@ interface InstructorGroupDetailProps {
   onLogout: () => void;
 }
 
-function initials(email: string): string {
+function initials(email: string | null): string {
   return (email || "?").charAt(0).toUpperCase();
 }
 
@@ -82,6 +86,8 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
   const [renaming, setRenaming] = useState(false);
   const [togglingActive, setTogglingActive] = useState(false);
   const [activeConfirm, setActiveConfirm] = useState(false);
+  const [togglingArchive, setTogglingArchive] = useState(false);
+  const [archiveConfirm, setArchiveConfirm] = useState(false);
 
   useDocumentTitle(group?.name ?? "Group");
 
@@ -150,7 +156,7 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
 
   async function handleBulkAssign(): Promise<void> {
     const assignedLabIds = new Set((group?.labs || []).map((l) => l.lab_id));
-    const toAssign = labs.filter((l) => !assignedLabIds.has(l.id));
+    const toAssign = labs.filter((l) => !assignedLabIds.has(l.id) && !l.is_sample);
     if (toAssign.length === 0) return;
     setBulkAssigning(true);
     setError(null);
@@ -221,6 +227,23 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
     finally { setTogglingActive(false); }
   }
 
+  async function handleToggleArchive(): Promise<void> {
+    if (!group) return;
+    setArchiveConfirm(false);
+    setTogglingArchive(true);
+    try {
+      if (group.is_archived) {
+        await unarchiveGroup(groupId);
+        showToast("Group unarchived");
+      } else {
+        await archiveGroup(groupId);
+        showToast("Group archived - student PII removed from this group's roster");
+      }
+      await refresh();
+    } catch (err: unknown) { setError(err instanceof Error ? err.message : String(err)); }
+    finally { setTogglingArchive(false); }
+  }
+
   const progressByLab = useMemo(() => {
     const m = new Map<string, GroupProgress["labs"][number]>();
     (progress?.labs || []).forEach((l) => m.set(l.lab_id, l));
@@ -237,8 +260,15 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
   }
 
   const now = new Date();
+  // Include the group's current semester even if it predates the fixed SEMESTERS
+  // list (e.g. older groups), so renaming never silently drops an existing value.
+  const renameSemesterOptions = renameSemester && !SEMESTERS.includes(renameSemester)
+    ? [renameSemester, ...SEMESTERS]
+    : SEMESTERS;
   const assignedLabIds = new Set((group?.labs || []).map((l) => l.lab_id));
   const unassignedLabs = labs.filter((l) => !assignedLabIds.has(l.id));
+  const unassignedCourseLabs = unassignedLabs.filter((l) => !l.is_sample);
+  const unassignedSampleLabs = unassignedLabs.filter((l) => l.is_sample);
   const activeLabs = (group?.labs || []).filter((gl) => !gl.deadline || new Date(gl.deadline) >= now);
   const pastLabs = (group?.labs || []).filter((gl) => gl.deadline && new Date(gl.deadline) < now);
 
@@ -277,7 +307,7 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
             <div className="space-y-0.5 text-sm text-muted-foreground">
               <div><strong className="text-foreground">{stats?.students_passed ?? 0}</strong> / {totalStudents} achieved</div>
               <div><strong className="text-foreground">{stats?.students_attempted ?? 0}</strong> started</div>
-              <div>Median runtime <strong className="text-foreground">{stats?.median_recorded_minutes ? fmtTime(stats.median_recorded_minutes * 60) : "—"}</strong> <span className="text-xs">(n={stats?.runtime_samples || 0})</span></div>
+              <div>Median runtime <strong className="text-foreground">{stats?.median_recorded_minutes ? fmtTime(stats.median_recorded_minutes * 60) : "-"}</strong> <span className="text-xs">(n={stats?.runtime_samples || 0})</span></div>
             </div>
           </div>
 
@@ -311,6 +341,11 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
               <Badge className={cn("border-transparent", group.is_active ? "bg-success-bg text-success" : "bg-muted text-muted-foreground")}>
                 {group.is_active ? "Active" : "Inactive"}
               </Badge>
+              {group.is_archived && (
+                <Badge variant="outline" className="gap-1 text-muted-foreground">
+                  <Archive className="size-3" /> Archived - student PII removed
+                </Badge>
+              )}
             </span>
           ) : undefined
         }
@@ -332,8 +367,11 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
                 <DropdownMenuItem onSelect={() => { setRenameInput(group?.name || ""); setRenameSemester(group?.semester || ""); setRenameOpen(true); }}>
                   <Pencil /> Rename
                 </DropdownMenuItem>
-                <DropdownMenuItem disabled={togglingActive} onSelect={() => setActiveConfirm(true)}>
+                <DropdownMenuItem disabled={togglingActive || group?.is_archived} onSelect={() => setActiveConfirm(true)}>
                   {group?.is_active ? "Mark inactive" : "Mark active"}
+                </DropdownMenuItem>
+                <DropdownMenuItem disabled={togglingArchive} onSelect={() => setArchiveConfirm(true)}>
+                  <Archive /> {group?.is_archived ? "Unarchive group" : "Archive group"}
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="destructive" onSelect={() => setDeleteConfirm(true)}>
@@ -361,7 +399,7 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
               {progress && <>
               <StatCard
                 label="Passed before"
-                value={completionPct != null ? `${completionPct}%` : "—"}
+                value={completionPct != null ? `${completionPct}%` : "-"}
                 description={`${progress.total_passed} / ${progress.total_possible} assignments have passed`}
               />
               <StatCard
@@ -397,23 +435,42 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
               </div>
             )}
 
-            {unassignedLabs.length > 0 && (
+            {unassignedCourseLabs.length > 0 && (
               <div>
                 <div className="mb-2 flex items-center justify-between">
                   <div className="text-xs font-medium text-muted-foreground">
                     Available labs ({assignedLabIds.size} of {labs.length} assigned)
                   </div>
-                  {unassignedLabs.length > 1 && (
+                  {unassignedCourseLabs.length > 1 && (
                     <Button variant="outline" size="xs" disabled={bulkAssigning || !!busy} onClick={handleBulkAssign}>
                       {bulkAssigning ? "Assigning…" : "Assign all"}
                     </Button>
                   )}
                 </div>
                 <Card className="gap-0 divide-y divide-border py-0">
-                  {unassignedLabs.map((l) => (
+                  {unassignedCourseLabs.map((l) => (
                     <div key={l.id} className="flex items-center justify-between gap-2 p-3">
                       <div className="flex items-center gap-2">
                         <span className="text-sm font-medium text-foreground">{l.title}</span>
+                        {l.difficulty && <Badge variant="outline">{l.difficulty}</Badge>}
+                      </div>
+                      <IconButton icon={Plus} label={`Assign ${l.title}`} disabled={!!busy || bulkAssigning} onClick={() => handleAssignLab(l.id)} />
+                    </div>
+                  ))}
+                </Card>
+              </div>
+            )}
+
+            {unassignedSampleLabs.length > 0 && (
+              <div className="mt-4">
+                <div className="mb-2 text-xs font-medium text-muted-foreground">
+                  Sample labs (demo/testing only - not course material)
+                </div>
+                <Card className="gap-0 divide-y divide-border border-dashed bg-muted/30 py-0">
+                  {unassignedSampleLabs.map((l) => (
+                    <div key={l.id} className="flex items-center justify-between gap-2 p-3">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-muted-foreground">{l.title}</span>
                         {l.difficulty && <Badge variant="outline">{l.difficulty}</Badge>}
                       </div>
                       <IconButton icon={Plus} label={`Assign ${l.title}`} disabled={!!busy || bulkAssigning} onClick={() => handleAssignLab(l.id)} />
@@ -448,11 +505,11 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
               <Card className="gap-0 divide-y divide-border py-0">
                 {group!.pending_members.map((m) => (
                   <div key={m.user_id} className="flex cursor-pointer items-center gap-3 p-3 hover:bg-accent/40" onClick={() => toggleSelect(m.user_id)}>
-                    <Checkbox aria-label={`Select ${m.email}`} checked={selected.has(m.user_id)} onCheckedChange={() => toggleSelect(m.user_id)} onClick={(e) => e.stopPropagation()} />
+                    <Checkbox aria-label={`Select ${m.email || m.student_id}`} checked={selected.has(m.user_id)} onCheckedChange={() => toggleSelect(m.user_id)} onClick={(e) => e.stopPropagation()} />
                     <Avatar size="sm"><AvatarFallback className="bg-accent text-primary">{initials(m.email)}</AvatarFallback></Avatar>
                     <div className="min-w-0 flex-1">
-                      <div className="truncate text-sm font-medium text-foreground">{m.email}</div>
-                      <div className="text-xs text-muted-foreground">{[m.semester, m.study_program].filter(Boolean).join(" · ") || "—"}</div>
+                      <div className="truncate text-sm font-medium text-foreground">{m.email || m.student_id}</div>
+                      <div className="text-xs text-muted-foreground">{[m.semester, m.study_program].filter(Boolean).join(" · ") || "-"}</div>
                     </div>
                     <div className="text-xs text-muted-foreground">{m.requested_at ? `Requested ${timeAgo(m.requested_at)}` : ""}</div>
                   </div>
@@ -518,6 +575,20 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
       />
 
       <ConfirmModal
+        open={archiveConfirm}
+        title={group?.is_archived ? "Unarchive group?" : "Archive group?"}
+        message={
+          group?.is_archived
+            ? "Student email and study program will be visible again in this group's roster and results."
+            : "This marks the group inactive and removes student email/study program from this group's roster, results, and CSV export. Aggregate analytics (completion, timing, pass rates) are unaffected. Reversible at any time."
+        }
+        confirmLabel={group?.is_archived ? "Unarchive" : "Archive group"}
+        confirmDanger={!group?.is_archived}
+        onConfirm={handleToggleArchive}
+        onCancel={() => setArchiveConfirm(false)}
+      />
+
+      <ConfirmModal
         open={!!removeConfirm}
         title="Remove lab assignment?"
         message="Students will lose access to this lab. Their past session data is preserved."
@@ -553,13 +624,12 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
           placeholder="New group name"
           className="mb-3"
         />
-        <Input
-          type="text"
-          value={renameSemester}
-          onChange={(e) => setRenameSemester(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleRename(); } }}
-          placeholder="Semester, e.g. WS 2026/27"
-        />
+        <Select value={renameSemester} onValueChange={setRenameSemester}>
+          <SelectTrigger className="w-full"><SelectValue placeholder="Select semester…" /></SelectTrigger>
+          <SelectContent>
+            {renameSemesterOptions.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+          </SelectContent>
+        </Select>
       </ConfirmModal>
     </InstructorLayout>
   );

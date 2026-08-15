@@ -22,7 +22,7 @@ Students discover a Samba file server exposing a `backup` share to anyone on the
 -   **Contained blast radius:** The Samba server and workstation run in a per-student isolated Podman network. No share is reachable outside the lab.
 -   **Synthetic data only:** The share holds fabricated backup and credential files (`demo-backup-pass-2024`, `demo-api-key-DEADBEEF2024`, and similar). No real files or secrets are present.
 -   **Intentional risks:** Guest mapping and an unauthenticated, unencrypted share are the deliberate weaknesses (`intentional-risk-allowlist.yaml`). Safe because the server is disposable, isolated, and synthetically seeded.
--   **Student boundaries:** Students stay on the lab network, use only seeded data, and administer the server through the `sambaadmin` SSH account — not platform operator commands.
+-   **Student boundaries:** Students stay on the lab network, use only seeded data, and administer the server through the `sambaadmin` SSH account - not platform operator commands.
 -   **Instructor recovery:** Portal **Reset** restores the vulnerable baseline and discards a student's fix. A pre-created Unix account and `allowed` group exist for the intended solution; if a student wedges Samba, End Lab and Start again.
 
 ## Expected Evidence by Phase
@@ -38,7 +38,7 @@ Students discover a Samba file server exposing a `backup` share to anyone on the
 
 ## Reveal Policy and Intervention
 
-The student guide already contains three written hints. Do not restate them, and note that hints 2 and 3 in the earlier version named the exact directives — the intervention policy below stays above that line. Escalate on the student's state, not the clock.
+The student guide already contains three written hints. Do not restate them, and note that hints 2 and 3 in the earlier version named the exact directives - the intervention policy below stays above that line. Escalate on the student's state, not the clock.
 
 | Trigger                                                          | Instructor Response                                                                                                                              |
 | ---------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
@@ -46,7 +46,7 @@ The student guide already contains three written hints. Do not restate them, and
 | Student required a password but the share still opens for guests | Ask what happens to an unknown user the server maps onto a guest identity.                                                                       |
 | Student fixed authentication but left the transport unencrypted  | Ask whether "only authorized users can read it" also covers someone watching the network path.                                                   |
 | Student created a Unix user but cannot connect                   | Ask how a Samba account differs from the underlying Unix account.                                                                                |
-| Student stuck after all three written hints                      | Point at the `smb.conf` and `smbpasswd` man pages, and note that an authorized group and account already exist — without listing the directives. |
+| Student stuck after all three written hints                      | Point at the `smb.conf` and `smbpasswd` man pages, and note that an authorized group and account already exist - without listing the directives. |
 
 **Do not reveal:** the specific guest, access-control, and encryption directives, or the exact `smbpasswd` invocation. If a student cannot reach these, record it as guide-design evidence.
 

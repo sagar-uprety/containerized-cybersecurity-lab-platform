@@ -51,7 +51,7 @@ URL `/docs/instructor/new-lab-setup/`.
 | `lifecycle.py` | Start, stop, reset, destroy, status, check                                      |
 
 Checker logic is declarative in `scenario.yaml`. Students never run `labctl`,
-Podman, or Ansible directly — portal actions on x02 call restricted lifecycle
+Podman, or Ansible directly - portal actions on x02 call restricted lifecycle
 commands on x01 through the `labadmin` SSH wrapper.
 
 ## Ansible
@@ -70,7 +70,7 @@ ansible-playbook playbooks/management.yml --tags portal,nginx
 Roles: `common` (RHEL baseline), `podman` (active runtime), `lab-runtime` (lab
 source, image build, `labctl`), `management-services` (portal, MkDocs, Nginx,
 controller SSH key). Portal and reverse proxy changes belong in
-`management-services` — use handlers, never `systemctl restart`.
+`management-services` - use handlers, never `systemctl restart`.
 
 ## Testing
 
@@ -100,4 +100,4 @@ python3 -m venv .venv
 .venv/bin/pre-commit run --all-files
 ```
 
-Hooks are local/offline — they do not contact the thesis VMs.
+Hooks are local/offline - they do not contact the thesis VMs.

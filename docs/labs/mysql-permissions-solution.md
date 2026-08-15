@@ -1,0 +1,1 @@
+--8<-- "labs/mysql-permissions/docs/solution-notes.md"

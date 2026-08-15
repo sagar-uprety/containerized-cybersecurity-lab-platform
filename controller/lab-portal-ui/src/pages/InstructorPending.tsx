@@ -21,15 +21,16 @@ interface Props {
 
 interface PendingRow {
   user_id: number;
-  email: string;
+  student_id: string;
+  email: string | null;
   semester?: string;
-  study_program?: string;
+  study_program?: string | null;
   requested_at?: string;
   groupId: number;
   groupName: string;
 }
 
-function initials(email: string): string {
+function initials(email: string | null): string {
   return (email || "?").charAt(0).toUpperCase();
 }
 
@@ -169,15 +170,15 @@ export default function InstructorPending({ user, onLogout }: Props) {
                 >
                   <Checkbox
                     checked={selected.has(key)}
-                    aria-label={`Select ${m.email}`}
+                    aria-label={`Select ${m.email || m.student_id}`}
                     onCheckedChange={() => toggleSelect(m.groupId, m.user_id)}
                     onClick={(e) => e.stopPropagation()}
                   />
                   <Avatar size="sm"><AvatarFallback className="bg-accent text-primary">{initials(m.email)}</AvatarFallback></Avatar>
                   <div className="min-w-0 flex-1">
-                    <div className="truncate text-sm font-medium text-foreground">{m.email}</div>
+                    <div className="truncate text-sm font-medium text-foreground">{m.email || m.student_id}</div>
                     <div className="text-xs text-muted-foreground">
-                      {[m.study_program, m.semester].filter(Boolean).join(" · ") || "—"}
+                      {[m.study_program, m.semester].filter(Boolean).join(" · ") || "-"}
                     </div>
                   </div>
                   <Badge variant="outline">{m.groupName}</Badge>

@@ -12,8 +12,8 @@ import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { CircleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SEMESTERS } from "../utils/semesters";
 
-const SEMESTERS = ["SS 2026", "WS 2026/27"];
 const PROGRAMS = ["Information Systems", "Informatics"];
 
 interface PasswordRule {

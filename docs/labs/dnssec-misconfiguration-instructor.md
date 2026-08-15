@@ -1,0 +1,1 @@
+--8<-- "labs/dnssec-misconfiguration/docs/instructor-guide.md"

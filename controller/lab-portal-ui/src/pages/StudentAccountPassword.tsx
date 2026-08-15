@@ -9,7 +9,7 @@ interface Props {
 
 // Self-service password change for an already-authenticated student, reached
 // from the sidebar account menu. Reuses PasswordChange's form as-is (same
-// component the forced first-login gate uses) — only adds a way back.
+// component the forced first-login gate uses) - only adds a way back.
 export default function StudentAccountPassword({ onChanged, onLogout }: Props) {
   return (
     <div className="relative">

@@ -63,16 +63,16 @@ The student guide already contains three written hints. Do not restate them. Esc
 
 How to read this lab's combined feedback form responses:
 
--   A prior-vs-post confidence gap on "restrict by default" indicates whether the transferable principle — define who may relay and refuse the rest — landed beyond this one Postfix setting.
+-   A prior-vs-post confidence gap on "restrict by default" indicates whether the transferable principle - define who may relay and refuse the rest - landed beyond this one Postfix setting.
 -   Low clarity scores usually point at the distinction between the trusted-client boundary and the fallback rejection: students who narrowed one but not the other need that separation stated more plainly.
 -   Stuck-point free text mentioning "still relays" or "broke sending" reveals whether a student widened trust by mistake or narrowed it past the legitimate clients.
 -   Confusion about where Postfix tools live (relay host, not workstation) is guide-design signal: strengthen that line in "Your Lab Environment".
 
 ## Teaching Notes
 
--   Emphasize that `mynetworks` is not authentication — it is IP-based trust. In a real environment, always combine with SASL authentication.
+-   Emphasize that `mynetworks` is not authentication - it is IP-based trust. In a real environment, always combine with SASL authentication.
 -   The lab intentionally disables TLS and SASL to focus on relay restrictions. Mention that production Postfix should also enforce `smtpd_tls_security_level` and SASL.
--   Real-world reference: Pletinckx (NDSS 2025) found 373 SMTP servers turned into open relays via PROXY protocol header injection — showing that relay abuse is a current real-world problem.
+-   Real-world reference: Pletinckx (NDSS 2025) found 373 SMTP servers turned into open relays via PROXY protocol header injection - showing that relay abuse is a current real-world problem.
 -   Postfix's `smtpd_relay_restrictions` is the modern Postfix 2.10+ relay-policy location and is required by this lab's checker. Do not present moving the rule to `smtpd_recipient_restrictions` as an equivalent lab solution, even though older production configurations may enforce relay policy there.
 
 ---

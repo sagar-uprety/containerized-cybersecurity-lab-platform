@@ -66,9 +66,9 @@ The student guide already contains three written hints. Do not restate them. Esc
 
 How to read this lab's combined feedback form responses:
 
--   A prior-vs-post confidence gap on "password vs key authentication" indicates whether the central lesson — that a guessable credential verifies nothing — actually landed.
--   Low clarity scores usually point at the multi-part remediation: students who fixed the daemon but not the accounts/keys, or vice versa, often report the Goal as "too many things at once" — a signal to check whether the four Verify conditions are sequenced clearly.
--   Stuck-point free text mentioning "locked out" or "key not working" reveals students who closed the password path before confirming key access — a common and recoverable error worth flagging in debrief.
+-   A prior-vs-post confidence gap on "password vs key authentication" indicates whether the central lesson - that a guessable credential verifies nothing - actually landed.
+-   Low clarity scores usually point at the multi-part remediation: students who fixed the daemon but not the accounts/keys, or vice versa, often report the Goal as "too many things at once" - a signal to check whether the four Verify conditions are sequenced clearly.
+-   Stuck-point free text mentioning "locked out" or "key not working" reveals students who closed the password path before confirming key access - a common and recoverable error worth flagging in debrief.
 -   Free text about fail2ban ("is it working?") is guide-design signal that the difference between an active jail and a proven ban needs more emphasis.
 
 ## Teaching Notes

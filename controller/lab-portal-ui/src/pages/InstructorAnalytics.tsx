@@ -10,9 +10,8 @@ import { navigate } from "../utils/navigate";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
 import { Activity, AlertTriangle, CheckCircle2, Clock3, Radio } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 interface Props {
@@ -25,15 +24,15 @@ export default function InstructorAnalytics({ user, groupId, onLogout }: Props) 
   const [data, setData] = useState<InstructorAnalyticsData | null>(null);
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [includeInactive, setIncludeInactive] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"active" | "archived" | "all">("active");
 
-  useDocumentTitle(data?.scope_name ? `Analytics — ${data.scope_name}` : "Analytics");
+  useDocumentTitle(data?.scope_name ? `Analytics - ${data.scope_name}` : "Analytics");
 
   useEffect(() => {
-    const requests: Promise<unknown>[] = [getInstructorAnalytics(groupId, includeInactive).then(setData)];
+    const requests: Promise<unknown>[] = [getInstructorAnalytics(groupId, statusFilter).then(setData)];
     if (groupId != null) requests.push(getGroupDetail(groupId).then(setGroup));
     Promise.all(requests).catch((err: Error) => setError(err.message));
-  }, [groupId, includeInactive]);
+  }, [groupId, statusFilter]);
 
   const groupContext = groupId != null ? { id: groupId, name: group?.name || data?.scope_name, hasPending: !!group?.pending_members.length } : undefined;
 
@@ -48,13 +47,17 @@ export default function InstructorAnalytics({ user, groupId, onLogout }: Props) 
           { label: "Analytics" },
         ] : undefined}
         actions={
-          groupId == null && data && data.inactive_groups_count > 0 ? (
-            <div className="flex items-center gap-2">
-              <Switch id="include-inactive" checked={includeInactive} onCheckedChange={setIncludeInactive} />
-              <Label htmlFor="include-inactive" className="text-sm font-normal text-muted-foreground">
-                Include {data.inactive_groups_count} inactive group{data.inactive_groups_count === 1 ? "" : "s"}
-              </Label>
-            </div>
+          groupId == null && data ? (
+            <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+              <SelectTrigger size="sm" className="w-36"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="active">Active groups</SelectItem>
+                <SelectItem value="archived">
+                  Archived{data.archived_groups_count > 0 ? ` (${data.archived_groups_count})` : ""}
+                </SelectItem>
+                <SelectItem value="all">All groups</SelectItem>
+              </SelectContent>
+            </Select>
           ) : undefined
         }
       />
@@ -140,7 +143,7 @@ export default function InstructorAnalytics({ user, groupId, onLogout }: Props) 
                           <TableCell>{lab.students_checked}/{lab.students_assigned}</TableCell>
                           <TableCell>{lab.students_passed}/{lab.students_assigned}</TableCell>
                           <TableCell className="min-w-56">{lab.common_failed_criterion ? <>{lab.common_failed_criterion}<span className="block text-xs text-muted-foreground">{lab.criterion_failure_rate}% of observations failed</span></> : "No failed observations"}</TableCell>
-                          <TableCell>{lab.median_recorded_minutes ? `${lab.median_recorded_minutes} min` : "—"}<span className="block text-xs text-muted-foreground">n={lab.runtime_samples}; {lab.open_sessions} open</span></TableCell>
+                          <TableCell>{lab.median_recorded_minutes ? `${lab.median_recorded_minutes} min` : "-"}<span className="block text-xs text-muted-foreground">n={lab.runtime_samples}; {lab.open_sessions} open</span></TableCell>
                           <TableCell>{lab.environment_errors ? `${lab.environment_errors} errors` : "No errors"}</TableCell>
                           <TableCell>{lab.feedback_average != null ? `${lab.feedback_average} / 5` : "Suppressed"}<span className="block text-xs text-muted-foreground">n={lab.feedback_count}</span></TableCell>
                         </TableRow>

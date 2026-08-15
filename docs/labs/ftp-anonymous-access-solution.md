@@ -1,0 +1,1 @@
+--8<-- "labs/ftp-anonymous-access/docs/solution-notes.md"

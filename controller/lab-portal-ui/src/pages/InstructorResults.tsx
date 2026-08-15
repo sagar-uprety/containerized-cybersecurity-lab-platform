@@ -33,7 +33,7 @@ export default function InstructorResults({ user, groupId, onLogout }: Props) {
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState("all");
 
-  useDocumentTitle(group ? `Results — ${group.name}` : "Student Results");
+  useDocumentTitle(group ? `Results - ${group.name}` : "Student Results");
 
   useEffect(() => {
     if (groupId != null) {
@@ -48,9 +48,9 @@ export default function InstructorResults({ user, groupId, onLogout }: Props) {
   const filtered = useMemo(() => {
     const query = search.trim().toLowerCase();
     return (rows || [])
-      .filter((row) => !query || row.email.toLowerCase().includes(query) || row.student_id.toLowerCase().includes(query))
+      .filter((row) => !query || (row.email || "").toLowerCase().includes(query) || row.student_id.toLowerCase().includes(query))
       .filter((row) => status === "all" || (status === "passed" && row.labs_assigned > 0 && row.labs_passed === row.labs_assigned) || (status === "needs-review" && (row.review_reasons?.length || 0) > 0) || (status === "overdue" && row.at_risk) || (status === "in-progress" && row.labs_passed < row.labs_assigned && !row.at_risk))
-      .sort((a, b) => (b.review_reasons?.length || 0) - (a.review_reasons?.length || 0) || a.email.localeCompare(b.email));
+      .sort((a, b) => (b.review_reasons?.length || 0) - (a.review_reasons?.length || 0) || (a.email || a.student_id).localeCompare(b.email || b.student_id));
   }, [rows, search, status]);
 
   function openStudent(row: ResultRow) {
@@ -91,10 +91,10 @@ export default function InstructorResults({ user, groupId, onLogout }: Props) {
             const pct = row.labs_assigned > 0 ? Math.round((row.labs_passed / row.labs_assigned) * 100) : 0;
             return (
               <button key={`${row.student_id}-${row.groups?.[0]?.id || groupId || "all"}`} type="button" onClick={() => openStudent(row)} className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-accent/40 focus-visible:bg-accent/40 focus-visible:outline-none">
-                <Avatar size="sm"><AvatarFallback className="bg-accent text-primary">{row.email.charAt(0).toUpperCase()}</AvatarFallback></Avatar>
+                <Avatar size="sm"><AvatarFallback className="bg-accent text-primary">{(row.email || row.student_id).charAt(0).toUpperCase()}</AvatarFallback></Avatar>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium">{row.email}</span>
+                    <span className="truncate text-sm font-medium">{row.email || row.student_id}</span>
                     {row.at_risk && <Badge className="border-transparent bg-destructive-bg text-destructive"><AlertTriangle /> Overdue</Badge>}
                   </div>
                   <div className="truncate text-xs text-muted-foreground">{group?.name || row.groups?.map((item) => item.name).join(", ") || row.student_id}</div>

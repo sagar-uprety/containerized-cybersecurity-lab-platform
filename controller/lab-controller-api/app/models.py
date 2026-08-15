@@ -45,7 +45,7 @@ class User(Base):
     number: Mapped[Optional[int]] = mapped_column(Integer, unique=True, nullable=True)
     # Lab/SSH password injected into the student's workstation container on x01.
     # Distinct from the portal-login password above; the portal passes this to
-    # labctl at start-time (Decision B). Plaintext by necessity — the container
+    # labctl at start-time (Decision B). Plaintext by necessity - the container
     # needs the literal value. NULL for instructors. Lives on x02 (higher trust).
     lab_password: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     semester: Mapped[Optional[str]] = mapped_column(String, nullable=True)
@@ -67,6 +67,12 @@ class Group(Base):
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     semester: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    # Archived groups are historical/finished cohorts. Archiving is reversible and never
+    # touches `users` (email is also the login username) -- it only suppresses per-member
+    # PII (email, study_program) in this group's own roster/analytics responses. Aggregate
+    # analytics stay intact because they key on the non-PII `internal_id`/student_id.
+    is_archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    archived_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
     synthetic: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     # Owning instructor. Every instructor-facing route scopes groups to this id

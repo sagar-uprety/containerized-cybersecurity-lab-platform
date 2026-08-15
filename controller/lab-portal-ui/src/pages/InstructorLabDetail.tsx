@@ -5,7 +5,8 @@ import AlertError from "../components/AlertError";
 import PageHeader from "../components/PageHeader";
 import { getInstructorLabDetail } from "../api";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
-import { FileText, BookOpen, GraduationCap, MessageSquare, ExternalLink } from "lucide-react";
+import { navigate } from "../utils/navigate";
+import { FileText, BookOpen, GraduationCap, MessageSquare, ExternalLink, ChevronRight } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -83,11 +84,10 @@ export default function InstructorLabDetail({ user, labId, onLogout }: Props) {
         ))}
 
         {feedback_count > 0 && (
-          <a
-            href={`/api/instructor/feedback/${labId}`}
-            target="_blank"
-            rel="noreferrer"
-            className="flex items-center justify-between gap-4 rounded-lg border border-border bg-card p-4 transition-colors hover:border-primary/40 hover:bg-accent/40"
+          <button
+            type="button"
+            onClick={() => navigate(`/instructor/labs/${labId}/feedback`)}
+            className="flex w-full items-center justify-between gap-4 rounded-lg border border-border bg-card p-4 text-left transition-colors hover:border-primary/40 hover:bg-accent/40"
           >
             <div className="flex items-center gap-3">
               <MessageSquare className="size-4.5 shrink-0 text-muted-foreground" />
@@ -96,8 +96,8 @@ export default function InstructorLabDetail({ user, labId, onLogout }: Props) {
                 <div className="text-sm text-muted-foreground">{feedback_count} response{feedback_count !== 1 ? "s" : ""} submitted</div>
               </div>
             </div>
-            <ExternalLink className="size-4 shrink-0 text-primary" />
-          </a>
+            <ChevronRight className="size-4 shrink-0 text-primary" />
+          </button>
         )}
       </div>
     </InstructorLayout>

@@ -330,6 +330,19 @@ def rename_group(
     return group
 
 
+def set_group_archived(session: Session, group_id: int, archived: bool) -> Group | None:
+    group = session.get(Group, group_id)
+    if group is None:
+        return None
+    group.is_archived = archived
+    group.archived_at = datetime.now(timezone.utc) if archived else None
+    # Archiving deactivates the group; unarchiving is a full reversal, so it
+    # restores is_active rather than leaving the group permanently inactive.
+    group.is_active = not archived
+    session.flush()
+    return group
+
+
 def delete_group(session: Session, group_id: int) -> bool:
     group = session.get(Group, group_id)
     if group is None:
@@ -365,7 +378,7 @@ def owned_group_ids(session: Session, owner_id: int) -> set[int]:
 
 def list_students_for_owner(session: Session, owner_id: int) -> list[User]:
     """Students who are (pending or approved) members of any group owned by
-    owner_id — the instructor's own visible roster."""
+    owner_id - the instructor's own visible roster."""
     stmt = (
         select(User)
         .join(GroupMember, GroupMember.user_id == User.id)

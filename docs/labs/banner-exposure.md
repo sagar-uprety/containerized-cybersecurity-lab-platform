@@ -1,0 +1,1 @@
+--8<-- "labs/banner-exposure/docs/student-guide.md"

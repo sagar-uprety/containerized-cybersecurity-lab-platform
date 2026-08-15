@@ -2,7 +2,7 @@
 
 _[← Before You Start](01-before-you-start.md) · [Guide overview](index.md)_
 
-Every lab on this platform is built from the same parts — an auto-generated
+Every lab on this platform is built from the same parts - an auto-generated
 student **workstation**, one or more **target containers**, one or more private
 **networks**, and a **checker**. A "topology pattern" is just a recurring way of
 wiring those parts together. There are four, and between them they cover every
@@ -11,24 +11,24 @@ scenario shape the platform supports. Each has a runnable, heavily-commented
 
 | Pattern                                 | What it is                                                       | Clone this sample                  | Real catalog example                                 |
 | --------------------------------------- | ---------------------------------------------------------------- | ---------------------------------- | ---------------------------------------------------- |
-| **A — Standalone service**              | Workstation and one target                                       | `labs/sample-a-standalone`         | ssh-weak-config, ldap-anonymous-bind, smb-open-share |
-| **B — Service with dependent app**      | A shared service another app relies on                           | `labs/sample-b-dependent-app`      | redis-exposed                                        |
-| **C — Proxy / firewall / segmentation** | A middlebox enforcing a boundary between two networks            | `labs/sample-c-segmentation`       | firewall-source-port-bypass                          |
-| **D — Custom workstation**              | Any of the above, but the workstation needs an extra client tool | `labs/sample-d-custom-workstation` | (modifier; layers on A/B/C)                          |
+| **A - Standalone service**              | Workstation and one target                                       | `labs/sample-a-standalone`         | ssh-weak-config, ldap-anonymous-bind, smb-open-share |
+| **B - Service with dependent app**      | A shared service another app relies on                           | `labs/sample-b-dependent-app`      | redis-exposed                                        |
+| **C - Proxy / firewall / segmentation** | A middlebox enforcing a boundary between two networks            | `labs/sample-c-segmentation`       | firewall-source-port-bypass                          |
+| **D - Custom workstation**              | Any of the above, but the workstation needs an extra client tool | `labs/sample-d-custom-workstation` | (modifier; layers on A/B/C)                          |
 
 Read this page before you write `scenario.yaml`. Picking the wrong pattern is the
 most common reason a lab fights the platform later.
 
 ## First, what "service" and "standalone" mean here
 
-**A "service" is whatever the student hardens** — the target. It does **not**
+**A "service" is whatever the student hardens** - the target. It does **not**
 have to be a third-party daemon. Two things count equally as the target:
 
--   **A third-party service:** OpenSSH, OpenLDAP, Redis, Postfix, Samba, Apache —
+-   **A third-party service:** OpenSSH, OpenLDAP, Redis, Postfix, Samba, Apache -
     a packaged daemon with its own config file and reload mechanism.
 -   **Native Linux configuration:** the firewall (iptables/nftables), file
     permissions and ownership, PAM/account policy, a systemd unit, sysctl-style
-    settings exposed to the container. There is no third-party product here — the
+    settings exposed to the container. There is no third-party product here - the
     "service" is the operating system's own configuration. The firewall lab is
     exactly this: its target is `iptables` rules, not an installed application.
 
@@ -81,7 +81,7 @@ target itself still works."
 
 **When to use it.** This is the default, and the right choice for the large
 majority of scenarios: SSH hardening, LDAP access control, an open SMB share, an
-open SMTP relay, an unpatched web server, a database with weak auth — and equally
+open SMTP relay, an unpatched web server, a database with weak auth - and equally
 for native-Linux-config labs where the "target" is file permissions or an
 account policy rather than a third-party daemon.
 
@@ -90,7 +90,7 @@ service with an access-control weakness in a config file. It demonstrates: one
 target image, one implicit private network, a config volume the student edits
 from the workstation, a service-local admin account using the student's lab
 password, a single narrow sudo reload helper, and objective + guardrail checks.
-Clone it and replace the service with your real target — third-party daemon or
+Clone it and replace the service with your real target - third-party daemon or
 native Linux configuration.
 
 **Typically needed:** one custom target image; one private network (the implicit
@@ -108,14 +108,14 @@ workstation --------------------> dependent app
 
 **What it is.** A shared service that a second application genuinely depends on.
 The security work is on the shared service, but hardening it has a side effect:
-the dependent app must keep working. That coupling — _harden the shared service
-without breaking its consumer_ — is the entire reason to choose Pattern B over A.
+the dependent app must keep working. That coupling - _harden the shared service
+without breaking its consumer_ - is the entire reason to choose Pattern B over A.
 
 **When to use it.** Only when the continuity of a real dependent service is part
 of the lesson: an application sitting in front of a database or cache, where
 turning on authentication on the store means the app must now present a
 credential too. **Do not invent a demo app for every lab.** An extra service you
-do not teach with is pure cost — more build time, more failure modes, more for
+do not teach with is pure cost - more build time, more failure modes, more for
 the student to hold in their head. If the lesson is fully expressed by Pattern A,
 use Pattern A.
 
@@ -139,7 +139,7 @@ order application depends on an unauthenticated Redis instance.
 workstation -- external net --> middlebox -- internal net --> target
 ```
 
-**What it is.** Two networks separated by a middlebox — a proxy, a firewall, or a
+**What it is.** Two networks separated by a middlebox - a proxy, a firewall, or a
 router. The target sits on the _internal_ network only, so the workstation cannot
 reach it directly; every packet goes through the middlebox. The lesson is that a
 boundary is only as good as the middlebox's policy, and that the boundary must be
@@ -165,21 +165,21 @@ internal backend on the internal network only. In the vulnerable baseline the
 proxy forwards an internal-only path to the outside; the fix restricts it. A
 `segmentation_intact` guardrail confirms the backend is unreachable directly in
 both states, teaching that segmentation is the topology **and** the middlebox
-policy together — neither alone is enough.
+policy together - neither alone is enough.
 
 **Wiring rules that bite.** List the workstation-facing (external) network
-**first** — labctl attaches the workstation to the first declared network. Attach
+**first** - labctl attaches the workstation to the first declared network. Attach
 the middlebox to **both** networks and the internal target to the internal
 network **only**. For richer segmentation (several clients, servers, middleboxes),
 give each its own uniquely named service key. Add only the capability the lesson
-needs — commonly `NET_ADMIN` for an in-container firewall, and nothing for an
+needs - commonly `NET_ADMIN` for an in-container firewall, and nothing for an
 application-layer proxy.
 
 ## Pattern D: Custom Workstation
 
 **Shape:** any of A / B / C, with a lab-specific workstation image.
 
-**What it is.** Not a topology of its own — a **modifier** you layer on another
+**What it is.** Not a topology of its own - a **modifier** you layer on another
 pattern. The shared workstation base already ships the common Linux security
 clients (curl, nmap, ldap-utils, smbclient, redis-tools, swaks, a MySQL client,
 and more). When a single lab needs a client the base does **not** have, you build
@@ -211,7 +211,7 @@ least one container, at least one built image). A pattern is a _shape_, not a
 size.
 
 **Pattern C is the one that grows.** A, B, and D have essentially fixed
-cardinality — A is one target, B is a two-part dependency, D adds a single
+cardinality - A is one target, B is a two-part dependency, D adds a single
 workstation image. Pattern C is the extensible shape: to build a multi-tier
 network you keep adding uniquely-named service keys and networks. For example, a
 segmented three-tier lab might declare:
@@ -222,7 +222,7 @@ workstation --edge-net--> proxy --app-net--> app-server --data-net--> database
 
 That is **four service containers** (proxy, app-server, database, plus the
 workstation), **three networks** (edge, app, data), and **three target images**
-(proxy, app-server, database images) — still Pattern C, just larger. Each
+(proxy, app-server, database images) - still Pattern C, just larger. Each
 middlebox/server/client is its own service key with its own image and its own set
 of network memberships. The shipped labs top out at two containers / two networks
 / two images (`redis-exposed`, `firewall-source-port-bypass`); going beyond that
@@ -230,42 +230,42 @@ is a bigger Pattern C, not a new pattern.
 
 ## The full set of degrees of freedom
 
-The four patterns describe **topology** — how containers, networks, and images
+The four patterns describe **topology** - how containers, networks, and images
 wire together. Topology is not the only thing you can vary. When you design a
 lab, you are choosing along several independent axes. The first group is what the
 patterns cover; the rest apply _within_ whatever pattern you pick.
 
 **Topology axes (these are the patterns):**
 
--   **Target images** — how many distinct service images you build (`build.images`,
+-   **Target images** - how many distinct service images you build (`build.images`,
     one per service role). Grows with Pattern B/C.
--   **Networks** — how many private networks (`networks`). Grows with Pattern C.
--   **Containers and their wiring** — how many service containers, and _which
+-   **Networks** - how many private networks (`networks`). Grows with Pattern C.
+-   **Containers and their wiring** - how many service containers, and _which
     network(s) each one joins_ (`containers[].networks`, `network_aliases`). The
-    wiring — not just the count — is what makes segmentation work. Grows with
+    wiring - not just the count - is what makes segmentation work. Grows with
     Pattern C.
--   **Workstation image** — stock base, or a lab-specific image with extra tooling
+-   **Workstation image** - stock base, or a lab-specific image with extra tooling
     (Pattern D).
 
-**Orthogonal axes (independent of the pattern — set them on any lab):**
+**Orthogonal axes (independent of the pattern - set them on any lab):**
 
--   **Capabilities and privilege** — extra Linux capabilities per container
+-   **Capabilities and privilege** - extra Linux capabilities per container
     (`security.cap_add`) and `sysctls`. `NET_ADMIN` for an in-container firewall,
     `NET_RAW` for raw-socket tools like `nmap`, `AUDIT_WRITE` for SSH PTYs. This
     axis is what distinguishes the two flavours of Pattern C (an application-layer
     proxy needs nothing; a packet-filter firewall needs `NET_ADMIN`). Privileged
-    containers and host networking are **not** available — see the platform-fit
+    containers and host networking are **not** available - see the platform-fit
     limits.
--   **Published student endpoint** — whether the target exposes a browser-reachable
+-   **Published student endpoint** - whether the target exposes a browser-reachable
     HTTP port to the student (`access.app_port_base` plus a container `ports`
     mapping), or stays private and is only reached from the workstation. Most labs
     keep the target private; publish a port only when a browser-facing app is part
     of the exercise.
--   **State and persistence** — named volumes for data that must survive a restart,
+-   **State and persistence** - named volumes for data that must survive a restart,
     a shared config volume the student edits from the workstation, and the seed
     data/setup hook that establishes the baseline. This axis decides what Reset
     restores and what survives a reload.
--   **Student administration path** — whether the student edits a shared config
+-   **Student administration path** - whether the student edits a shared config
     volume directly, or SSHes into the service host as a narrow admin account with
     a single sudo reload helper (or both). A design choice available in every
     pattern.
@@ -279,8 +279,8 @@ patterns cover; the rest apply _within_ whatever pattern you pick.
 Every supported scenario shape is A, B, C, or a larger C, optionally with D
 layered on; the capability, endpoint, storage, and administration axes above are
 chosen independently on top of the topology you pick. What the platform
-intentionally does **not** support — privileged containers, host networking,
-kernel modules, real data, an LMS/CTF engine — is a safety-and-reproducibility
+intentionally does **not** support - privileged containers, host networking,
+kernel modules, real data, an LMS/CTF engine - is a safety-and-reproducibility
 boundary, not a topology limit; see [Before You Start](01-before-you-start.md)
 and the platform-fit section of the [guide overview](index.md).
 

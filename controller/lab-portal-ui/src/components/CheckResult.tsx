@@ -11,9 +11,11 @@ export default function CheckResult({ result, visible, checkerChecks }: CheckRes
   if (!visible || !result) return null;
 
   const labelMap: Record<string, string> = {};
+  const kindMap: Record<string, "objective" | "guardrail" | undefined> = {};
   if (checkerChecks) {
     for (const check of checkerChecks) {
       labelMap[check.name] = check.label || check.name;
+      kindMap[check.name] = check.kind;
     }
   }
 
@@ -25,19 +27,39 @@ export default function CheckResult({ result, visible, checkerChecks }: CheckRes
         Check Result: {result.status?.toUpperCase() || "UNKNOWN"}
       </div>
       <ul className="space-y-1.5">
-        {(result.checks || []).map((check) => (
-          <li key={check.name} className="flex items-center gap-2 text-sm">
-            <span
-              className={cn(
-                "rounded px-1.5 py-0.5 font-mono text-[0.7rem] font-semibold",
-                check.passed ? "bg-success text-white" : "bg-destructive text-white"
+        {(result.checks || []).map((check) => {
+          // A stored result can reference a check name from an older scenario
+          // version that no longer exists in the current checker definition
+          // (e.g. after a lab was edited). Don't guess "Objective" for those -
+          // an unlabeled check is safer than a wrong label (a guardrail shown
+          // as an objective, or vice versa).
+          const kind = kindMap[check.name];
+          return (
+            <li key={check.name} className="flex items-center gap-2 text-sm">
+              <span
+                className={cn(
+                  "rounded px-1.5 py-0.5 font-mono text-[0.7rem] font-semibold",
+                  check.passed ? "bg-success text-white" : "bg-destructive text-white"
+                )}
+              >
+                {check.passed ? "PASS" : "FAIL"}
+              </span>
+              {kind && (
+                <span
+                  className={cn(
+                    "rounded px-1.5 py-0.5 text-[0.65rem] font-semibold uppercase tracking-wide",
+                    kind === "guardrail"
+                      ? "bg-warning-bg text-warning"
+                      : "bg-muted text-muted-foreground"
+                  )}
+                >
+                  {kind === "guardrail" ? "Guardrail" : "Objective"}
+                </span>
               )}
-            >
-              {check.passed ? "PASS" : "FAIL"}
-            </span>
-            <span className="text-foreground">{labelMap[check.name] || check.name}</span>
-          </li>
-        ))}
+              <span className="text-foreground">{labelMap[check.name] || check.name}</span>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

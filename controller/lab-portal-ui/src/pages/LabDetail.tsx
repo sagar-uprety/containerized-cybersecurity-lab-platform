@@ -7,6 +7,7 @@ import CheckResult from "../components/CheckResult";
 import AlertError from "../components/AlertError";
 import PageHeader from "../components/PageHeader";
 import CopyButton from "../components/CopyButton";
+import Link from "../components/Link";
 import { getLabDetail, startLab, stopLab, resetLab, endLab, runCheck, sendHeartbeat } from "../api";
 import { navigate } from "../utils/navigate";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
@@ -324,7 +325,12 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
             <Card>
               <CardContent className="space-y-2">
                 <h2 className="text-sm font-semibold text-foreground">Access</h2>
-                <p className="text-xs text-muted-foreground">SSH uses your workstation password, which is separate from your portal password.</p>
+                <p className="text-xs text-muted-foreground">
+                  SSH uses your workstation password, which is separate from your portal password.{" "}
+                  <Link href="/workstation-access" className="text-primary hover:underline">
+                    Get your workstation password
+                  </Link>
+                </p>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Terminal</span>
                   <a href={endpoints.browser_terminal} target="_blank" rel="noreferrer" className="text-primary hover:underline">Open in tab</a>

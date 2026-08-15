@@ -1,0 +1,79 @@
+"""Host-level system status for the admin usage dashboard (`labctl system-status`).
+
+Read-only: no lab/student identifiers, no destructive capability. Uses /proc
+(stdlib only, no psutil) and `podman ps` filtered by the standard thesis.*
+container labels every lab container already carries (see manifest.py).
+"""
+
+import json
+import subprocess
+import time
+from pathlib import Path
+
+
+def _read_proc_stat_totals() -> tuple[int, int]:
+    with Path("/proc/stat").open(encoding="utf-8") as handle:
+        line = handle.readline()
+    values = [int(v) for v in line.split()[1:]]
+    idle = values[3] + (values[4] if len(values) > 4 else 0)  # idle + iowait
+    return idle, sum(values)
+
+
+def cpu_percent(sample_seconds: float = 0.2) -> float:
+    idle1, total1 = _read_proc_stat_totals()
+    time.sleep(sample_seconds)
+    idle2, total2 = _read_proc_stat_totals()
+    total_delta = total2 - total1
+    if total_delta <= 0:
+        return 0.0
+    return round((1 - (idle2 - idle1) / total_delta) * 100, 1)
+
+
+def memory_status() -> dict:
+    values = {}
+    with Path("/proc/meminfo").open(encoding="utf-8") as handle:
+        for line in handle:
+            key, _, rest = line.partition(":")
+            fields = rest.strip().split()
+            if fields:
+                values[key] = int(fields[0])  # kB
+    total_kb = values.get("MemTotal", 0)
+    available_kb = values.get("MemAvailable", values.get("MemFree", 0))
+    used_kb = max(total_kb - available_kb, 0)
+    return {
+        "memory_total_mb": round(total_kb / 1024),
+        "memory_used_mb": round(used_kb / 1024),
+        "memory_percent": round((used_kb / total_kb) * 100, 1) if total_kb else 0.0,
+    }
+
+
+def running_lab_instances() -> int:
+    """Count distinct (lab, student) running instances via thesis.lab/thesis.student labels."""
+    result = subprocess.run(
+        ["podman", "ps", "--format", "json"],
+        capture_output=True,
+        text=True,
+        check=False,
+    )
+    if result.returncode != 0:
+        return 0
+    try:
+        containers = json.loads(result.stdout or "[]")
+    except json.JSONDecodeError:
+        return 0
+    instances = set()
+    for container in containers:
+        labels = container.get("Labels") or {}
+        lab = labels.get("thesis.lab")
+        student = labels.get("thesis.student")
+        if lab and student:
+            instances.add((lab, student))
+    return len(instances)
+
+
+def system_status() -> dict:
+    return {
+        "running_labs": running_lab_instances(),
+        "cpu_percent": cpu_percent(),
+        **memory_status(),
+    }

@@ -1,0 +1,17 @@
+FROM thesis-labs/lab-service-base:1.0
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+      mariadb-server \
+      mariadb-client \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN mkdir -p /var/lib/mysql /var/run/mysqld /etc/mysql/mariadb.conf.d \
+    && chown -R mysql:mysql /var/lib/mysql /var/run/mysqld \
+    && mariadb-install-db --user=mysql --datadir=/var/lib/mysql \
+      --auth-root-authentication-method=normal >/dev/null
+
+COPY lab.cnf /opt/lab/baseline/lab.cnf
+COPY seed.sql /opt/lab/seed/seed.sql
+
+EXPOSE 3306

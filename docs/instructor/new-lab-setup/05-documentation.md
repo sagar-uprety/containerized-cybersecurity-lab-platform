@@ -13,8 +13,8 @@ complete answer key:
 
 > **SITREP.txt is retired.** Earlier labs shipped a `docs/SITREP.txt` mission
 > brief mounted into the workstation. It over-specified the task and leaked fix
-> direction, so it was removed. Its content — topology, paths, access, and the
-> mission deliverables — now lives always-visibly in the student guide's
+> direction, so it was removed. Its content - topology, paths, access, and the
+> mission deliverables - now lives always-visibly in the student guide's
 > **Your Lab Environment** and **Your Mission** sections. Do not create a new
 > SITREP.txt; the scenario validator rejects it.
 
@@ -53,13 +53,13 @@ Write last. It is guided discovery, not a walkthrough. It follows
 -   measurable, lab-specific outcomes (sourced from the scenario selection report)
 -   concrete prerequisites and official references
 -   a **Your Lab Environment** section carrying topology, every path, and access
-    (this is where the retired SITREP's facts now live — omitting a path strands
+    (this is where the retired SITREP's facts now live - omitting a path strands
     the student)
 -   a **Your Mission** section stating deliverables as outcomes, never steps
 -   guiding investigation questions
 -   diagnostic command shapes with placeholders, never target-bound values
 -   impact students must prove
--   remediation goal stated as an observable end state, and constraints — not config lines
+-   remediation goal stated as an observable end state, and constraints - not config lines
 -   three progressive hints without exact values
 -   a **Verify** section that mirrors the goal's clauses and adds none
 -   a **Real-World Context** debrief with figures, citations, and prevention

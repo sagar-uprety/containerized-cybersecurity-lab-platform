@@ -66,6 +66,7 @@ from app.runtime_state import (
 from app.scenarios import (
     endpoint_ports,
     instructor_guide_url,
+    is_sample_lab,
     list_scenarios,
     load_scenario_metadata,
     solution_notes_url,
@@ -75,7 +76,7 @@ from app.scenarios import (
     validate_lab_id,
 )
 from app.seed import ensure_admin_bootstrap, seed_if_empty
-from app.ssh_client import run_labctl
+from app.ssh_client import run_labctl, run_labctl_system_status
 
 logger = logging.getLogger(__name__)
 
@@ -1029,7 +1030,7 @@ def _owner_group_ids(session, owner_id: int) -> set:
 
 
 def _owner_student_ids(session, owner_id: int) -> set:
-    """student_id (internal_id/email) values visible to this instructor —
+    """student_id (internal_id/email) values visible to this instructor -
     the roster of any student who is a member of one of their own groups."""
     return {
         student.internal_id or student.email
@@ -1142,6 +1143,22 @@ async def api_reset_instructor_password(
         return {"ok": True, "new_password": new_password}
 
 
+@app.get("/api/admin/system-status")
+def api_admin_system_status(user: dict = Depends(get_authenticated_user)):
+    """Worker (x01) CPU/memory and running-lab count, via the restricted
+    labctl-ssh-wrapper's read-only `system-status` verb (no lab/student args,
+    no destructive capability)."""
+    require_admin(user)
+    ok, stdout, stderr = run_labctl_system_status()
+    if not ok:
+        raise HTTPException(status_code=502, detail=stderr or "worker unreachable")
+    try:
+        status = json.loads(stdout)
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=502, detail="worker returned malformed status") from None
+    return status
+
+
 @app.get("/api/instructor/labs")
 def api_instructor_labs(user: dict = Depends(get_authenticated_user)):
     require_instructor(user)
@@ -1172,6 +1189,7 @@ def api_instructor_labs(user: dict = Depends(get_authenticated_user)):
                 "student_guide_url": student_guide_url(scenario),
                 "solution_notes_url": solution_notes_url(scenario),
                 "instructor_guide_url": instructor_guide_url(scenario),
+                "is_sample": is_sample_lab(lab_id),
             }
         )
     return labs
@@ -1262,6 +1280,7 @@ def api_instructor_lab_detail(lab_id: str, user: dict = Depends(get_authenticate
         "feedback_count": sum(
             1 for record in list_feedback(lab_id) if record["student_id"] in owner_students
         ),
+        "is_sample": is_sample_lab(lab_id),
     }
 
 
@@ -1317,23 +1336,28 @@ def api_instructor_students(user: dict = Depends(get_authenticated_user)):
     with SessionLocal() as session:
         owner_ids = _owner_group_ids(session, user["id"])
         students = repo.list_students_for_owner(session, user["id"])
-        return [
-            {
-                # student_id/username kept for backward compatibility with the UI
-                "student_id": s.internal_id or s.email,
-                "username": s.email,
-                "email": s.email,
-                "number": s.number,
-                "must_change_password": bool(s.must_change_password),
-                "active": bool(s.active),
-                "groups": [
-                    {"id": m.group.id, "name": m.group.name}
-                    for m in s.memberships
-                    if m.status == "approved" and m.group_id in owner_ids
-                ],
-            }
-            for s in students
-        ]
+        result = []
+        for s in students:
+            member_groups = [
+                m.group for m in s.memberships if m.status == "approved" and m.group_id in owner_ids
+            ]
+            all_archived = bool(member_groups) and all(g.is_archived for g in member_groups)
+            result.append(
+                {
+                    # student_id/username kept for backward compatibility with the UI
+                    "student_id": s.internal_id or s.email,
+                    "username": None if all_archived else s.email,
+                    "email": None if all_archived else s.email,
+                    "number": s.number,
+                    "must_change_password": bool(s.must_change_password),
+                    "active": bool(s.active),
+                    "groups": [
+                        {"id": g.id, "name": g.name, "is_archived": g.is_archived}
+                        for g in member_groups
+                    ],
+                }
+            )
+        return result
 
 
 @app.get("/api/instructor/students/{student_id}")
@@ -1443,17 +1467,17 @@ def api_instructor_feedback(lab_id: str, user: dict = Depends(get_authenticated_
 @app.get("/api/instructor/analytics")
 def api_instructor_analytics(
     group_id: Optional[int] = None,
-    include_inactive: bool = False,
+    status: str = "active",
     user: dict = Depends(get_authenticated_user),
 ):
     require_instructor(user)
+    if status not in ("active", "archived", "all"):
+        raise HTTPException(status_code=400, detail="status must be active, archived, or all")
     with SessionLocal() as session:
         owner_ids = _owner_group_ids(session, user["id"])
         if group_id is not None and group_id not in owner_ids:
             raise HTTPException(status_code=404, detail="Group not found")
-    return analytics_service.instructor_analytics(
-        owner_ids, group_id=group_id, include_inactive=include_inactive
-    )
+    return analytics_service.instructor_analytics(owner_ids, group_id=group_id, status=status)
 
 
 @app.get("/api/results")
@@ -1610,6 +1634,8 @@ def _group_summary(group) -> dict:
         "name": group.name,
         "semester": group.semester,
         "is_active": group.is_active,
+        "is_archived": group.is_archived,
+        "archived_at": group.archived_at.isoformat() if group.archived_at else None,
         "created_at": group.created_at.isoformat() if group.created_at else None,
         "member_count": sum(1 for m in group.members if m.status == "approved"),
         "pending_count": sum(1 for m in group.members if m.status == "pending"),
@@ -1658,6 +1684,46 @@ def api_delete_group(group_id: int, request: Request, user: dict = Depends(get_a
         repo.delete_group(session, group_id)
         session.commit()
     return {"ok": True}
+
+
+@app.post("/api/instructor/groups/{group_id}/archive")
+async def api_archive_group(
+    group_id: int, request: Request, user: dict = Depends(get_authenticated_user)
+):
+    """Archives a finished group: deactivates it and, going forward, suppresses
+    student email/study_program in this group's own roster and results views.
+    Aggregate analytics stay intact (they key on the non-PII student_id).
+    Reversible via unarchive."""
+    require_instructor(user)
+    try:
+        body = await request.json()
+    except Exception:
+        body = None
+    _require_instructor_csrf(request, user, body)
+    with SessionLocal() as session:
+        if repo.get_owned_group(session, group_id, user["id"]) is None:
+            raise HTTPException(status_code=404, detail="Group not found")
+        group = repo.set_group_archived(session, group_id, True)
+        session.commit()
+        return _group_summary(group)
+
+
+@app.post("/api/instructor/groups/{group_id}/unarchive")
+async def api_unarchive_group(
+    group_id: int, request: Request, user: dict = Depends(get_authenticated_user)
+):
+    require_instructor(user)
+    try:
+        body = await request.json()
+    except Exception:
+        body = None
+    _require_instructor_csrf(request, user, body)
+    with SessionLocal() as session:
+        if repo.get_owned_group(session, group_id, user["id"]) is None:
+            raise HTTPException(status_code=404, detail="Group not found")
+        group = repo.set_group_archived(session, group_id, False)
+        session.commit()
+        return _group_summary(group)
 
 
 @app.post("/api/instructor/groups/{group_id}/rename")
@@ -1811,9 +1877,9 @@ def api_group_detail(group_id: int, user: dict = Depends(get_authenticated_user)
             {
                 "user_id": m.user.id,
                 "student_id": m.user.internal_id or m.user.email,
-                "email": m.user.email,
+                "email": None if group.is_archived else m.user.email,
                 "semester": m.user.semester,
-                "study_program": m.user.study_program,
+                "study_program": None if group.is_archived else m.user.study_program,
                 "requested_at": m.requested_at.isoformat() if m.requested_at else None,
             }
             for m in group.members
@@ -1823,9 +1889,9 @@ def api_group_detail(group_id: int, user: dict = Depends(get_authenticated_user)
             {
                 "user_id": m.user.id,
                 "student_id": m.user.internal_id or m.user.email,
-                "email": m.user.email,
+                "email": None if group.is_archived else m.user.email,
                 "semester": m.user.semester,
-                "study_program": m.user.study_program,
+                "study_program": None if group.is_archived else m.user.study_program,
             }
             for m in group.members
             if m.status == "approved"
@@ -1848,6 +1914,8 @@ def api_group_detail(group_id: int, user: dict = Depends(get_authenticated_user)
             "name": group.name,
             "semester": group.semester,
             "is_active": group.is_active,
+            "is_archived": group.is_archived,
+            "archived_at": group.archived_at.isoformat() if group.archived_at else None,
             "created_at": group.created_at.isoformat() if group.created_at else None,
             "pending_members": pending,
             "approved_members": approved,
@@ -1918,107 +1986,6 @@ def api_group_progress(group_id: int, user: dict = Depends(get_authenticated_use
     return result
 
 
-def _legacy_api_group_progress(group_id: int):
-    """Retained temporarily for migration comparison; not exposed as a route."""
-    with SessionLocal() as session:
-        group = repo.get_group(session, group_id)
-        if group is None:
-            raise HTTPException(status_code=404, detail="Group not found")
-        approved = [m for m in group.members if m.status == "approved"]
-        lab_ids = [gl.lab_id for gl in group.labs]
-        total_labs = len(lab_ids)
-
-        now = datetime.now(timezone.utc)
-        lab_deadlines = {gl.lab_id: _aware_utc(gl.deadline) for gl in group.labs}
-
-        students = []
-        total_group_passed = 0
-        total_at_risk = 0
-        lab_stats: dict[str, dict] = {
-            lid: {"passed": 0, "attempted": 0, "total_time": 0.0} for lid in lab_ids
-        }
-        for m in approved:
-            sid = m.user.internal_id or m.user.email
-            passed = 0
-            passed_lab_ids: set[str] = set()
-            total_sessions = 0
-            last_active = None
-            total_time = 0.0
-            for lid in lab_ids:
-                crs = get_check_results_for_student(lid, sid)
-                lifecycle = get_lifecycle_events_for_student(lid, sid)
-                sessions = _build_session_history(lifecycle)
-                total_sessions += len(sessions)
-                for s in sessions:
-                    if s.get("duration_seconds"):
-                        total_time += s["duration_seconds"]
-                    ts = s.get("started_at")
-                    if ts and (last_active is None or ts > last_active):
-                        last_active = ts
-                    ts_end = s.get("ended_at")
-                    if ts_end and (last_active is None or ts_end > last_active):
-                        last_active = ts_end
-                if sessions:
-                    lab_stats[lid]["attempted"] += 1
-                    for s in sessions:
-                        if s.get("duration_seconds"):
-                            lab_stats[lid]["total_time"] += s["duration_seconds"]
-                if crs:
-                    latest = crs[-1].get("check_result", {})
-                    if latest.get("passed") or latest.get("status") == "fixed":
-                        passed += 1
-                        passed_lab_ids.add(lid)
-                        lab_stats[lid]["passed"] += 1
-            total_group_passed += passed
-            at_risk = any(
-                lab_deadlines.get(lid) and lab_deadlines[lid] < now and lid not in passed_lab_ids
-                for lid in lab_ids
-            )
-            if at_risk:
-                total_at_risk += 1
-            students.append(
-                {
-                    "user_id": m.user.id,
-                    "student_id": sid,
-                    "email": m.user.email,
-                    "semester": m.user.semester,
-                    "study_program": m.user.study_program,
-                    "labs_assigned": total_labs,
-                    "labs_passed": passed,
-                    "total_sessions": total_sessions,
-                    "last_active": last_active,
-                    "total_time_seconds": round(total_time, 1),
-                    "at_risk": at_risk,
-                }
-            )
-
-        lab_summaries = []
-        for lid in lab_ids:
-            sc = load_scenario_metadata(lid)
-            ls = lab_stats[lid]
-            n = len(approved) or 1
-            lab_summaries.append(
-                {
-                    "lab_id": lid,
-                    "title": sc["title"] if sc else lid,
-                    "pass_rate": round(ls["passed"] / n * 100) if n else 0,
-                    "avg_time_minutes": round(ls["total_time"] / max(ls["attempted"], 1) / 60, 1),
-                    "students_attempted": ls["attempted"],
-                    "students_passed": ls["passed"],
-                }
-            )
-
-        return {
-            "total_labs": total_labs,
-            "total_students": len(approved),
-            "total_passed": total_group_passed,
-            "total_possible": total_labs * len(approved),
-            "total_at_risk": total_at_risk,
-            "students": students,
-            "labs": lab_summaries,
-        }
-
-
 @app.get("/api/instructor/groups/{group_id}/export-csv")
 def api_group_export_csv(group_id: int, user: dict = Depends(get_authenticated_user)):
     require_instructor(user)
@@ -2058,7 +2025,7 @@ def api_group_export_csv(group_id: int, user: dict = Depends(get_authenticated_u
                 writer.writerow(
                     [
                         sid,
-                        m.user.email,
+                        "" if group.is_archived else m.user.email,
                         lab_title,
                         "Yes" if passed else "No",
                         len(sessions),
@@ -2081,78 +2048,6 @@ def api_instructor_students_progress(user: dict = Depends(get_authenticated_user
     with SessionLocal() as session:
         owner_ids = _owner_group_ids(session, user["id"])
     return analytics_service.students_progress(group_ids=owner_ids)
-
-
-def _legacy_api_instructor_students_progress():
-    """Retained temporarily for migration comparison; not exposed as a route."""
-    now = datetime.now(timezone.utc)
-    with SessionLocal() as session:
-        students = repo.list_users(session, role="student")
-        result = []
-        for s in students:
-            sid = s.internal_id or s.email
-            memberships = [m for m in s.memberships if m.status == "approved"]
-            groups = [{"id": m.group.id, "name": m.group.name} for m in memberships]
-
-            # labs_assigned must match what the group-progress page counts: labs
-            # actually assigned to one of the student's approved groups, not
-            # "any lab the student happened to start a session for" (that was
-            # the old behavior and produced a different denominator than the
-            # per-group progress view for the same student).
-            assigned_lab_ids: set[str] = set()
-            lab_deadlines: dict[str, datetime | None] = {}
-            for m in memberships:
-                for gl in m.group.labs:
-                    assigned_lab_ids.add(gl.lab_id)
-                    dl = _aware_utc(gl.deadline)
-                    existing = lab_deadlines.get(gl.lab_id)
-                    if existing is None or (dl and dl > existing):
-                        lab_deadlines[gl.lab_id] = dl
-
-            labs_passed = 0
-            passed_lab_ids: set[str] = set()
-            total_sessions = 0
-            total_time = 0.0
-            last_active = None
-            for lid in assigned_lab_ids:
-                crs = get_check_results_for_student(lid, sid)
-                lifecycle = get_lifecycle_events_for_student(lid, sid)
-                sessions = _build_session_history(lifecycle)
-                total_sessions += len(sessions)
-                for sess in sessions:
-                    if sess.get("duration_seconds"):
-                        total_time += sess["duration_seconds"]
-                    for ts_key in ("started_at", "ended_at"):
-                        ts = sess.get(ts_key)
-                        if ts and (last_active is None or ts > last_active):
-                            last_active = ts
-                if crs:
-                    latest = crs[-1].get("check_result", {})
-                    if latest.get("passed") or latest.get("status") == "fixed":
-                        labs_passed += 1
-                        passed_lab_ids.add(lid)
-
-            at_risk = any(
-                lab_deadlines.get(lid) and lab_deadlines[lid] < now and lid not in passed_lab_ids
-                for lid in assigned_lab_ids
-            )
-
-            result.append(
-                {
-                    "student_id": sid,
-                    "email": s.email,
-                    "semester": s.semester,
-                    "study_program": s.study_program,
-                    "groups": groups,
-                    "labs_passed": labs_passed,
-                    "labs_assigned": len(assigned_lab_ids),
-                    "total_sessions": total_sessions,
-                    "total_time_seconds": round(total_time, 1),
-                    "last_active": last_active,
-                    "at_risk": at_risk,
-                }
-            )
-        return result
 
 
 # ---------------------------------------------------------------------------
@@ -2199,6 +2094,11 @@ def student_results_spa(lab_id: Optional[str] = None):
 
 @app.get("/workstation-access", response_class=HTMLResponse)
 def workstation_access_spa():
+    return _serve_spa()
+
+
+@app.get("/account/password", response_class=HTMLResponse)
+def student_account_password_spa():
     return _serve_spa()
 
 
@@ -2264,8 +2164,18 @@ def admin_account_password_spa():
     return _serve_spa()
 
 
+@app.get("/admin/system-usage", response_class=HTMLResponse)
+def admin_system_usage_spa():
+    return _serve_spa()
+
+
 @app.get("/instructor/groups", response_class=HTMLResponse)
 def instructor_groups_spa():
+    return _serve_spa()
+
+
+@app.get("/instructor/lab-catalogue", response_class=HTMLResponse)
+def instructor_lab_catalogue_spa():
     return _serve_spa()
 
 
@@ -2302,6 +2212,12 @@ def instructor_group_analytics_spa(group_id: int):
 
 @app.get("/instructor/labs/{lab_id}", response_class=HTMLResponse)
 def instructor_lab_spa(lab_id: str):
+    _ = lab_id
+    return _serve_spa()
+
+
+@app.get("/instructor/labs/{lab_id}/feedback", response_class=HTMLResponse)
+def instructor_lab_feedback_spa(lab_id: str):
     _ = lab_id
     return _serve_spa()
 

@@ -39,8 +39,8 @@ export default function InstructorGroupSessionDetail({ user, groupId, studentId,
 
   useDocumentTitle(
     sessionNum
-      ? `Session #${sessionNum} — ${labId}`
-      : `${labId} — ${studentId}`
+      ? `Session #${sessionNum} - ${labId}`
+      : `${labId} - ${studentId}`
   );
 
   useEffect(() => {

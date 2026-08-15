@@ -53,6 +53,7 @@ export interface Scenario {
 export interface CheckerCheck {
   name: string;
   label?: string;
+  kind?: "objective" | "guardrail";
 }
 
 export interface LabEndpoints {
@@ -81,6 +82,8 @@ export interface Group {
   name: string;
   semester?: string | null;
   is_active?: boolean;
+  is_archived?: boolean;
+  archived_at?: string | null;
   member_count: number;
   lab_count: number;
   pending_count: number;
@@ -92,6 +95,8 @@ export interface GroupDetail {
   name: string;
   semester?: string | null;
   is_active?: boolean;
+  is_archived?: boolean;
+  archived_at?: string | null;
   csrf_token: string;
   labs: GroupLab[];
   approved_members: GroupMember[];
@@ -106,9 +111,9 @@ export interface GroupLab {
 
 export interface GroupMember {
   student_id: string;
-  email: string;
+  email: string | null;
   semester?: string;
-  study_program?: string;
+  study_program?: string | null;
 }
 
 export interface PendingMember extends GroupMember {
@@ -128,6 +133,7 @@ export interface ActivityEvent {
 }
 
 export interface GroupProgress {
+  is_archived?: boolean;
   total_students: number;
   total_labs: number;
   total_passed: number;
@@ -140,9 +146,9 @@ export interface GroupProgress {
 
 export interface StudentProgress {
   student_id: string;
-  email: string;
+  email: string | null;
   semester?: string;
-  study_program?: string;
+  study_program?: string | null;
   labs_assigned: number;
   labs_passed: number;
   total_sessions: number;
@@ -238,15 +244,47 @@ export interface FeedbackInfo {
   already_submitted?: boolean;
 }
 
+export interface SystemStatus {
+  running_labs: number;
+  cpu_percent: number;
+  memory_percent: number;
+  memory_used_mb: number;
+  memory_total_mb: number;
+}
+
 export interface InstructorLabInfo {
   id: string;
   title: string;
   difficulty?: string;
+  active_sessions?: number;
+  total_students?: number;
+  student_guide_url?: string;
+  solution_notes_url?: string;
+  instructor_guide_url?: string;
+  is_sample?: boolean;
+}
+
+export interface InstructorFeedbackResponse {
+  response_id: string;
+  timestamp: string;
+  section_a?: string;
+  comment: string;
+  issue_category?: string | null;
+  synthetic?: boolean;
+}
+
+export interface InstructorFeedbackSummary {
+  feedback_count: number;
+  feedback_average: number | null;
+  rating_distribution: Record<string, number> | null;
+  issue_categories: Record<string, number> | null;
+  responses: InstructorFeedbackResponse[];
 }
 
 export interface InstructorLabDetailData {
   scenario: Scenario;
   feedback_count: number;
+  is_sample?: boolean;
 }
 
 export interface Route {
@@ -314,6 +352,8 @@ export interface AnalyticsLab {
 export interface AnalyticsGroup {
   id: number;
   name: string;
+  is_active?: boolean;
+  is_archived?: boolean;
   completion_rate: number;
   active_rate: number;
   at_risk: number;
@@ -332,8 +372,9 @@ export interface InstructorAnalyticsData {
   as_of: string;
   timezone: string;
   window_label: string;
-  include_inactive: boolean;
+  status: "active" | "archived" | "all";
   inactive_groups_count: number;
+  archived_groups_count: number;
   total_groups: number;
   total_labs: number;
   total_students: number;

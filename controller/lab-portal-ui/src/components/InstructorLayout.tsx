@@ -1,4 +1,4 @@
-import { Activity, BarChart3, BookOpenCheck, Clock, Layers, LayoutDashboard, ListChecks, Users } from "lucide-react";
+import { Activity, BarChart3, BookOpenCheck, Clock, Layers, LayoutDashboard, ListChecks, Library, Users } from "lucide-react";
 import type { User } from "../types";
 import AppShell, { type NavItem } from "./AppShell";
 
@@ -18,6 +18,7 @@ export default function InstructorLayout({ user, onLogout, pendingCount, groupCo
   const navItems: NavItem[] = [
     { href: "/instructor", label: "Dashboard", icon: LayoutDashboard, match: (p) => p === "/instructor" },
     { href: "/instructor/groups", label: "Groups", icon: Layers, match: (p) => p === "/instructor/groups" },
+    { href: "/instructor/lab-catalogue", label: "Lab Catalogue", icon: Library, match: (p) => p.startsWith("/instructor/lab-catalogue") || p.startsWith("/instructor/labs/") },
     { href: "/instructor/students", label: "Manage students", icon: Users, match: (p) => p.startsWith("/instructor/students") },
     { href: "/instructor/pending", label: "Pending Approvals", icon: Clock, match: (p) => p.startsWith("/instructor/pending"), badge: pendingCount },
   ];

@@ -1,0 +1,1 @@
+--8<-- "labs/ftp-anonymous-access/docs/instructor-guide.md"

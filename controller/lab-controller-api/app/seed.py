@@ -88,7 +88,7 @@ def ensure_admin_bootstrap() -> None:
     Chicken-and-egg: the admin panel manages instructor accounts, but nothing
     can create the first admin account through the panel itself. Runs on every
     startup and is a no-op once an admin exists. The generated password is
-    logged once (WARNING, so it survives default log levels) — the admin must
+    logged once (WARNING, so it survives default log levels) - the admin must
     change it on first login (must_change_password=True).
     """
     with SessionLocal() as session:

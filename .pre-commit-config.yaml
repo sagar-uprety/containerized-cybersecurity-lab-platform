@@ -107,7 +107,7 @@ repos:
     hooks:
       - id: prettier
         args: [--config=config/.prettierrc.json, --ignore-path=config/.prettierignore]
-        files: \.(js|mjs|cjs|json|md|markdown)$    # YAML excluded — handled by yamllint
+        files: \.(js|mjs|cjs|json|md|markdown)$    # YAML excluded - handled by yamllint
 
   # --------------------------------------------------------------------
   #  Project-specific local hooks (written in this repo)
@@ -199,6 +199,15 @@ repos:
       - id: vulture
         name: Dead code detection
         language: python
+        additional_dependencies:
+          - vulture==2.16
+        pass_filenames: false
+
+      - id: thesis-no-em-dash
+        name: No em dashes
+        entry: python tools/pre_commit/check_no_em_dash.py
+        language: python
+        exclude: ^(\.venv/|node_modules/|site/|test-results/|package-lock\.json$)
         additional_dependencies:
           - vulture
         files: \.py$

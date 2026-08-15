@@ -43,7 +43,7 @@ def main() -> None:
     from app.analytics import instructor_analytics  # noqa: PLC0415
     from app.db import SessionLocal  # noqa: PLC0415
     from app.demo_seed import replace_with_demo_data  # noqa: PLC0415
-    from app.models import LabSession, RuntimeLease, TerminalCommand  # noqa: PLC0415
+    from app.models import Group, LabSession, RuntimeLease, TerminalCommand, User  # noqa: PLC0415
     from fastapi.testclient import TestClient  # noqa: PLC0415
     from labctl_core import lifecycle as lifecycle_module  # noqa: PLC0415
 
@@ -122,7 +122,14 @@ def main() -> None:
         assert analytics.status_code == 200, analytics.text
         assert analytics_seconds < 10, f"Analytics took {analytics_seconds:.2f}s"
         payload = analytics.json()
-        direct = instructor_analytics()
+        with SessionLocal() as session:
+            instructor_user = session.execute(
+                select(User).where(User.email == instructor["email"])
+            ).scalar_one()
+            owner_group_ids = list(
+                session.scalars(select(Group.id).where(Group.owner_id == instructor_user.id))
+            )
+        direct = instructor_analytics(owner_group_ids)
         assert payload["eligible_assignments"] == direct["eligible_assignments"]
         assert payload["eligible_assignments"] > 0
         assert payload["completed_assignments"] <= payload["eligible_assignments"]

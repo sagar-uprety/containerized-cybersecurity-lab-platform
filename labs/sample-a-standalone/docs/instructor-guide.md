@@ -27,7 +27,7 @@ commands, and documentation with scenario-specific content.
 -   **Contained blast radius:** The records service and workstation run in a per-student isolated Podman network. Nothing is reachable outside the lab.
 -   **Synthetic data only:** The service returns fabricated sample records and a dummy authorization token. No real data or credentials are present.
 -   **Intentional risks:** Access control is disabled in the baseline (`ACCESS_CONTROL=disabled`) and a dummy token is seeded (`intentional-risk-allowlist.yaml`). Safe because the service is disposable, isolated, and synthetically populated.
--   **Student boundaries:** Students stay on the lab network, use only synthetic data, and apply changes through the service's narrow reload helper — not platform operator commands.
+-   **Student boundaries:** Students stay on the lab network, use only synthetic data, and apply changes through the service's narrow reload helper - not platform operator commands.
 -   **Instructor recovery:** Portal **Reset** restores the vulnerable baseline and discards the fix. If a student wedges the service, End Lab and Start again.
 
 <!-- AUTHORING NOTE: this is the reference instructor guide. Keep this section, its
@@ -100,7 +100,7 @@ For lab authors, this guide models the boundary among artifacts:
 
 -   Student guide: outcomes, questions, references, progressive hints, and the
     always-visible Your Lab Environment / Your Mission facts (paths, access,
-    deliverables — formerly in SITREP.txt).
+    deliverables - formerly in SITREP.txt).
 -   Instructor guide: assessment criteria, safety, intervention policy, and feedback use.
 -   Solution notes: exact student-executable commands and expected results.
 -   `scenario.yaml`: machine-consumed topology, limits, builds, and checks only.

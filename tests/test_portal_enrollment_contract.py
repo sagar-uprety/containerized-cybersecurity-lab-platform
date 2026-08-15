@@ -22,6 +22,11 @@ def main() -> None:
 
     init_db()
     with SessionLocal() as session:
+        instructor = User(
+            email="semester-enrollment-instructor@example.invalid",
+            password_hash=repo.hash_password("semester-enrollment-password"),
+            role="instructor",
+        )
         student = User(
             email="semester-enrollment@example.invalid",
             password_hash=repo.hash_password("semester-enrollment-password"),
@@ -30,13 +35,14 @@ def main() -> None:
             number=997,
             lab_password="workstation-test-password",
         )
-        session.add(student)
+        session.add_all([instructor, student])
         session.flush()
-        ws_primary = repo.create_group(session, "System Security", semester="WS 2026/27")
-        ws_other = repo.create_group(session, "Advanced Security", semester="WS 2026/27")
-        ss_group = repo.create_group(session, "Security Fundamentals", semester="SS 2026")
+        owner_id = instructor.id
+        ws_primary = repo.create_group(session, "System Security", owner_id, semester="WS 2026/27")
+        ws_other = repo.create_group(session, "Advanced Security", owner_id, semester="WS 2026/27")
+        ss_group = repo.create_group(session, "Security Fundamentals", owner_id, semester="SS 2026")
         inactive_group = repo.create_group(
-            session, "Archived Security", semester="WS 2025/26", is_active=False
+            session, "Archived Security", owner_id, semester="WS 2025/26", is_active=False
         )
         repo.add_member(session, ws_primary.id, student.id)
         repo.add_member(session, inactive_group.id, student.id)
@@ -72,7 +78,7 @@ def main() -> None:
         }
 
         try:
-            repo.create_group(session, "Missing semester")
+            repo.create_group(session, "Missing semester", owner_id)
         except ValueError as exc:
             assert str(exc) == "group semester is required"
         else:

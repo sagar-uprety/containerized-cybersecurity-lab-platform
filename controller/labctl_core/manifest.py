@@ -142,7 +142,7 @@ def build_manifest(scenario: dict, ctx: dict) -> dict:
     # Collect all named volumes declared across all containers            #
     # ------------------------------------------------------------------ #
     # We build the volumes list by scanning containers so there is a      #
-    # single source of truth — no separate top-level volumes: block in    #
+    # single source of truth - no separate top-level volumes: block in    #
     # scenario.yaml required.                                             #
     seen_volume_names: set[str] = set()
 
@@ -238,7 +238,7 @@ def build_manifest(scenario: dict, ctx: dict) -> dict:
         if resolved_volumes:
             entry["volumes"] = resolved_volumes
 
-        # network — assign to specified networks or default lab network
+        # network - assign to specified networks or default lab network
         container_networks = cdef.get("networks", [])
         if container_networks and scenario_networks:
             # Primary network is the first one listed
@@ -278,11 +278,11 @@ def build_manifest(scenario: dict, ctx: dict) -> dict:
         if cdef.get("security"):
             entry["security"] = cdef["security"]
 
-        # user — run as a specific user/uid inside the container
+        # user - run as a specific user/uid inside the container
         if cdef.get("user"):
             entry["user"] = cdef["user"]
 
-        # read_only — mount root filesystem read-only
+        # read_only - mount root filesystem read-only
         if cdef.get("read_only"):
             entry["read_only"] = cdef["read_only"]
 

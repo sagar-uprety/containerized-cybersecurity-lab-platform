@@ -1,0 +1,14 @@
+lab_id: banner-exposure
+
+intentional_findings:
+  - id: banner-exposure-debug-page-dummy-token
+    tool: gitleaks
+    files:
+      - debug-page.html
+    patterns:
+      - debug_token       = lab-demo-not-a-real-secret
+    reason: >-
+      The internal diagnostic page is entirely fabricated lab-internal
+      content (dummy RFC1918 addresses, an obviously-fake token string,
+      and made-up hostnames) used to demonstrate debug/diagnostic
+      information leakage. No real secret, host, or credential is present.

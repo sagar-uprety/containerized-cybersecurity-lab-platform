@@ -1,5 +1,5 @@
 export function fmtTime(seconds: number | null | undefined): string {
-  if (!seconds || seconds <= 0) return "—";
+  if (!seconds || seconds <= 0) return "-";
   const m = Math.round(seconds / 60);
   if (m < 60) return `${m} min`;
   const h = Math.floor(m / 60);
@@ -7,7 +7,7 @@ export function fmtTime(seconds: number | null | undefined): string {
 }
 
 export function fmtDuration(sec: number | null | undefined): string {
-  if (!sec || sec <= 0) return "—";
+  if (!sec || sec <= 0) return "-";
   const m = Math.round(sec / 60);
   if (m < 1) return "< 1 min";
   if (m < 60) return `${m} min`;
@@ -15,7 +15,7 @@ export function fmtDuration(sec: number | null | undefined): string {
 }
 
 export function fmtTimestamp(ts: string | number | null | undefined): string {
-  if (!ts) return "—";
+  if (!ts) return "-";
   const d = typeof ts === "number" ? new Date(ts * 1000) : new Date(ts);
   if (isNaN(d.getTime())) return String(ts);
   return d.toLocaleDateString(undefined, {

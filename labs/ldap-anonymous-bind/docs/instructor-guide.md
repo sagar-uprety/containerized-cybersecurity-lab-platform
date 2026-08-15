@@ -20,7 +20,7 @@ Students investigate an OpenLDAP directory server on the internal network. They 
 -   **Contained blast radius:** The directory server and workstation run in a per-student isolated Podman network. No directory data leaves the lab.
 -   **Synthetic data only:** The directory is seeded with 50+ fabricated employee entries and dummy password material (`dummypassword` and similar). No real personal data or credentials are present.
 -   **Intentional risks:** Anonymous read/search is permitted and TLS is not enforced in the baseline (`intentional-risk-allowlist.yaml`). Safe because the directory is disposable, isolated, and synthetically populated.
--   **Student boundaries:** Students stay on the lab network, use only the seeded directory, and administer the server through the `root` SSH account using `/lab/access/credentials.txt` — not platform operator commands.
+-   **Student boundaries:** Students stay on the lab network, use only the seeded directory, and administer the server through the `root` SSH account using `/lab/access/credentials.txt` - not platform operator commands.
 -   **Instructor recovery:** Portal **Reset** restores the vulnerable baseline and discards the fix; it does not reload slapd with a student's config. A student who wedges slapd should restart it from the SSH session, or End Lab and Start again.
 
 ## Expected Evidence by Phase
@@ -34,15 +34,15 @@ Students investigate an OpenLDAP directory server on the internal network. They 
 
 ## Reveal Policy and Intervention
 
-The student guide already contains three written hints. Do not restate them. Escalate on the student's state, not the clock — this lab has two independent objectives (access control and transport) and students routinely finish one and stop.
+The student guide already contains three written hints. Do not restate them. Escalate on the student's state, not the clock - this lab has two independent objectives (access control and transport) and students routinely finish one and stop.
 
 | Trigger                                                         | Instructor Response                                                                                                                                                                  |
 | --------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Student asks for help before enumerating anonymously            | Redirect to the investigation questions; do not confirm what the directory leaks.                                                                                                    |
-| Student concludes "anonymous bind is accepted, so it is broken" | Ask whether an accepted bind is the same as permission to read or search — steer them to test what entries actually return.                                                          |
+| Student concludes "anonymous bind is accepted, so it is broken" | Ask whether an accepted bind is the same as permission to read or search - steer them to test what entries actually return.                                                          |
 | Student fixed the ACL but left plaintext allowed                | Ask whether making TLS available is the same as enforcing it; point at the separate transport objective.                                                                             |
 | Student denied all access including authenticated users         | Ask what an authorized query should still be able to do.                                                                                                                             |
-| Student stuck after all three written hints                     | Point at the ACL and TLS sections of the OpenLDAP Administrator's Guide, and note that pre-generated certificates already exist on the server — without naming attributes or syntax. |
+| Student stuck after all three written hints                     | Point at the ACL and TLS sections of the OpenLDAP Administrator's Guide, and note that pre-generated certificates already exist on the server - without naming attributes or syntax. |
 
 **Do not reveal:** the `olcAccess` syntax, the `olcSecurity`/TLS directives, or the certificate paths. If a student cannot reach these, record it as guide-design evidence.
 
@@ -65,9 +65,9 @@ The student guide already contains three written hints. Do not restate them. Esc
 
 How to read this lab's combined feedback form responses:
 
--   A prior-vs-post confidence gap on the bind-vs-read distinction is the key signal for this lab — it is the single misconception the scenario is built to correct.
+-   A prior-vs-post confidence gap on the bind-vs-read distinction is the key signal for this lab - it is the single misconception the scenario is built to correct.
 -   Low clarity scores typically point at the two-objective Remediate section: students who reported "I thought I was done" usually fixed the ACL and missed TLS enforcement.
--   Stuck-point free text mentioning "cn=config", "slapd.conf", or "Reset didn't work" reveals confusion about the runtime configuration backend and how changes are applied — a guide-clarity issue, not a knowledge gap.
+-   Stuck-point free text mentioning "cn=config", "slapd.conf", or "Reset didn't work" reveals confusion about the runtime configuration backend and how changes are applied - a guide-clarity issue, not a knowledge gap.
 -   Free text about certificates points at the TLS pointer in the guide: if students could not find the pre-generated certs, strengthen that line in "Your Lab Environment".
 
 ## Teaching Notes

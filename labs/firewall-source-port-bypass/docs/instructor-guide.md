@@ -22,7 +22,7 @@ and use a lab-local health path to distinguish hardening from service breakage.
 -   **Contained blast radius:** The external workstation, firewall host, and internal web server run across two per-student Podman networks (`external`, `internal`). The internal server is reachable only through the firewall; nothing routes outside the lab.
 -   **Synthetic data only:** The internal web server serves placeholder content and a health path. There is no real data behind the firewall.
 -   **Intentional risks:** A stateless `--sport 80` rule that admits new connections from source port 80 is the deliberate weakness (`intentional-risk-allowlist.yaml`). Safe because the topology is isolated and the "external" network is a lab-only segment.
--   **Student boundaries:** Students probe only lab hosts and edit rules only on the firewall host via the `firewall` SSH account and its limited `sudo` helper — not platform operator commands.
+-   **Student boundaries:** Students probe only lab hosts and edit rules only on the firewall host via the `firewall` SSH account and its limited `sudo` helper - not platform operator commands.
 -   **Instructor recovery:** Portal **Reset** restores the vulnerable rules. A student who breaks connectivity should End Lab and Start again; the reload helper keeps active and persistent rules aligned when used correctly.
 
 ## Expected Evidence by Phase

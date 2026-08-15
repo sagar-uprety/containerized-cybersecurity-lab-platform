@@ -23,7 +23,7 @@ Apache remains 2.4.49, so this is not presented as patching the binary.
 -   **Contained blast radius:** The Apache server and workstation run in a per-student isolated Podman network. The vulnerable server is reachable only inside the lab; there is no route to any external host.
 -   **Synthetic data only:** The server serves placeholder web content and a sentinel file used to demonstrate traversal. No real data is present.
 -   **Intentional risks:** Apache 2.4.49 with a permissive CGI/root configuration (CVE-2021-41773) is deliberately installed (`intentional-risk-allowlist.yaml`). Safe because the host is disposable, isolated, and holds no real data; the exploit cannot reach beyond the lab.
--   **Student boundaries:** Students exercise the vulnerability only against the lab server, using only the lab environment — no external exploit infrastructure or real payloads.
+-   **Student boundaries:** Students exercise the vulnerability only against the lab server, using only the lab environment - no external exploit infrastructure or real payloads.
 -   **Instructor recovery:** Portal **Reset** restores the vulnerable baseline. Emphasise in debrief that the mitigation is virtual patching, not a real fix; the binary stays vulnerable by design.
 
 ## Expected Evidence by Phase
@@ -47,7 +47,7 @@ The student guide already contains three written hints. Do not restate them. Esc
 | Student mitigated but broke the normal home page     | Ask them to confirm an ordinary request still succeeds, not just that the exploit fails.          |
 | Student stuck after all three written hints          | Point at Apache's URL-mapping and authorization documentation; do not give the directives.        |
 
-**Do not reveal:** the specific directives to change or the exact mitigation edits. Reinforce that this is virtual patching — the binary stays vulnerable by design. If a student cannot reach the mitigation, record it as guide-design evidence.
+**Do not reveal:** the specific directives to change or the exact mitigation edits. Reinforce that this is virtual patching - the binary stays vulnerable by design. If a student cannot reach the mitigation, record it as guide-design evidence.
 
 ## Common Mistakes
 
@@ -67,9 +67,9 @@ The student guide already contains three written hints. Do not restate them. Esc
 
 How to read this lab's combined feedback form responses:
 
--   A prior-vs-post confidence gap on "virtual patching vs upgrading" indicates whether students grasped that a compensating control buys time but does not fix the software — the central judgment this lab teaches.
+-   A prior-vs-post confidence gap on "virtual patching vs upgrading" indicates whether students grasped that a compensating control buys time but does not fix the software - the central judgment this lab teaches.
 -   Low clarity scores usually point at the Remediate section: students who upgraded, or tried to, instead of applying a config mitigation need the "do not upgrade the binary" constraint stated more prominently.
--   Stuck-point free text mentioning "still returns the file" or "home page broken" reveals whether the mitigation was incomplete or too aggressive — both recoverable, both worth surfacing in debrief.
+-   Stuck-point free text mentioning "still returns the file" or "home page broken" reveals whether the mitigation was incomplete or too aggressive - both recoverable, both worth surfacing in debrief.
 -   Confusion about the `apacheadmin` reload privilege is guide-design signal: strengthen the reload-path pointer in "Your Lab Environment".
 
 ## Teaching Notes

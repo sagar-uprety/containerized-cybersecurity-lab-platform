@@ -26,7 +26,7 @@ boundary is enforced by the proxy plus the network topology.
 -   **Contained blast radius:** proxy, backend, and workstation run across two per-student isolated Podman networks; the backend is on the internal network only.
 -   **Synthetic data only:** public records are fabricated; the internal marker is a clearly-labelled synthetic string. No real data.
 -   **Intentional risks:** `PROXY_MODE=open` forwards internal paths (`intentional-risk-allowlist.yaml`). Safe because both networks are lab-only and per-student.
--   **Student boundaries:** students edit proxy config from the workstation and reload via the `proxyadmin` SSH account's narrow helper — not platform operator commands.
+-   **Student boundaries:** students edit proxy config from the workstation and reload via the `proxyadmin` SSH account's narrow helper - not platform operator commands.
 -   **Instructor recovery:** portal **Reset** restores `PROXY_MODE=open`. A student who wedges the proxy should End Lab and Start again.
 
 ## Expected Evidence by Phase

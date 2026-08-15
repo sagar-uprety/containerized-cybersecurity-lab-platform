@@ -21,7 +21,7 @@ Students discover an unauthenticated, dual-homed Redis instance listening on bot
 -   **Contained blast radius:** Redis, the demo order application, and the workstation run in per-student Podman networks (`client-net`, `app-net`). Nothing reaches outside the lab; the dual-homed cache is the only host bridging the two networks.
 -   **Synthetic data only:** The cache is seeded with obviously fake demo values (`demo-only-token`, `demo-postgresql://fake-svc`, and similar). No real PII, credentials, or customer records are present.
 -   **Intentional risks:** Protected mode is disabled and Redis binds all interfaces with no authentication (`intentional-risk-allowlist.yaml`). This is safe only because the topology is per-student and network-isolated.
--   **Student boundaries:** Students stay on the lab network, use only seeded data, and reach the cache host through the `redisadmin` SSH account — never platform operator commands.
+-   **Student boundaries:** Students stay on the lab network, use only seeded data, and reach the cache host through the `redisadmin` SSH account - never platform operator commands.
 -   **Instructor recovery:** Portal **Reset** restores the vulnerable baseline and discards a student's fix; it does not repair a workstation a student has wedged. To fully recover, End Lab and Start again.
 
 ## Expected Evidence by Phase
@@ -48,7 +48,7 @@ The student guide already contains three written hints. Do not restate them. Esc
 | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Student asks for help before probing both networks          | Redirect to the investigation questions; do not confirm which interface is wrong.                                                    |
 | Student fixed authentication but left Redis on `client-net` | Ask which network the application actually uses, and what still reaches the cache from the workstation.                              |
-| Student believes they are done after setting a password     | Ask which of the five Verify conditions they can currently demonstrate — most will have skipped least-privilege or the default user. |
+| Student believes they are done after setting a password     | Ask which of the five Verify conditions they can currently demonstrate - most will have skipped least-privilege or the default user. |
 | Student gave the application user `+@all`                   | Ask what minimum command set the application truly needs.                                                                            |
 | Student stuck after all three written hints                 | Point at the ACL page of the official security docs; do not name the directives or values.                                           |
 
@@ -74,7 +74,7 @@ The student guide already contains three written hints. Do not restate them. Esc
 
 How to read this lab's combined feedback form responses:
 
--   A small prior-vs-post confidence gap on "authentication vs authorization" suggests students conflated the two — this lab's core distinction is that network binding, authentication, and least-privilege are three separate layers.
+-   A small prior-vs-post confidence gap on "authentication vs authorization" suggests students conflated the two - this lab's core distinction is that network binding, authentication, and least-privilege are three separate layers.
 -   Low clarity scores usually point at Remediate: students who could not tell which network the application uses need the topology stated more plainly, not more hints.
 -   Stuck-point free text mentioning "still connects" or "NOAUTH" reveals whether a student stopped at network binding without adding ACLs, or set a password but left the default user enabled.
 -   Repeated confusion about the application's username field is guide-design signal, not student weakness: strengthen the app-config pointer in "Your Lab Environment".

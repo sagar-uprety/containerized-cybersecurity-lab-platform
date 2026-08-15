@@ -8,9 +8,9 @@ The nginx site ships with two documented information-disclosure weaknesses in
 `/etc/nginx/conf.d/site.conf` (editable from the workstation at
 `/lab/nginx/site.conf`):
 
--   `server_tokens on;` — the `Server:` response header advertises the exact nginx
+-   `server_tokens on;` - the `Server:` response header advertises the exact nginx
     version (CWE-200), free reconnaissance for an attacker.
--   `autoindex on;` in the `/files/` location — directory listing is enabled, so
+-   `autoindex on;` in the `/files/` location - directory listing is enabled, so
     anyone can browse and download the seeded `db-backup.sql` and
     `internal-notes.txt` that were never meant to be listed (CWE-548).
 

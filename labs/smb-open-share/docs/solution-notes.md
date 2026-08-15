@@ -30,7 +30,7 @@ cat /tmp/app-production.conf
 `-N` supplies no password. With `map to guest = Bad User`, the empty
 identity is mapped to guest and the connection succeeds. `ls` lists
 seeded files including `passwords.txt`, `app-production.conf`, a database
-backup, and payroll data — all readable without credentials. Any user on
+backup, and payroll data - all readable without credentials. Any user on
 the lab network can exfiltrate the contents and the transfer is
 unencrypted.
 
@@ -107,14 +107,14 @@ smbclient -N //smb-host/backup -c 'ls' 2>&1 | grep -qiE 'NT_STATUS_ACCESS_DENIED
   && echo 'anonymous blocked' || echo 'anonymous still allowed'
 ```
 
-Expected: `anonymous blocked` — guest access is rejected.
+Expected: `anonymous blocked` - guest access is rejected.
 
 ```bash
 smbclient -U 'shareuser%smb-demo-password' //smb-host/backup -c 'ls' 2>&1 | grep -q 'passwords' \
   && echo 'authenticated read ok' || echo 'authenticated read failed'
 ```
 
-Expected: `authenticated read ok` — the restricted user can still read
+Expected: `authenticated read ok` - the restricted user can still read
 the share over an encrypted session.
 
 ```bash
@@ -123,7 +123,7 @@ smbclient -N --option='client smb encrypt = off' //smb-host/backup -c 'ls' 2>&1 
   && echo 'unencrypted rejected' || echo 'unencrypted allowed'
 ```
 
-Expected: `unencrypted rejected` — with `smb encrypt = required` and
+Expected: `unencrypted rejected` - with `smb encrypt = required` and
 guest disabled, an unencrypted anonymous session cannot read the share.
 
 When all three checks pass, click **Run Check** in the portal.
@@ -132,13 +132,13 @@ When all three checks pass, click **Run Check** in the portal.
 
 This remediation teaches three layered controls:
 
-1. **Authentication** (`map to guest = Never`, `guest ok = no`) — clients
+1. **Authentication** (`map to guest = Never`, `guest ok = no`) - clients
    must present valid Samba credentials. Missing or bad identities are
    rejected, not silently mapped to a guest.
-2. **Authorization** (`valid users = @allowed`) — even authenticated users
+2. **Authorization** (`valid users = @allowed`) - even authenticated users
    are granted access only if they belong to the authorized group, limiting
    blast radius if an account is compromised.
-3. **Transport security** (`smb encrypt = required`) — all session traffic
+3. **Transport security** (`smb encrypt = required`) - all session traffic
    is encrypted at the SMB 3 layer, preventing on-path sniffing of file
    contents and credentials.
 
@@ -154,7 +154,7 @@ For production, also consider:
     of local `smbpasswd` accounts
 -   Disabling SMB 1 entirely and raising `server min protocol` to SMB 3
 -   Using the newer `server smb encrypt = mandatory` syntax (Samba ≥ 4.14) which
-    is equivalent to `smb encrypt = required` — the old form still works on
+    is equivalent to `smb encrypt = required` - the old form still works on
     current Debian but may be deprecated in future releases; the checker
     (`(server )?smb encrypt = required`) already accepts both
 -   Storing the share on a dedicated volume with filesystem ACLs that match

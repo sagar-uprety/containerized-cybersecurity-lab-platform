@@ -35,6 +35,12 @@ def read_scenarios():
 command = os.environ.get("SSH_ORIGINAL_COMMAND", "")
 parts = command.split()
 
+# system-status is a distinct, argument-free, read-only verb (host CPU/memory
+# and running-lab count for the admin usage dashboard) -- no lab_id/student_id,
+# no destructive capability, so it is handled before the 4-part verb parsing.
+if len(parts) == 2 and parts[0] == "labctl" and parts[1] == "system-status":
+    os.execv("/usr/bin/sudo", ["sudo", "-n", LABCTL, "system-status"])
+
 if len(parts) != 4 or parts[0] != "labctl":
     fail("expected: labctl <verb> <lab_id> <student_id>")
 
@@ -50,7 +56,7 @@ if lab_id not in read_scenarios():
     fail("unknown lab_id")
 
 # that DB, so the boundary here is the strict student-id regex above. We do not
-# consult a static student allowlist — portal-created students are not in one.
+# consult a static student allowlist - portal-created students are not in one.
 #
 # stdin is intentionally NOT consumed here: it carries the lab password the
 # portal injects (Decision B) and is inherited by sudo -> labctl.

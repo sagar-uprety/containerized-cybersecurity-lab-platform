@@ -13,6 +13,8 @@ import type {
   FeedbackInfo,
   InstructorLabInfo,
   InstructorLabDetailData,
+  InstructorFeedbackSummary,
+  SystemStatus,
   StudentResultsData,
   StudentLabResultsData,
   InstructorAnalyticsData,
@@ -195,7 +197,7 @@ export function getInstructorStudentDetail(studentId: string, groupId?: number):
   return request(`/instructor/students/${studentId}${query}`);
 }
 
-export function getInstructorFeedback(labId: string): Promise<unknown> {
+export function getInstructorFeedback(labId: string): Promise<InstructorFeedbackSummary> {
   return request(`/instructor/feedback/${labId}`);
 }
 
@@ -219,10 +221,13 @@ export function getStudentLabResults(labId: string): Promise<StudentLabResultsDa
   return request(`/results/${labId}`);
 }
 
-export function getInstructorAnalytics(groupId?: number, includeInactive?: boolean): Promise<InstructorAnalyticsData> {
+export function getInstructorAnalytics(
+  groupId?: number,
+  status: "active" | "archived" | "all" = "active",
+): Promise<InstructorAnalyticsData> {
   const query = new URLSearchParams();
   if (groupId != null) query.set("group_id", String(groupId));
-  if (includeInactive) query.set("include_inactive", "true");
+  query.set("status", status);
   const qs = query.toString();
   return request(`/instructor/analytics${qs ? `?${qs}` : ""}`);
 }
@@ -240,6 +245,10 @@ export function changePassword(currentPassword: string, newPassword: string): Pr
 
 export function getInstructorCsrf(): Promise<{ csrf_token: string }> {
   return request("/instructor/csrf");
+}
+
+export function getAdminSystemStatus(): Promise<SystemStatus> {
+  return request("/admin/system-status");
 }
 
 async function instructorPost<T>(path: string, body: Record<string, unknown>): Promise<T> {
@@ -277,6 +286,14 @@ export function createGroup(name: string, semester?: string, isActive = true): P
 
 export function deleteGroup(groupId: number): Promise<unknown> {
   return instructorDelete(`/instructor/groups/${groupId}`);
+}
+
+export function archiveGroup(groupId: number): Promise<unknown> {
+  return instructorPost(`/instructor/groups/${groupId}/archive`, {});
+}
+
+export function unarchiveGroup(groupId: number): Promise<unknown> {
+  return instructorPost(`/instructor/groups/${groupId}/unarchive`, {});
 }
 
 export function addGroupMember(groupId: number, studentId: string): Promise<unknown> {

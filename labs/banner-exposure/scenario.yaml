@@ -1,0 +1,193 @@
+id: banner-exposure
+title: "Service Reconnaissance and Information Exposure"
+difficulty: beginner
+
+story:
+  role: Junior systems administrator
+  situation: >
+    A server is being prepared for its production launch next week. Before
+    sign-off, the operations lead wants confirmation that nothing beyond what
+    is strictly necessary can be learned about the server by someone probing
+    it from outside, without needing any credentials.
+
+documentation:
+  student_guide_url: /docs/labs/banner-exposure/
+  solution_notes_url: /docs/labs/banner-exposure-solution/
+  instructor_guide_url: /docs/labs/banner-exposure-instructor/
+
+access:
+  ssh_port_base: 22000
+  browser_terminal_port_base: 19000
+
+lifecycle:
+  idle_timeout_minutes: 30
+  max_runtime_minutes: 90
+  evaluation_idle_timeout_minutes: null
+  retention_after_stop_minutes: 180
+
+checker:
+  version: 1
+  states:
+    - vulnerable
+    - fixed
+  checks:
+    - name: ssh_banner_os_disclosure
+      label: "SSH identification string does not disclose the OS distribution"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        banner=$(nc -w 2 target-host 22 </dev/null 2>/dev/null | head -c 200);
+        if [ -z "$banner" ]; then
+          echo BANNER_UNREACHABLE;
+        elif printf '%s' "$banner" | grep -qi 'debian'; then
+          echo BANNER_OS_DISCLOSED;
+        else
+          echo BANNER_OS_HIDDEN;
+        fi
+      states:
+        vulnerable: "output_eq: BANNER_OS_DISCLOSED"
+        fixed: "output_eq: BANNER_OS_HIDDEN"
+    - name: apache_server_header_minimal
+      label: "HTTP Server header does not disclose software version or OS"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        header=$(curl -fsSI http://target-host/ 2>/dev/null | tr -d '\r' |
+        awk -F': ' 'tolower($1)=="server"{print $2}');
+        echo "SERVER_HEADER:${header}"
+      states:
+        vulnerable: "output_contains: SERVER_HEADER:Apache/"
+        fixed: "output_eq: SERVER_HEADER:Apache"
+    - name: apache_error_footer_suppressed
+      label: "Error pages do not disclose a signature footer"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        response=$(curl -s -w '\nHTTPCODE:%{http_code}'
+        http://target-host/checker-probe-missing-path 2>/dev/null);
+        code=$(printf '%s\n' "$response" | tail -n1 | sed 's/^HTTPCODE://');
+        body=$(printf '%s\n' "$response" | sed '$d');
+        if [ "$code" != "404" ]; then
+          echo FOOTER_CHECK_UNREACHABLE;
+        elif printf '%s' "$body" | grep -qi '<address>'; then
+          echo FOOTER_SIGNATURE_PRESENT;
+        else
+          echo FOOTER_SIGNATURE_ABSENT;
+        fi
+      states:
+        vulnerable: "output_eq: FOOTER_SIGNATURE_PRESENT"
+        fixed: "output_eq: FOOTER_SIGNATURE_ABSENT"
+    - name: apache_default_page_replaced
+      label: "The default installer landing page has been replaced"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        response=$(curl -s -w '\nHTTPCODE:%{http_code}' http://target-host/ 2>/dev/null);
+        code=$(printf '%s\n' "$response" | tail -n1 | sed 's/^HTTPCODE://');
+        body=$(printf '%s\n' "$response" | sed '$d');
+        if [ "$code" != "200" ]; then
+          echo DEFAULT_PAGE_CHECK_UNREACHABLE;
+        elif printf '%s' "$body" | grep -q 'Debian Default Page'; then
+          echo DEFAULT_PAGE_PRESENT;
+        else
+          echo DEFAULT_PAGE_REPLACED;
+        fi
+      states:
+        vulnerable: "output_eq: DEFAULT_PAGE_PRESENT"
+        fixed: "output_eq: DEFAULT_PAGE_REPLACED"
+    - name: apache_debug_page_removed
+      label: "The internal diagnostic page is no longer publicly served"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        curl -fsS -o /dev/null -w '%{http_code}' http://target-host/internal-status.html 2>/dev/null
+      states:
+        vulnerable: "output_eq: 200"
+        fixed: "output_eq: 404"
+    - name: ssh_admin_login_still_works
+      label: "Administrator SSH access still works after the banner change"
+      kind: guardrail
+      exec_in: workstation
+      run: >-
+        if sshpass -p "$STUDENT_PASSWORD" ssh -o StrictHostKeyChecking=no
+        -o ConnectTimeout=5 root@target-host true >/dev/null 2>&1; then
+          echo SSH_LOGIN_OK;
+        else
+          echo SSH_LOGIN_FAILED;
+        fi
+      states:
+        vulnerable: "output_eq: SSH_LOGIN_OK"
+        fixed: "output_eq: SSH_LOGIN_OK"
+    - name: apache_site_reachable
+      label: "The web server keeps answering client requests"
+      kind: guardrail
+      exec_in: workstation
+      run: >-
+        curl -fsS -o /dev/null -w '%{http_code}' http://target-host/ 2>/dev/null
+      states:
+        vulnerable: "output_eq: 200"
+        fixed: "output_eq: 200"
+
+build:
+  images:
+    - service: target-host
+      name: thesis-labs/banner-exposure-target:latest
+      context: .
+      dockerfile: Dockerfile
+
+services:
+  workstation:
+    image: thesis-labs/workstation-base:latest
+    role: Student browser terminal and SSH fallback.
+    internal_ports:
+      browser_terminal: 19000
+      ssh: 22
+  target-host:
+    image: thesis-labs/banner-exposure-target:latest
+    role: Multi-service target running SSH and a web server with default, verbose banners.
+    internal_ports:
+      ssh: 22
+      http: 80
+
+resources:
+  workstation:
+    cpus: "0.50"
+    memory: "256m"
+  target-host:
+    cpus: "0.50"
+    memory: "256m"
+
+workstation:
+  environment:
+    TARGET_HOST: target-host
+  depends_on:
+    - target-host
+
+containers:
+  - service: target-host
+    hostname: target-host
+    init: true
+    restart: unless-stopped
+    environment:
+      LAB_ADMIN_USER: root
+      LAB_CONFIG_SRC: /opt/lab/baseline/apache-security.conf
+      LAB_CONFIG_DST: /etc/apache2/conf-enabled/zz-lab-security.conf
+      LAB_SERVICE_CMD: "apache2ctl -D FOREGROUND"
+      LAB_LOG_FILE: /var/log/apache2/error.log
+      SERVICE_ADMIN_PASSWORD: "$platform.student_password"
+    expose:
+      - 22
+      - 80
+    healthcheck:
+      command:
+        - CMD-SHELL
+        - "ss -tlnp | grep -q ':80 ' && ss -tlnp | grep -q ':22 '"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    security:
+      privileged: false
+      host_network: false
+      cap_add:
+        - AUDIT_WRITE

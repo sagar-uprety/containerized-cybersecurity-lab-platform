@@ -54,7 +54,7 @@ LogLevel warn
     CustomLog "logs/access_log" combined
 </IfModule>
 
-# Vulnerable alias — path normalization bug in 2.4.49 allows traversal
+# Vulnerable alias - path normalization bug in 2.4.49 allows traversal
 Alias /cgi-bin/ "/usr/local/apache2/cgi-bin/"
 
 <Directory "/usr/local/apache2/cgi-bin/">

@@ -37,7 +37,7 @@ interface Props {
 }
 
 function fmtDate(iso: string | null): string {
-  if (!iso) return "—";
+  if (!iso) return "-";
   return new Date(iso).toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
 }
 
@@ -134,7 +134,7 @@ export default function AdminInstructors({ user, onLogout }: Props) {
     <AdminLayout user={user} onLogout={onLogout}>
       <PageHeader
         title="Instructors"
-        description="Instructors are isolated from each other — each owns their own groups, labs, and deadlines."
+        description="Instructors are isolated from each other - each owns their own groups, labs, and deadlines."
         breadcrumbs={[{ label: "Admin" }, { label: "Instructors" }]}
         actions={
           <Button size="sm" onClick={() => setNewOpen(true)}>
@@ -274,7 +274,7 @@ export default function AdminInstructors({ user, onLogout }: Props) {
           <DialogHeader>
             <DialogTitle>Credentials</DialogTitle>
             <DialogDescription>
-              Shown once. Share this password with the instructor — it can't be retrieved again after closing this dialog.
+              Shown once. Share this password with the instructor - it can't be retrieved again after closing this dialog.
             </DialogDescription>
           </DialogHeader>
           {credentials && (

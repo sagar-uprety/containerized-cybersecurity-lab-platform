@@ -1,0 +1,241 @@
+id: dnssec-misconfiguration
+title: "DNS Resolver Trust and Access Control"
+difficulty: advanced
+
+story:
+  role: Junior Linux administrator
+  situation: >
+    Monitoring flagged an unusual volume of DNS lookups reaching the internal
+    recursive resolver from outside the expected client segment, and a
+    routine spot-check of a recent answer did not match what the domain's own
+    records should contain. You have been asked to confirm whether the
+    resolver's trust boundaries are intact before it becomes a bigger problem.
+
+documentation:
+  student_guide_url: /docs/labs/dnssec-misconfiguration/
+  solution_notes_url: /docs/labs/dnssec-misconfiguration-solution/
+  instructor_guide_url: /docs/labs/dnssec-misconfiguration-instructor/
+
+access:
+  ssh_port_base: 22000
+  browser_terminal_port_base: 19000
+
+lifecycle:
+  idle_timeout_minutes: 30
+  max_runtime_minutes: 120
+  evaluation_idle_timeout_minutes: null
+  retention_after_stop_minutes: 180
+
+checker:
+  version: 1
+  states:
+    - vulnerable
+    - fixed
+  checks:
+    - name: dns_recursion_restricted
+      label: "Recursive resolution is refused from outside the trusted client network"
+      kind: objective
+      exec_in: dns-auth
+      run: >-
+        response=$(dig +time=3 +tries=1 www.lab.internal @dns-resolver 2>&1);
+        if printf '%s\n' "$response" | grep -q 'status: NOERROR'; then
+          echo recursion_open;
+        elif printf '%s\n' "$response" | grep -q 'status: REFUSED'; then
+          echo recursion_restricted;
+        else
+          echo recursion_unexpected;
+        fi
+      states:
+        vulnerable: "output_eq: recursion_open"
+        fixed: "output_eq: recursion_restricted"
+    - name: dns_dnssec_validation
+      label: "Resolver rejects an unsigned/forged answer for a signed domain"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        response=$(dig +time=3 +tries=1 poisoned.lab.internal @dns-resolver 2>&1);
+        if printf '%s\n' "$response" | grep -q 'status: NOERROR'; then
+          echo poisoned_accepted;
+        elif printf '%s\n' "$response" | grep -q 'status: SERVFAIL'; then
+          echo poisoned_rejected;
+        else
+          echo poisoned_unexpected;
+        fi
+      states:
+        vulnerable: "output_eq: poisoned_accepted"
+        fixed: "output_eq: poisoned_rejected"
+    - name: dns_amplification_controlled
+      label: "Wildcard-style queries no longer return the full oversized record set over UDP"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        response=$(dig +time=3 +tries=1 +notcp +ignore ANY bigtarget.lab.internal @dns-resolver 2>&1);
+        count=$(printf '%s\n' "$response" | awk -F'[ ,]+' '/ANSWER:/{for(i=1;i<=NF;i++) if ($i=="ANSWER:") print $(i+1)}');
+        if printf '%s\n' "$response" | grep -q 'flags:.*\btc\b'; then
+        echo amplification_restricted;
+        elif [ "${count:-0}" -ge 4 ] 2>/dev/null; then
+        echo amplification_unrestricted;
+        else
+        echo amplification_unexpected;
+        fi
+      states:
+        vulnerable: "output_eq: amplification_unrestricted"
+        fixed: "output_eq: amplification_restricted"
+    - name: dns_client_resolution_available
+      label: "Trusted client-network lookups keep working"
+      kind: guardrail
+      exec_in: workstation
+      run: >-
+        ip=$(dig +short +time=3 +tries=1 www.lab.internal @dns-resolver 2>&1 | head -n1);
+        if [ -n "$ip" ]; then
+          echo resolution_ok;
+        else
+          echo resolution_broken;
+        fi
+      states:
+        vulnerable: "output_eq: resolution_ok"
+        fixed: "output_eq: resolution_ok"
+    - name: dns_resolver_service_healthy
+      label: "Resolver process is up and answering queries"
+      kind: guardrail
+      exec_in: workstation
+      run: >-
+        response=$(dig +time=2 +tries=1 CH TXT version.bind @dns-resolver 2>&1);
+        if printf '%s\n' "$response" | grep -q 'status: NOERROR'; then
+          echo dns_alive;
+        else
+          echo dns_down;
+        fi
+      states:
+        vulnerable: "output_eq: dns_alive"
+        fixed: "output_eq: dns_alive"
+
+build:
+  images:
+    - service: dns-resolver
+      name: thesis-labs/dnssec-misconfiguration-resolver:latest
+      context: .
+      dockerfile: Dockerfile
+    - service: dns-auth
+      name: thesis-labs/dnssec-misconfiguration-auth:latest
+      context: .
+      dockerfile: dns-auth/Dockerfile
+
+services:
+  workstation:
+    image: thesis-labs/workstation-base:latest
+    role: Student browser terminal and SSH fallback.
+    internal_ports:
+      browser_terminal: 19000
+      ssh: 22
+  dns-resolver:
+    image: thesis-labs/dnssec-misconfiguration-resolver:latest
+    role: Vulnerable recursive DNS resolver.
+    internal_ports:
+      dns_udp: 53
+      dns_tcp: 53
+  dns-auth:
+    image: thesis-labs/dnssec-misconfiguration-auth:latest
+    role: Controlled authoritative server for the lab.internal zone.
+    internal_ports:
+      dns_udp: 53
+      dns_tcp: 53
+
+networks:
+  - name: client-net
+  - name: upstream-net
+    internal: true
+
+resources:
+  workstation:
+    cpus: "0.50"
+    memory: "256m"
+  dns-resolver:
+    cpus: "0.50"
+    memory: "256m"
+  dns-auth:
+    cpus: "0.50"
+    memory: "256m"
+
+workstation:
+  environment:
+    DNS_RESOLVER_HOST: dns-resolver
+  shared_volumes:
+    - name: dns_resolver_config
+      target: /lab/dns-resolver
+  depends_on:
+    - dns-resolver
+    - dns-auth
+
+containers:
+  - service: dns-resolver
+    hostname: dns-resolver
+    networks:
+      - client-net
+      - upstream-net
+    init: true
+    restart: unless-stopped
+    environment:
+      LAB_ADMIN_USER: dnsresolveradmin
+      LAB_CONFIG_SRC: /opt/lab/baseline/named.conf
+      LAB_CONFIG_DST: /etc/bind/named.conf
+      LAB_SERVICE_CMD: "named -u bind -c /etc/bind/named.conf -g >> /var/log/named.log 2>&1"
+      LAB_SETUP_SCRIPT: /opt/lab/hooks/pre-start.sh
+      LAB_LOG_FILE: /var/log/named.log
+      SERVICE_ADMIN_PASSWORD: "$platform.student_password"
+    expose:
+      - 53
+    volumes:
+      - name: dns_resolver_config
+        target: /etc/bind
+      - name: dnssec_trust
+        target: /etc/bind/dnssec-shared
+        read_only: true
+    depends_on:
+      - dns-auth
+    healthcheck:
+      command:
+        - CMD-SHELL
+        - "dig +time=2 +tries=1 CH TXT version.bind @127.0.0.1 2>&1 | grep -q 'status: NOERROR'"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    security:
+      privileged: false
+      host_network: false
+      cap_add:
+        - AUDIT_WRITE
+
+  - service: dns-auth
+    hostname: dns-auth
+    networks:
+      - upstream-net
+    init: true
+    restart: unless-stopped
+    environment:
+      LAB_ADMIN_USER: dnsauthadmin
+      LAB_CONFIG_SRC: /opt/lab/baseline/named.conf
+      LAB_CONFIG_DST: /etc/bind/named.conf
+      LAB_SERVICE_CMD: "named -u bind -c /etc/bind/named.conf -g >> /var/log/named.log 2>&1"
+      LAB_SETUP_SCRIPT: /opt/lab/hooks/pre-start.sh
+      LAB_LOG_FILE: /var/log/named.log
+      SERVICE_ADMIN_PASSWORD: "$platform.student_password"
+    expose:
+      - 53
+    volumes:
+      - name: dnssec_trust
+        target: /etc/bind/dnssec-shared
+    healthcheck:
+      command:
+        - CMD-SHELL
+        - "dig +time=2 +tries=1 CH TXT version.bind @127.0.0.1 2>&1 | grep -q 'status: NOERROR'"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 10s
+    security:
+      privileged: false
+      host_network: false
+      cap_add:
+        - AUDIT_WRITE

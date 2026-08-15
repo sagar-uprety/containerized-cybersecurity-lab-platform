@@ -1,0 +1,322 @@
+id: network-zone-isolation
+title: "Network Zone Isolation and Access Control"
+difficulty: intermediate
+
+story:
+  role: Network security engineer
+  situation: >
+    A recent internal assessment gave you the same operating position an
+    attacker would gain after landing on the company's externally facing web
+    application. Leadership wants a clear picture of exactly what that
+    position can reach across the rest of the environment, and a plan to
+    contain it so a single compromised front-end host cannot become a path to
+    everything else.
+
+documentation:
+  student_guide_url: /docs/labs/network-zone-isolation/
+  solution_notes_url: /docs/labs/network-zone-isolation-solution/
+  instructor_guide_url: /docs/labs/network-zone-isolation-instructor/
+
+access:
+  ssh_port_base: 36000
+  app_port_base: 18200
+  browser_terminal_port_base: 19500
+
+lifecycle:
+  idle_timeout_minutes: 30
+  max_runtime_minutes: 120
+  evaluation_idle_timeout_minutes: null
+  retention_after_stop_minutes: 180
+
+checker:
+  version: 2
+  states:
+    - vulnerable
+    - fixed
+  checks:
+    - name: fw_zone_path_ready
+      label: "Zone gateway is routing and every zone service is healthy"
+      kind: guardrail
+      exec_in: firewall-host
+      run: >-
+        WEB_IP=$(getent hosts web-server | awk 'NR == 1 {print $1}') &&
+        DB_IP=$(getent hosts database | awk 'NR == 1 {print $1}') &&
+        FS_IP=$(getent hosts file-server | awk 'NR == 1 {print $1}') &&
+        [ "$(sysctl -n net.ipv4.ip_forward)" = 1 ] &&
+        curl -sf --connect-timeout 3 http://web-server/ >/dev/null &&
+        iptables-save -t nat | grep -F --
+        "--dport 80 -j DNAT --to-destination ${WEB_IP}:80" >/dev/null &&
+        iptables-save -t nat | grep -F --
+        "--dport 3306 -j DNAT --to-destination ${DB_IP}:3306" >/dev/null &&
+        iptables-save -t nat | grep -F --
+        "--dport 445 -j DNAT --to-destination ${FS_IP}:445" >/dev/null &&
+        iptables-save -t nat | grep -F -- '-A POSTROUTING -j MASQUERADE' >/dev/null &&
+        echo ZONE_PATH_READY || echo ZONE_PATH_BROKEN
+      states:
+        vulnerable: "output_contains: ZONE_PATH_READY"
+        fixed: "output_contains: ZONE_PATH_READY"
+    - name: web_service_continuity
+      label: "The public web application keeps serving external users"
+      kind: guardrail
+      exec_in: workstation
+      run: >-
+        CODE=$(curl -s -o /dev/null -w '%{http_code}' --connect-timeout 5
+        http://firewall-host/ 2>/dev/null || true);
+        if [ "$CODE" = 200 ]; then echo WEB_OK; else echo WEB_DOWN; fi
+      states:
+        vulnerable: "output_contains: WEB_OK"
+        fixed: "output_contains: WEB_OK"
+    - name: db_zone_isolation
+      label: "The database zone is unreachable from the DMZ vantage point"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        if nc -z -w3 firewall-host 3306 2>/dev/null;
+        then echo DB_REACHABLE; else echo DB_BLOCKED; fi
+      states:
+        vulnerable: "output_contains: DB_REACHABLE"
+        fixed: "output_contains: DB_BLOCKED"
+    - name: fileserver_zone_isolation
+      label: "The file-share zone is unreachable from the DMZ vantage point"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        if nc -z -w3 firewall-host 445 2>/dev/null;
+        then echo FILESHARE_REACHABLE; else echo FILESHARE_BLOCKED; fi
+      states:
+        vulnerable: "output_contains: FILESHARE_REACHABLE"
+        fixed: "output_contains: FILESHARE_BLOCKED"
+    - name: fw_policy_enforced
+      label: "Active and persistent gateway policy default-denies cross-zone traffic"
+      kind: objective
+      exec_in: firewall-host
+      run: >-
+        ACTIVE=$(iptables-save -t filter) &&
+        PERSISTENT=$(cat /etc/iptables/rules.v4) &&
+        if printf '%s\n' "$ACTIVE" | grep -q '^:FORWARD DROP ' &&
+        printf '%s\n' "$PERSISTENT" | grep -q '^:FORWARD DROP ' &&
+        printf '%s\n' "$ACTIVE" | grep -Eq
+        '^-A FORWARD -p tcp( -m tcp)? --dport 80 -j ACCEPT$' &&
+        printf '%s\n' "$PERSISTENT" | grep -Eq
+        '^-A FORWARD -p tcp( -m tcp)? --dport 80 -j ACCEPT$' &&
+        ! printf '%s\n' "$ACTIVE" | grep -Eq -- '--dport (3306|445) -j ACCEPT' &&
+        ! printf '%s\n' "$PERSISTENT" | grep -Eq -- '--dport (3306|445) -j ACCEPT';
+        then echo ZONES_ENFORCED; else echo ZONES_FLAT; fi
+      states:
+        vulnerable: "output_contains: ZONES_FLAT"
+        fixed: "output_contains: ZONES_ENFORCED"
+
+build:
+  images:
+    - service: firewall-host
+      name: thesis-labs/network-zone-isolation-fw:latest
+      context: .
+      dockerfile: Dockerfile.firewall
+    - service: web-server
+      name: thesis-labs/network-zone-isolation-web:latest
+      context: .
+      dockerfile: Dockerfile.web
+    - service: database
+      name: thesis-labs/network-zone-isolation-db:latest
+      context: .
+      dockerfile: Dockerfile.db
+    - service: file-server
+      name: thesis-labs/network-zone-isolation-files:latest
+      context: .
+      dockerfile: Dockerfile.files
+
+services:
+  workstation:
+    image: thesis-labs/workstation-base:latest
+    role: Student browser terminal and SSH fallback, positioned in the DMZ.
+    internal_ports:
+      browser_terminal: 19500
+      ssh: 22
+  firewall-host:
+    image: thesis-labs/network-zone-isolation-fw:latest
+    role: Zone gateway bridging external, DMZ, and internal networks.
+    internal_ports:
+      ssh: 22
+  web-server:
+    image: thesis-labs/network-zone-isolation-web:latest
+    role: Public-facing web application in the DMZ.
+    internal_ports:
+      http: 80
+  database:
+    image: thesis-labs/network-zone-isolation-db:latest
+    role: Internal customer database.
+    internal_ports:
+      mysql: 3306
+  file-server:
+    image: thesis-labs/network-zone-isolation-files:latest
+    role: Internal file share.
+    internal_ports:
+      smb: 445
+
+resources:
+  workstation:
+    cpus: "0.50"
+    memory: "256m"
+  firewall-host:
+    cpus: "0.50"
+    memory: "256m"
+  web-server:
+    cpus: "0.50"
+    memory: "256m"
+  database:
+    cpus: "0.50"
+    memory: "512m"
+  file-server:
+    cpus: "0.50"
+    memory: "256m"
+
+# Three-zone topology: external (workstation <-> firewall-host, the DMZ vantage
+# point), dmz (firewall-host <-> web-server), internal (firewall-host <->
+# database, file-server). The workstation lands on the first declared network
+# (external) and can only reach the DMZ/internal services through whatever the
+# firewall-host forwards - this is what makes cross-zone reachability testable
+# from the student's own position.
+networks:
+  - name: external
+  - name: dmz
+  - name: internal
+
+workstation:
+  environment:
+    FIREWALL_HOST: firewall-host
+  depends_on:
+    - firewall-host
+  cap_add:
+    - NET_RAW
+
+containers:
+  - service: firewall-host
+    hostname: firewall-host
+    networks:
+      - external
+      - dmz
+      - internal
+    init: true
+    restart: unless-stopped
+    environment:
+      LAB_ADMIN_USER: firewall
+      LAB_CONFIG_SRC: /opt/lab/baseline/rules.v4
+      LAB_CONFIG_DST: /etc/iptables/rules.v4
+      LAB_SERVICE_CMD: "/opt/lab/start-firewall.sh"
+      LAB_DATA_DIR: /etc/iptables
+      LAB_DATA_USER: root
+      LAB_LOG_FILE: /var/log/firewall.log
+      SERVICE_ADMIN_PASSWORD: "$platform.student_password"
+    expose:
+      - 22
+    volumes:
+      - name: fw_state
+        target: /var/lib/firewall
+    healthcheck:
+      command:
+        - CMD-SHELL
+        - "iptables -L FORWARD -n >/dev/null 2>&1 || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    security:
+      privileged: false
+      host_network: false
+      cap_add:
+        - NET_ADMIN
+        - AUDIT_WRITE
+
+  - service: web-server
+    hostname: web-server
+    networks:
+      - dmz
+    init: true
+    restart: unless-stopped
+    environment:
+      LAB_CONFIG_SRC: /opt/lab/baseline/nginx.conf
+      LAB_CONFIG_DST: /etc/nginx/sites-enabled/default
+      LAB_SERVICE_CMD: "nginx -g 'daemon off;'"
+      LAB_DATA_DIR: /var/www/html
+      LAB_DATA_USER: www-data
+      LAB_LOG_FILE: /var/log/nginx/access.log
+    expose:
+      - 80
+    volumes:
+      - name: web_data
+        target: /var/www/html
+    healthcheck:
+      command:
+        - CMD-SHELL
+        - "curl -sf http://127.0.0.1/ >/dev/null 2>&1 || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    security:
+      privileged: false
+      host_network: false
+      cap_add:
+        - AUDIT_WRITE
+
+  - service: database
+    hostname: database
+    networks:
+      - internal
+    init: true
+    restart: unless-stopped
+    environment:
+      LAB_CONFIG_SRC: /opt/lab/baseline/lab.cnf
+      LAB_CONFIG_DST: /etc/mysql/mariadb.conf.d/60-lab.cnf
+      LAB_SERVICE_CMD: "/usr/sbin/mariadbd --user=mysql"
+      LAB_DATA_DIR: /var/lib/mysql
+      LAB_DATA_USER: mysql
+      LAB_SEED_FILE: /opt/lab/seed/seed.sql
+      LAB_SEED_CMD: "mysql -h 127.0.0.1 -u root"
+    expose:
+      - 3306
+    healthcheck:
+      command:
+        - CMD-SHELL
+        - "mariadb-admin --socket=/run/mysqld/mysqld.sock -u root ping >/dev/null 2>&1 || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    security:
+      privileged: false
+      host_network: false
+      cap_add:
+        - AUDIT_WRITE
+
+  - service: file-server
+    hostname: file-server
+    networks:
+      - internal
+    init: true
+    restart: unless-stopped
+    environment:
+      LAB_CONFIG_SRC: /opt/lab/baseline/smb.conf
+      LAB_CONFIG_DST: /etc/samba/smb.conf
+      LAB_SERVICE_CMD: "smbd -D --no-process-group"
+      LAB_DATA_DIR: /srv/samba/shared
+      LAB_DATA_USER: root
+      LAB_LOG_FILE: /var/log/samba/log.smbd
+    expose:
+      - 445
+    volumes:
+      - name: files_data
+        target: /srv/samba/shared
+    healthcheck:
+      command:
+        - CMD-SHELL
+        - "pgrep -x smbd >/dev/null 2>&1 || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 5s
+    security:
+      privileged: false
+      host_network: false
+      cap_add:
+        - AUDIT_WRITE

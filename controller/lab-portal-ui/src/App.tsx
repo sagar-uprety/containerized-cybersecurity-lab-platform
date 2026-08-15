@@ -23,6 +23,8 @@ const PasswordChange = lazy(() => import("./pages/PasswordChange"));
 const InstructorOverview = lazy(() => import("./pages/InstructorOverview"));
 const InstructorGroups = lazy(() => import("./pages/InstructorGroups"));
 const InstructorLabDetail = lazy(() => import("./pages/InstructorLabDetail"));
+const InstructorFeedback = lazy(() => import("./pages/InstructorFeedback"));
+const InstructorLabCatalogue = lazy(() => import("./pages/InstructorLabCatalogue"));
 const InstructorGroupDetail = lazy(() => import("./pages/InstructorGroupDetail"));
 const InstructorGroupStudentDetail = lazy(() => import("./pages/InstructorGroupStudentDetail"));
 const InstructorGroupSessionDetail = lazy(() => import("./pages/InstructorGroupSessionDetail"));
@@ -32,6 +34,7 @@ const InstructorResults = lazy(() => import("./pages/InstructorResults"));
 const InstructorAnalytics = lazy(() => import("./pages/InstructorAnalytics"));
 const InstructorAccountPassword = lazy(() => import("./pages/InstructorAccountPassword"));
 const AdminInstructors = lazy(() => import("./pages/AdminInstructors"));
+const AdminSystemUsage = lazy(() => import("./pages/AdminSystemUsage"));
 const AdminAccountPassword = lazy(() => import("./pages/AdminAccountPassword"));
 
 function parseRoute(): Route {
@@ -58,10 +61,17 @@ function parseRoute(): Route {
     return { page: "instructor-session", labId: instructorSessionMatch[1], studentId: instructorSessionMatch[2] };
   }
 
+  const instructorLabFeedbackMatch = path.match(/^\/instructor\/labs\/([^/]+)\/feedback\/?$/);
+  if (instructorLabFeedbackMatch) {
+    return { page: "instructor-lab-feedback", labId: instructorLabFeedbackMatch[1] };
+  }
+
   const instructorLabMatch = path.match(/^\/instructor\/labs\/([^/]+)\/?$/);
   if (instructorLabMatch) {
     return { page: "instructor-lab", labId: instructorLabMatch[1] };
   }
+
+  if (/^\/instructor\/lab-catalogue\/?$/.test(path)) return { page: "instructor-lab-catalogue" };
 
   const instructorGroupSectionMatch = path.match(/^\/instructor\/groups\/(\d+)\/(labs|pending|activity)\/?$/);
   if (instructorGroupSectionMatch) {
@@ -82,6 +92,7 @@ function parseRoute(): Route {
   if (/^\/instructor\/login\/?$/.test(path)) return { page: "instructor-login" };
   if (/^\/instructor\/?$/.test(path)) return { page: "instructor" };
   if (/^\/admin\/account\/password\/?$/.test(path)) return { page: "admin-account-password" };
+  if (/^\/admin\/system-usage\/?$/.test(path)) return { page: "admin-system-usage" };
   if (/^\/admin\/login\/?$/.test(path)) return { page: "admin-login" };
   if (/^\/admin\/?$/.test(path)) return { page: "admin" };
   if (/^\/signup\/?$/.test(path)) return { page: "signup" };
@@ -264,6 +275,12 @@ function AppContent() {
     case "instructor-lab":
       page = <InstructorLabDetail user={user} labId={route.labId!} onLogout={handleLogout} />;
       break;
+    case "instructor-lab-feedback":
+      page = <InstructorFeedback user={user} labId={route.labId!} onLogout={handleLogout} />;
+      break;
+    case "instructor-lab-catalogue":
+      page = <InstructorLabCatalogue user={user} onLogout={handleLogout} />;
+      break;
     case "instructor-session":
       page = <InstructorGroupSessionDetail user={user} groupId={0} studentId={route.studentId!} labId={route.labId!} onLogout={handleLogout} />;
       break;
@@ -277,6 +294,9 @@ function AppContent() {
       break;
     case "admin":
       page = <AdminInstructors user={user} onLogout={handleLogout} />;
+      break;
+    case "admin-system-usage":
+      page = <AdminSystemUsage user={user} onLogout={handleLogout} />;
       break;
     case "admin-account-password":
       page = (

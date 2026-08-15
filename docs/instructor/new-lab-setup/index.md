@@ -22,8 +22,8 @@ package contract; only scenario-specific implementation files differ.
 
 This guide is split into pages you can read in order or jump into directly:
 
-1. This page — platform fit, hard boundaries, roles, sources of truth
-2. [Before You Start](01-before-you-start.md) — design worksheet, cloning the sample, learning it
+1. This page - platform fit, hard boundaries, roles, sources of truth
+2. [Before You Start](01-before-you-start.md) - design worksheet, cloning the sample, learning it
 3. [Choose a Topology Pattern](02-topology-patterns.md)
 4. [Author `scenario.yaml`](03-scenario-yaml.md)
 5. [Build the Image and Design the Checker](04-build-and-checker.md)
@@ -108,11 +108,11 @@ lifecycle actions and their own workstation terminal.
 | Author              | Select concept, write `scenario.yaml`/Dockerfile/docs, run local validation                    |
 | Operator            | Deploy to x01/x02 via Ansible, debug x01 with `labctl`, tear down with `teardown-platform.yml` |
 | Instructor (portal) | Assign deployed labs to groups, approve students, view results/analytics                       |
-| Student             | Portal-driven start/stop/reset/check/end only — never `labctl`, Ansible, or Podman             |
+| Student             | Portal-driven start/stop/reset/check/end only - never `labctl`, Ansible, or Podman             |
 
 When this guide shows `ansible-playbook` or `labctl` commands, **you run them**
 from your workstation over the UCC VPN to the x01/x02 hosts. No CI pipeline,
-GitHub Action, or workflow dispatch is required — everything is operator-run.
+GitHub Action, or workflow dispatch is required - everything is operator-run.
 
 ## Sources of Truth
 
@@ -122,7 +122,7 @@ Use these in this order:
 3. `labs/sample-a-standalone/` is the runnable, commented authoring reference.
 4. `platform-images/lab-service-base/entrypoint.sh` defines exactly what the
    shared service base does with every `LAB_*` environment variable before,
-   during, and after your service starts — read it, don't infer its behavior
+   during, and after your service starts - read it, don't infer its behavior
    from the sample alone.
 5. `labs/templates-contract/STUDENT_GUIDE_TEMPLATE.md` defines student-guide sections.
 6. `labs/templates-contract/INSTRUCTOR_GUIDE_TEMPLATE.md` defines instructor-guide sections.

@@ -66,7 +66,7 @@ export default function StudentLabResults({ user, labId, onLogout }: Props) {
                           <TableCell>{fmtTimestamp(session.started_at)}</TableCell>
                           <TableCell>{fmtDuration(session.duration_seconds)}</TableCell>
                           <TableCell>{session.check_count || 0}</TableCell>
-                          <TableCell>{session.passed == null ? "—" : <Badge className={session.passed ? "border-transparent bg-success-bg text-success" : "border-transparent bg-destructive-bg text-destructive"}>{session.passed ? "Passed" : "Failed"}</Badge>}</TableCell>
+                          <TableCell>{session.passed == null ? "-" : <Badge className={session.passed ? "border-transparent bg-success-bg text-success" : "border-transparent bg-destructive-bg text-destructive"}>{session.passed ? "Passed" : "Failed"}</Badge>}</TableCell>
                           <TableCell><Badge className={style.badgeClass}>{style.label}</Badge></TableCell>
                         </TableRow>
                       );

@@ -1,0 +1,16 @@
+$TTL 300
+$ORIGIN lab.internal.
+@               IN SOA  ns1.lab.internal. admin.lab.internal. (
+                                2026081500 ; serial
+                                3600       ; refresh
+                                900        ; retry
+                                604800     ; expire
+                                300 )      ; minimum
+                IN NS   ns1.lab.internal.
+ns1             IN A    10.50.0.2
+www             IN A    10.50.0.10
+bigtarget       IN A    10.50.0.20
+bigtarget       IN A    10.50.0.21
+bigtarget       IN TXT  "lab-diagnostic-fragment-alpha-0123456789abcdefghijklmnop"
+bigtarget       IN MX   10 ns1.lab.internal.
+poisoned        IN A    10.50.0.99

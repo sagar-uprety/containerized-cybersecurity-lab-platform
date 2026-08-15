@@ -1,0 +1,4 @@
+# Vulnerable baseline: maximally verbose Apache banner and error-page signature.
+ServerTokens Full
+ServerSignature On
+TraceEnable Off

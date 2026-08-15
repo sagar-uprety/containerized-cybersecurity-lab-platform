@@ -1,0 +1,11 @@
+*filter
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [0:0]
+
+# The gateway forwards every zone-to-zone packet unconditionally. There is no
+# rule distinguishing the public web path from the internal database and file
+# services behind it, so anything reachable through this host is reachable in
+# full - the DMZ, the database, and the file share are effectively one flat
+# network from a forwarding perspective.
+COMMIT

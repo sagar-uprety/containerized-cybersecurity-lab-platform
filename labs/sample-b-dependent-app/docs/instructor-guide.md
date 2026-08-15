@@ -26,7 +26,7 @@ without breaking its dependents.
 -   **Contained blast radius:** backend, app, and workstation run in one per-student isolated Podman network. Nothing is reachable outside the lab.
 -   **Synthetic data only:** two fabricated records and one clearly-marked demo token (`sample-demo-token`). No real data or credentials.
 -   **Intentional risks:** `ACCESS_CONTROL=disabled` on the backend baseline (`intentional-risk-allowlist.yaml`). Safe because the topology is per-student and isolated.
--   **Student boundaries:** students edit config from the workstation and reload via the `appadmin` SSH account and its narrow sudo helpers — not platform operator commands.
+-   **Student boundaries:** students edit config from the workstation and reload via the `appadmin` SSH account and its narrow sudo helpers - not platform operator commands.
 -   **Instructor recovery:** portal **Reset** restores the vulnerable baseline (backend disabled, app token empty). A student who wedges either service should End Lab and Start again.
 
 ## Expected Evidence by Phase
@@ -40,7 +40,7 @@ without breaking its dependents.
 
 ## Reveal Policy and Intervention
 
-The student guide already contains three written hints. Do not restate them. Escalate on the student's state, not the clock — this lab's characteristic failure is fixing the backend and forgetting the app.
+The student guide already contains three written hints. Do not restate them. Escalate on the student's state, not the clock - this lab's characteristic failure is fixing the backend and forgetting the app.
 
 | Trigger                                                   | Instructor Response                                                                         |
 | --------------------------------------------------------- | ------------------------------------------------------------------------------------------- |
@@ -72,7 +72,7 @@ How to read this lab's combined feedback form responses:
 
 -   A prior-vs-post confidence gap on "hardening without breaking dependents" is the signal for this lab's core Pattern B lesson.
 -   Low clarity scores usually point at the two-part remediation: students who fixed only the backend need the app-continuity constraint stated more plainly.
--   Stuck-point free text mentioning "app broke" or "502"/"401" reveals the intended teaching moment landed — the fix required reconfiguring the dependent, not only the shared service.
+-   Stuck-point free text mentioning "app broke" or "502"/"401" reveals the intended teaching moment landed - the fix required reconfiguring the dependent, not only the shared service.
 -   Confusion about reloading two separate services is guide-design signal about the multi-service admin model.
 
 ## Teaching Notes

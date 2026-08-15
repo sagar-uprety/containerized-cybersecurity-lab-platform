@@ -1,0 +1,4 @@
+Internal Planning Notes (synthetic demo data - not real business information)
+
+Q3 fulfillment volumes tracked in line with forecast. No action items.
+This file exists only to demonstrate file-share reachability in the lab.

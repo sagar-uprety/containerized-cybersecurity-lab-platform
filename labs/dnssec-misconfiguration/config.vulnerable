@@ -1,0 +1,25 @@
+# BIND9 named.conf - Vulnerable (Open Recursive Resolver) Configuration
+# DO NOT USE IN PRODUCTION - Lab baseline only
+
+options {
+    directory "/var/cache/bind";
+    listen-on { any; };
+    listen-on-v6 { none; };
+
+    recursion yes;
+    allow-recursion { any; };
+    allow-query { any; };
+    allow-transfer { none; };
+
+    dnssec-validation no;
+};
+
+// This lab's closed network has no real root/TLD infrastructure to iterate
+// against, so the only zone this resolver ever has an answer for is the
+// controlled lab.internal domain, reached through the authoritative host
+// this image was built to forward to.
+zone "lab.internal" {
+    type forward;
+    forward only;
+    forwarders { __DNS_AUTH_IP__; };
+};

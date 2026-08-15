@@ -30,5 +30,5 @@ export function outcomeStyle(outcome?: string | null, closeReason?: string | nul
     return { label: "Maximum runtime", badgeClass: WARNING };
   }
   if (outcome && OUTCOME_MAP[outcome]) return OUTCOME_MAP[outcome];
-  return { label: outcome || "—", badgeClass: NEUTRAL };
+  return { label: outcome || "-", badgeClass: NEUTRAL };
 }

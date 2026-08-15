@@ -19,6 +19,11 @@ def validate_lab_id(lab_id: str) -> None:
         raise HTTPException(status_code=404, detail="Lab not found")
 
 
+def is_sample_lab(lab_id: str) -> bool:
+    """Sample labs (sample-*) are onboarding/demo scenarios, not course material."""
+    return lab_id.startswith("sample-")
+
+
 def user_student_id(user: dict) -> str:
     return user.get("student_id") or user["username"]
 

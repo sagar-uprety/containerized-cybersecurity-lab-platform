@@ -5,7 +5,7 @@ to tidy up **settings that are leaking more than they should**. You will look
 at the problem, change two lines, reload the server, and confirm it is fixed.
 
 > This lab is deliberately a step-by-step walkthrough. The real labs ask you
-> to investigate and figure out the fix yourself — here we just want you to try
+> to investigate and figure out the fix yourself - here we just want you to try
 > the platform's features, and integrated terminal.
 
 ## Why This Matters
@@ -44,12 +44,12 @@ One you "Start Lab", your browser terminal opens on the **workstation**. The **w
 
 What you will use:
 
--   `/lab/nginx/site.conf` — the web server's configuration file. You can open and edit it right here on the workstation (with `nano` or `vim`).
--   **Web-server login** — to reload nginx after editing, you log in to the server over SSH as `nginxadmin`. Its password is **your own lab password** (the one shown on the portal's Workstation Access page).
+-   `/lab/nginx/site.conf` - the web server's configuration file. You can open and edit it right here on the workstation (with `nano` or `vim`).
+-   **Web-server login** - to reload nginx after editing, you log in to the server over SSH as `nginxadmin`. Its password is **your own lab password** (the one shown on the portal's Workstation Access page).
 
 Buttons you will use in the portal: **Start Lab**, **Run Check**, **Reset**, and
 **End Lab**. **Reset** puts everything back to the broken starting state, so use
-it only if you want to start over — not to apply your fix.
+it only if you want to start over - not to apply your fix.
 
 If the browser terminal does not open, use the SSH fallback endpoint shown on the
 portal's Workstation Access page.
@@ -78,7 +78,7 @@ curl -s http://nginx-host:8080/files/db-backup.sql
 You should see a `Server: nginx/<version>` line, a browsable listing of
 `/files/`, and the contents of a "backup" file that should never have been
 reachable. That is the leak you are about to close. (The files are fake demo
-data — nothing real is exposed.)
+data - nothing real is exposed.)
 
 ## Remediate
 
@@ -112,13 +112,13 @@ You should see `nginx configuration reloaded`.
 
 **If you're stuck:**
 
--   Nothing changed when you re-checked? You probably edited the file but did not run the reload step — nginx only picks up changes when it reloads.
+-   Nothing changed when you re-checked? You probably edited the file but did not run the reload step - nginx only picks up changes when it reloads.
 -   The reload printed an error? You likely removed a semicolon (`;`) by accident. Re-open the file, make sure each line ends with `;`, save, and reload again.
 -   Password not accepted? The `nginxadmin` password is your own lab password from the portal's Workstation Access page.
 
 ## Verify
 
-Run the same checks again — they should look different now:
+Run the same checks again - they should look different now:
 
 ```bash
 # Version no longer shown (just "Server: nginx"):
@@ -132,13 +132,13 @@ curl -s http://nginx-host:8080/
 ```
 
 When those look right, click **Run Check** in the portal. All checks should turn
-green (`fixed`). That's it — you've completed the warm-up.
+green (`fixed`). That's it - you've completed the warm-up.
 
 ## Real-World Context
 
 The two settings you changed are textbook web-server hardening. Advertising the
 software version (`server_tokens`) hands attackers a shortcut to matching known
-exploits — it is listed in the CIS NGINX Benchmark and maps to CWE-200
+exploits - it is listed in the CIS NGINX Benchmark and maps to CWE-200
 (information exposure). Leaving directory listing on (`autoindex`) is more
 serious: it is a real and recurring cause of data leaks, where backups,
 credentials, and internal files sit in a browsable folder that search engines and
@@ -146,7 +146,7 @@ attackers happily index (CWE-548). Turning both off is a one-line change each, a
 it is exactly the kind of quick win a real administrator applies during a
 hardening pass.
 
-The real labs on this platform go further — you investigate and figure out the
+The real labs on this platform go further - you investigate and figure out the
 fix yourself, across services like SSH, LDAP, firewalls, and databases. This
 warm-up was just to get you moving.
 
@@ -159,5 +159,5 @@ warm-up was just to get you moving.
 ---
 
 _When you're done, end the lab through the portal (End Lab) and complete the short feedback
-form. Tell us how the platform itself felt to use — that is what this warm-up is
+form. Tell us how the platform itself felt to use - that is what this warm-up is
 for._

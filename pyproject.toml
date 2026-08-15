@@ -1,5 +1,5 @@
 # --------------------------------------------------------------------
-#  Ruff — Python linter + formatter (replaces Flake8 / isort / Black)
+#  Ruff - Python linter + formatter (replaces Flake8 / isort / Black)
 # --------------------------------------------------------------------
 [tool.ruff]
 line-length = 100                                  # match Prettier's printWidth
@@ -11,28 +11,28 @@ extend-exclude = [
 
 [tool.ruff.lint]
 # Rule sets enabled (each letter is a rule prefix):
-#   F   flake8-pyflakes  — unused imports, undefined names, f-string errors
-#   I   isort            — import ordering + grouping
-#   E   pycodestyle      — style errors (indentation, spacing, blank lines)
-#   W   pycodestyle      — style warnings (ambiguous whitespace, etc.)
-#   UP  pyupgrade        — modern Python idioms (new-style typing, f-strings)
-#   B   flake8-bugbear   — logic bugs (mutable defaults, useless expressions)
-#   SIM flake8-simplify  — simplify verbose code (context managers, comparisons)
-#   ARG flake8-unused-arguments — unused function / method arguments
-#   RUF ruff-specific    — unused noqa directives, ambiguous unicode
-#   C4  flake8-comprehensions — prefer comprehensions over list() / dict()
-#   PERF perflint        — performance anti-patterns (inefficient loops)
-#   ERA eradicate        — commented-out code blocks
-#   TRY tryceratops      — exception handling anti-patterns
-#   T20 flake8-print     — stray print() debugging calls
-#   N   pep8-naming      — PEP 8 class/function/variable naming
-#   A   flake8-builtins  — shadowing builtins such as id/list/type
-#   INP no-pep420        — missing __init__.py in package-like dirs
-#   RET flake8-return    — clearer return statement patterns
-#   PTH use-pathlib      — prefer pathlib over os.path/open helpers
-#   EXE executable       — executable/shebang consistency
-#   PLC pylint convention — convention checks not covered elsewhere
-#   PLE pylint errors    — likely-bug checks from Pylint
+#   F   flake8-pyflakes  - unused imports, undefined names, f-string errors
+#   I   isort            - import ordering + grouping
+#   E   pycodestyle      - style errors (indentation, spacing, blank lines)
+#   W   pycodestyle      - style warnings (ambiguous whitespace, etc.)
+#   UP  pyupgrade        - modern Python idioms (new-style typing, f-strings)
+#   B   flake8-bugbear   - logic bugs (mutable defaults, useless expressions)
+#   SIM flake8-simplify  - simplify verbose code (context managers, comparisons)
+#   ARG flake8-unused-arguments - unused function / method arguments
+#   RUF ruff-specific    - unused noqa directives, ambiguous unicode
+#   C4  flake8-comprehensions - prefer comprehensions over list() / dict()
+#   PERF perflint        - performance anti-patterns (inefficient loops)
+#   ERA eradicate        - commented-out code blocks
+#   TRY tryceratops      - exception handling anti-patterns
+#   T20 flake8-print     - stray print() debugging calls
+#   N   pep8-naming      - PEP 8 class/function/variable naming
+#   A   flake8-builtins  - shadowing builtins such as id/list/type
+#   INP no-pep420        - missing __init__.py in package-like dirs
+#   RET flake8-return    - clearer return statement patterns
+#   PTH use-pathlib      - prefer pathlib over os.path/open helpers
+#   EXE executable       - executable/shebang consistency
+#   PLC pylint convention - convention checks not covered elsewhere
+#   PLE pylint errors    - likely-bug checks from Pylint
 select = [
   "F",
   "I",
@@ -81,7 +81,7 @@ ignore = [
 line-ending = "lf"
 
 # --------------------------------------------------------------------
-#  Bandit — Python security scanner
+#  Bandit - Python security scanner
 # --------------------------------------------------------------------
 [tool.bandit]
 exclude_dirs = [
@@ -93,6 +93,6 @@ exclude_dirs = [
   "tests",            # test files may use assert / random intentionally
 ]
 skips = [
-  "B101",             # assert — allowed in test / lab code
-  "B311",             # random — not used for crypto, safe to skip
+  "B101",             # assert - allowed in test / lab code
+  "B311",             # random - not used for crypto, safe to skip
 ]

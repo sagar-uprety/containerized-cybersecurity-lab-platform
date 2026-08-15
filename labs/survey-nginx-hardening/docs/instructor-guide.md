@@ -29,7 +29,7 @@ is platform familiarization for survey participants, not skill assessment.
 -   **Contained blast radius:** the nginx server and workstation run in one per-student isolated Podman network. Nothing is reachable outside the lab.
 -   **Synthetic data only:** the "backup" and "notes" in `/files/` are clearly-marked demo files with fake values. No real data or credentials.
 -   **Intentional risks:** `server_tokens on` and `autoindex on` (`intentional-risk-allowlist.yaml`). Safe because the server is disposable, isolated, and synthetically seeded.
--   **Student boundaries:** students edit the config from the workstation and reload via the `nginxadmin` SSH account's narrow sudo helper — not platform operator commands.
+-   **Student boundaries:** students edit the config from the workstation and reload via the `nginxadmin` SSH account's narrow sudo helper - not platform operator commands.
 -   **Instructor recovery:** portal **Reset** restores the vulnerable baseline. A student who wedges nginx (invalid config) is protected by `nginx -t` in the reload helper, which refuses a bad reload; if needed, End Lab and Start again.
 
 ## Expected Evidence by Phase
@@ -49,9 +49,9 @@ answers.
 
 | Trigger                                       | Instructor Response                                                                                |
 | --------------------------------------------- | -------------------------------------------------------------------------------------------------- |
-| Student unsure where to start                 | Point them to the guide's numbered steps — everything is spelled out.                              |
+| Student unsure where to start                 | Point them to the guide's numbered steps - everything is spelled out.                              |
 | Student edited the config but nothing changed | Ask whether they ran the reload step; nginx re-reads config only on reload.                        |
-| Reload reports an error                       | The helper runs `nginx -t`; a syntax slip (missing `;`) is the usual cause — fix and reload again. |
+| Reload reports an error                       | The helper runs `nginx -t`; a syntax slip (missing `;`) is the usual cause - fix and reload again. |
 | Student wants more depth                      | Point them to the Real-World Context section and the CWE references.                               |
 
 ## Common Mistakes
@@ -73,7 +73,7 @@ answers.
 How to read this lab's combined feedback form responses:
 
 -   Because this is the warm-up, treat clarity/confidence responses as **feedback on the platform experience** (Start, terminal, edit, Run Check, Reset), not on security knowledge.
--   Stuck-point free text mentioning "reload" or "nothing changed" is the most common survey friction — it tells you whether the edit→reload→check loop is clear enough.
+-   Stuck-point free text mentioning "reload" or "nothing changed" is the most common survey friction - it tells you whether the edit→reload→check loop is clear enough.
 -   A participant who cannot complete even this lab signals an onboarding/tooling problem to fix before the real exercises.
 
 ## Teaching Notes

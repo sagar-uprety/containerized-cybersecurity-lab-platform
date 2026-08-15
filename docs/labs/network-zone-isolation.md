@@ -1,0 +1,1 @@
+--8<-- "labs/network-zone-isolation/docs/student-guide.md"

@@ -11,10 +11,10 @@ interface StudentLayoutProps {
 
 export default function StudentLayout({ user, onLogout, fullWidth, children }: StudentLayoutProps) {
   const navItems: NavItem[] = [
-    { href: "/", label: "My Labs", icon: BookOpen, match: (p) => p === "/" || p.startsWith("/labs") },
+    { href: "/", label: "Assigned Labs", icon: BookOpen, match: (p) => p === "/" || p.startsWith("/labs") },
     { href: "/enrollment", label: "Enrollment", icon: Users, match: (p) => p.startsWith("/enrollment") },
     { href: "/results", label: "My Results", icon: BarChart3, match: (p) => p.startsWith("/results") },
-    { href: "/workstation-access", label: "Workstation access", icon: KeyRound, match: (p) => p.startsWith("/workstation-access") },
+    { href: "/workstation-access", label: "SSH Login Password", icon: KeyRound, match: (p) => p.startsWith("/workstation-access") },
   ];
 
   return (

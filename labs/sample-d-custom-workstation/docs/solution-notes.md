@@ -26,7 +26,7 @@ curl -s http://records-service:8080/records
 http --print=b GET http://records-service:8080/records
 ```
 
-Expected: HTTP 200 with `sample-record-001` / `sample-record-002` — an
+Expected: HTTP 200 with `sample-record-001` / `sample-record-002` - an
 unauthenticated read.
 
 ## Canonical Remediation

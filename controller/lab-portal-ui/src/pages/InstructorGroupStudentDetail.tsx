@@ -102,7 +102,7 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
         const sessions = hideShort
           ? (lab.sessions || []).filter((s) => !s.duration_seconds || s.duration_seconds >= 60)
           : (lab.sessions || []);
-        // Most recent session first (top row = #1), oldest last — matches the
+        // Most recent session first (top row = #1), oldest last - matches the
         // numbering GroupSessionDetail expects when looking a session back up.
         const orderedSessions = [...sessions].reverse();
         const currentPassed = lab.latest_check?.passed === true || lab.latest_check?.status === "fixed";
@@ -148,8 +148,8 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
                     </button>
                   </TooltipTrigger>
                   <TooltipContent className="max-w-xs whitespace-normal text-left">
-                    Each row is one automated check from this lab&apos;s scenario definition. A Required Mitigation verifies the fix; a Guardrail confirms normal functionality still works.
-                    Passed before is historical and survives a reset — Latest result only reflects the most recent session.
+                    Each row is one automated check from this lab&apos;s scenario definition. An Objective verifies the fix; a Guardrail confirms normal functionality still works.
+                    Passed before is historical and survives a reset - Latest result only reflects the most recent session.
                     Attempt history counts every logged run of this check, how many failed, and how many failures happened before the first success.
                   </TooltipContent>
                 </Tooltip>
@@ -160,11 +160,11 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
                   {(lab.criteria || []).map((criterion) => (
                     <TableRow key={criterion.name}>
                       <TableCell className="font-medium">{criterion.label}</TableCell>
-                      <TableCell><Badge variant="outline">{criterion.kind === "guardrail" ? "Guardrail" : "Required Mitigation"}</Badge></TableCell>
+                      <TableCell><Badge variant="outline">{criterion.kind === "guardrail" ? "Guardrail" : "Objective"}</Badge></TableCell>
                       <TableCell><Badge className={criterion.ever_passed ? "border-transparent bg-success-bg text-success" : "border-transparent bg-muted text-muted-foreground"}>{criterion.ever_passed ? "Yes" : "Not yet"}</Badge></TableCell>
                       <TableCell>{criterion.current_passed == null ? <span className="text-muted-foreground">Not checked</span> : <Badge className={criterion.current_passed ? "border-transparent bg-success-bg text-success" : "border-transparent bg-warning-bg text-warning"}>{criterion.current_passed ? "Pass" : criterion.ever_passed ? "Fail after earlier pass" : criterion.current_state || "Fail"}</Badge>}</TableCell>
                       <TableCell className="text-sm text-foreground">{criterion.total_checks} attempt{criterion.total_checks === 1 ? "" : "s"} · {criterion.failed_checks} failed · {criterion.failures_before_achievement} before success</TableCell>
-                      <TableCell>{criterion.first_pass_at ? fmtTimestamp(criterion.first_pass_at) : "—"}</TableCell>
+                      <TableCell>{criterion.first_pass_at ? fmtTimestamp(criterion.first_pass_at) : "-"}</TableCell>
                     </TableRow>
                   ))}
                 </TableBody>
@@ -207,7 +207,7 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
                           </TableCell>
                           <TableCell>
                             {sess.passed == null ? (
-                              <span className="text-sm text-muted-foreground">—</span>
+                              <span className="text-sm text-muted-foreground">-</span>
                             ) : (
                               <Badge className={sess.passed ? "border-transparent bg-success-bg text-success" : "border-transparent bg-destructive-bg text-destructive"}>
                                 {sess.passed ? "Passed" : "Failed"}

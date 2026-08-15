@@ -137,7 +137,7 @@ resources:
 
 # Two-network topology: external (workstation <-> firewall) and internal (firewall <-> server).
 # The firewall bridges both networks. The workstation can only reach the internal-server
-# through the firewall — this is what makes the source-port bypass exploitable.
+# through the firewall - this is what makes the source-port bypass exploitable.
 networks:
   - name: external
   - name: internal

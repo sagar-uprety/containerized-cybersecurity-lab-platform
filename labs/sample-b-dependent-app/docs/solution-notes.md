@@ -23,7 +23,7 @@ Context: student workstation.
 curl -s http://records-backend:8080/records
 ```
 
-Expected: HTTP 200 with `sample-record-001` / `sample-record-002` — an
+Expected: HTTP 200 with `sample-record-001` / `sample-record-002` - an
 unauthenticated read of the shared store.
 
 ## Canonical Remediation

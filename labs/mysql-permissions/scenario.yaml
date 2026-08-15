@@ -1,0 +1,273 @@
+id: mysql-permissions
+title: "Database Access Control and Least Privilege"
+difficulty: beginner
+
+story:
+  role: Junior database administrator
+  situation: >
+    A colleague mentioned they were able to reach the order database from
+    their own laptop during a routine check, which should not have been
+    possible from outside the application stack. Nobody remembers formally
+    hardening this database server after it was stood up. Audit what it
+    exposes, to whom, and with what level of access, then bring it in line
+    with how a production database should be run.
+
+documentation:
+  student_guide_url: /docs/labs/mysql-permissions/
+  solution_notes_url: /docs/labs/mysql-permissions-solution/
+  instructor_guide_url: /docs/labs/mysql-permissions-instructor/
+
+access:
+  ssh_port_base: 35000
+  app_port_base: 18100
+  browser_terminal_port_base: 19400
+
+lifecycle:
+  idle_timeout_minutes: 30
+  max_runtime_minutes: 120
+  evaluation_idle_timeout_minutes: null
+  retention_after_stop_minutes: 180
+
+checker:
+  version: 1
+  states:
+    - vulnerable
+    - fixed
+  checks:
+    - name: root_credential_hardened
+      label: "Network root login no longer works with a blank password"
+      kind: objective
+      exec_in: db-host
+      run: >-
+        OUT=$(mariadb -N -B -h 127.0.0.1 -u root --connect-timeout=3
+        -e "SELECT 1" 2>&1);
+        if printf '%s\n' "$OUT" | grep -qx 1; then
+          echo root_network_open;
+        elif printf '%s\n' "$OUT" | grep -qi 'Access denied'; then
+          echo root_network_blocked;
+        else
+          echo root_check_unexpected;
+        fi
+      states:
+        vulnerable: "output_eq: root_network_open"
+        fixed: "output_eq: root_network_blocked"
+    - name: network_exposure_restricted
+      label: "The database is unreachable from the client-facing network"
+      kind: objective
+      exec_in: workstation
+      run: >-
+        if nc -z -w 3 db-host 3306 2>/dev/null; then
+          echo network_exposed;
+        else
+          echo network_restricted;
+        fi
+      states:
+        vulnerable: "output_eq: network_exposed"
+        fixed: "output_eq: network_restricted"
+    - name: anonymous_users_removed
+      label: "Anonymous database accounts are removed"
+      kind: objective
+      exec_in: db-host
+      run: >-
+        COUNT=$(mariadb --socket=/run/mysqld/mysqld.sock -N -B -u root
+        -e "SELECT COUNT(*) FROM mysql.user WHERE User=''" 2>/dev/null || echo -1);
+        if [ "$COUNT" = "0" ]; then
+          echo anonymous_removed;
+        elif [ "$COUNT" -gt 0 ] 2>/dev/null; then
+          echo anonymous_present;
+        else
+          echo anonymous_check_error;
+        fi
+      states:
+        vulnerable: "output_eq: anonymous_present"
+        fixed: "output_eq: anonymous_removed"
+    - name: app_user_grant_scoped
+      label: "The application account no longer holds server-wide privileges"
+      kind: objective
+      exec_in: db-host
+      run: >-
+        GRANTS=$(mariadb --socket=/run/mysqld/mysqld.sock -N -B -u root
+        -e "SHOW GRANTS FOR 'app_user'@'%'" 2>/dev/null);
+        if printf '%s\n' "$GRANTS" | grep -qi 'ALL PRIVILEGES ON \*\.\*'; then
+          echo grant_all_present;
+        elif printf '%s\n' "$GRANTS" | grep -qi 'app_db'; then
+          echo grant_scoped;
+        else
+          echo grant_unexpected;
+        fi
+      states:
+        vulnerable: "output_eq: grant_all_present"
+        fixed: "output_eq: grant_scoped"
+    - name: app_user_cross_db_denied
+      label: "The application account cannot read the unrelated HR database"
+      kind: objective
+      exec_in: workstation
+      run: "curl -fsS http://demo-app:8080/security-check"
+      states:
+        vulnerable: "output_eq: app_db=ok cross_db=allowed"
+        fixed: "output_eq: app_db=ok cross_db=denied"
+    - name: query_logging_enabled
+      label: "General query logging is enabled for audit"
+      kind: objective
+      exec_in: db-host
+      run: >-
+        VAL=$(mariadb --socket=/run/mysqld/mysqld.sock -N -B -u root
+        -e "SHOW VARIABLES LIKE 'general_log'" 2>/dev/null | awk '{print $2}');
+        if [ "$VAL" = "ON" ]; then
+          echo logging_enabled;
+        else
+          echo logging_disabled;
+        fi
+      states:
+        vulnerable: "output_eq: logging_disabled"
+        fixed: "output_eq: logging_enabled"
+    - name: demo_app_functional
+      label: "Order application continues to read its own data"
+      kind: guardrail
+      exec_in: workstation
+      run: "curl -fsS http://demo-app:8080/"
+      states:
+        vulnerable: "output_eq: Order service reachable. orders_visible=true"
+        fixed: "output_eq: Order service reachable. orders_visible=true"
+    - name: demo_app_healthy
+      label: "Order application health check passes"
+      kind: guardrail
+      exec_in: workstation
+      run: "curl -fsS http://demo-app:8080/health"
+      states:
+        vulnerable: "output_eq: ok"
+        fixed: "output_eq: ok"
+
+build:
+  images:
+    - service: db-host
+      name: thesis-labs/mysql-permissions-db:latest
+      context: .
+      dockerfile: Dockerfile
+    - service: demo-app
+      name: thesis-labs/mysql-permissions-demo-app:latest
+      context: .
+      dockerfile: demo-app/Dockerfile
+
+services:
+  workstation:
+    image: thesis-labs/workstation-base:latest
+    role: Student browser terminal and SSH fallback.
+    internal_ports:
+      browser_terminal: 19000
+      ssh: 22
+  db-host:
+    image: thesis-labs/mysql-permissions-db:latest
+    role: Vulnerable MariaDB service.
+    internal_ports:
+      mysql: 3306
+  demo-app:
+    image: thesis-labs/mysql-permissions-demo-app:latest
+    role: Small order application backed by the database.
+    internal_ports:
+      http: 8080
+
+networks:
+  - name: client-net
+  - name: app-net
+
+resources:
+  workstation:
+    cpus: "0.50"
+    memory: "256m"
+  db-host:
+    cpus: "0.50"
+    memory: "512m"
+  demo-app:
+    cpus: "0.50"
+    memory: "256m"
+
+workstation:
+  environment:
+    DB_HOST: db-host
+    DB_PORT: "3306"
+    DEMO_APP_URL: "http://demo-app:8080"
+  shared_volumes:
+    - name: db_access
+      target: /lab/access
+    - name: demo_app_config
+      target: /lab/demo-app
+  depends_on:
+    - db-host
+    - demo-app
+
+containers:
+  - service: db-host
+    hostname: db-host
+    networks:
+      - app-net
+      - client-net
+    network_aliases:
+      - db-app
+    init: true
+    restart: unless-stopped
+    environment:
+      LAB_ADMIN_USER: root
+      LAB_CONFIG_SRC: /opt/lab/baseline/60-lab.cnf
+      LAB_CONFIG_DST: /etc/mysql/mariadb.conf.d/60-lab.cnf
+      LAB_SERVICE_CMD: >-
+        /usr/sbin/mariadbd --user=mysql --datadir=/var/lib/mysql
+        --socket=/run/mysqld/mysqld.sock
+      LAB_DATA_DIR: /var/lib/mysql
+      LAB_DATA_USER: mysql
+      LAB_SETUP_SCRIPT: /opt/lab/hooks/pre-start.sh
+      LAB_LOG_FILE: /var/log/mysql/error.log
+      SERVICE_ADMIN_PASSWORD: "$platform.student_password"
+    expose:
+      - 3306
+    volumes:
+      - name: db_data
+        target: /var/lib/mysql
+      - name: db_access
+        target: /lab/access
+    healthcheck:
+      command:
+        - CMD-SHELL
+        - "mariadb-admin --socket=/run/mysqld/mysqld.sock -u root ping >/dev/null 2>&1 || exit 1"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    security:
+      privileged: false
+      host_network: false
+
+  - service: demo-app
+    hostname: demo-app
+    networks:
+      - app-net
+      - client-net
+    init: true
+    restart: unless-stopped
+    user: "appuser"
+    read_only: true
+    environment:
+      DB_HOST: db-app
+      DB_PORT: "3306"
+    ports:
+      - host_ip: "$platform.host_bind_ip"
+        host_port: "$platform.app_port"
+        container_port: 8080
+    volumes:
+      - name: demo_app_config
+        target: /lab/demo-app
+    depends_on:
+      - db-host
+    healthcheck:
+      command:
+        - CMD-SHELL
+        - "python3 -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/health', timeout=3)\""
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    security:
+      privileged: false
+      host_network: false
+      cap_drop:
+        - ALL

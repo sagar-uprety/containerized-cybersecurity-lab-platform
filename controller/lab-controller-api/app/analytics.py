@@ -425,9 +425,9 @@ def group_progress(group_id: int):
                 {
                     "user_id": user.id,
                     "student_id": student_id,
-                    "email": user.email,
+                    "email": None if group.is_archived else user.email,
                     "semester": user.semester,
-                    "study_program": user.study_program,
+                    "study_program": None if group.is_archived else user.study_program,
                     **_student_progress(session, student_obligations),
                 }
             )
@@ -470,6 +470,7 @@ def group_progress(group_id: int):
         total_passed = sum(student["labs_passed"] for student in students)
         overdue = sum(1 for student in students if student["at_risk"])
         return {
+            "is_archived": group.is_archived,
             "total_labs": len({obligation.lab_id for obligation in obligations}),
             "total_students": len(students),
             "total_passed": total_passed,
@@ -494,13 +495,20 @@ def students_progress(group_ids=None):
             user = session.scalar(select(User).where(User.internal_id == student_id))
             group_ids = sorted({item.group_id for item in student_obligations})
             groups = [session.get(Group, group_id) for group_id in group_ids]
+            # A student's email is only shown here if at least one of their (in-scope)
+            # groups is still non-archived -- if every group in scope is archived, this
+            # view has no non-archived reason to display their PII.
+            all_archived = bool(groups) and all(group.is_archived for group in groups)
             result.append(
                 {
                     "student_id": student_id,
-                    "email": user.email,
+                    "email": None if all_archived else user.email,
                     "semester": user.semester,
-                    "study_program": user.study_program,
-                    "groups": [{"id": group.id, "name": group.name} for group in groups],
+                    "study_program": None if all_archived else user.study_program,
+                    "groups": [
+                        {"id": group.id, "name": group.name, "is_archived": group.is_archived}
+                        for group in groups
+                    ],
                     **_student_progress(session, student_obligations),
                 }
             )
@@ -512,20 +520,30 @@ def _week_start(value: datetime) -> datetime:
     return start.replace(hour=0, minute=0, second=0, microsecond=0)
 
 
-def instructor_analytics(owner_group_ids, group_id=None, include_inactive=False):
+def instructor_analytics(owner_group_ids, group_id=None, status="active"):
     """owner_group_ids restricts every candidate group to the caller's own
     groups; group_id (already ownership-checked by the route) further narrows
-    to a single group within that scope."""
+    to a single group within that scope. `status` filters the group roster to
+    "active" (default: active and not archived), "archived", or "all"."""
     sync_assignment_obligations()
     now = datetime.now(timezone.utc)
     with SessionLocal() as session:
         scope_ids = {group_id} if group_id is not None else set(owner_group_ids)
         obligations = _obligations(session, group_ids=scope_ids)
-        if group_id is None and not include_inactive:
-            active_group_ids = set(
-                session.scalars(select(Group.id).where(Group.is_active.is_(True))).all()
-            )
-            obligations = [item for item in obligations if item.group_id in active_group_ids]
+        if group_id is None and status != "all":
+            if status == "archived":
+                status_group_ids = set(
+                    session.scalars(select(Group.id).where(Group.is_archived.is_(True))).all()
+                )
+            else:
+                status_group_ids = set(
+                    session.scalars(
+                        select(Group.id).where(
+                            Group.is_active.is_(True), Group.is_archived.is_(False)
+                        )
+                    ).all()
+                )
+            obligations = [item for item in obligations if item.group_id in status_group_ids]
         _prime_evidence_cache(session, obligations)
         student_ids = {item.student_id for item in obligations}
         completed = sum(1 for item in obligations if _achieved(session, item))
@@ -672,11 +690,17 @@ def instructor_analytics(owner_group_ids, group_id=None, include_inactive=False)
             )
         if group_id is not None:
             group_candidate_ids = {group_id}
-        elif include_inactive:
+        elif status == "all":
             group_candidate_ids = set(owner_group_ids)
+        elif status == "archived":
+            group_candidate_ids = set(
+                session.scalars(select(Group.id).where(Group.is_archived.is_(True))).all()
+            ) & set(owner_group_ids)
         else:
             group_candidate_ids = set(
-                session.scalars(select(Group.id).where(Group.is_active.is_(True))).all()
+                session.scalars(
+                    select(Group.id).where(Group.is_active.is_(True), Group.is_archived.is_(False))
+                ).all()
             ) & set(owner_group_ids)
         groups = []
         for candidate_id in sorted(group_candidate_ids):
@@ -697,6 +721,8 @@ def instructor_analytics(owner_group_ids, group_id=None, include_inactive=False)
                 {
                     "id": candidate_id,
                     "name": group.name,
+                    "is_active": group.is_active,
+                    "is_archived": group.is_archived,
                     "completion_rate": round(group_completed / len(group_obligations) * 100)
                     if group_obligations
                     else 0,
@@ -718,15 +744,27 @@ def instructor_analytics(owner_group_ids, group_id=None, include_inactive=False)
             )
         group = session.get(Group, group_id) if group_id is not None else None
         inactive_groups_count = session.scalar(
-            select(func.count()).select_from(Group).where(Group.is_active.is_(False))
+            select(func.count())
+            .select_from(Group)
+            .where(
+                Group.is_active.is_(False),
+                Group.is_archived.is_(False),
+                Group.id.in_(owner_group_ids),
+            )
+        )
+        archived_groups_count = session.scalar(
+            select(func.count())
+            .select_from(Group)
+            .where(Group.is_archived.is_(True), Group.id.in_(owner_group_ids))
         )
         return {
             "scope_name": group.name if group else None,
             "as_of": _iso(now),
             "timezone": "Europe/Berlin",
             "window_label": "Last 8 weeks; current week to date",
-            "include_inactive": include_inactive,
+            "status": status,
             "inactive_groups_count": inactive_groups_count,
+            "archived_groups_count": archived_groups_count,
             "total_groups": len(groups),
             "total_labs": len(list_scenarios()),
             "total_students": len(student_ids),

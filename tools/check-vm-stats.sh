@@ -30,6 +30,6 @@ podman stats --no-stream 2>/dev/null || echo "(podman not running or no containe
 ' 2>&1 || true
 }
 
-echo "VM Resource Check — $(date)"
+echo "VM Resource Check - $(date)"
 check_vm "x01"
 check_vm "x02"

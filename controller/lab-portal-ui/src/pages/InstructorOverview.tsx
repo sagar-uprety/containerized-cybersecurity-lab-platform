@@ -4,7 +4,7 @@ import AlertError from "../components/AlertError";
 import PageHeader from "../components/PageHeader";
 import StatCard from "../components/StatCard";
 import { ActiveStudentsTrendChart, CompletionTrendChart, SessionTrendChart } from "../components/AnalyticsCharts";
-import { Layers, BookMarked, Plus, Radio, Activity, AlertTriangle, CheckCircle2, Clock3 } from "lucide-react";
+import { Layers, BookMarked, Plus, Radio, Activity, AlertTriangle, CheckCircle2, Clock3, Archive } from "lucide-react";
 import { getInstructorAnalytics, createGroup } from "../api";
 import { navigate } from "../utils/navigate";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
@@ -13,10 +13,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
-import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Switch } from "@/components/ui/switch";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { SEMESTERS } from "../utils/semesters";
 import {
   Dialog,
   DialogContent,
@@ -40,23 +40,23 @@ export default function InstructorOverview({ user, onLogout }: Props) {
   const [newGroupActive, setNewGroupActive] = useState(true);
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState("");
-  const [includeInactive, setIncludeInactive] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<"active" | "archived" | "all">("active");
 
   useDocumentTitle("Instructor Dashboard");
 
   const refresh = useCallback(async () => {
     try {
-      setData(await getInstructorAnalytics(undefined, includeInactive));
+      setData(await getInstructorAnalytics(undefined, statusFilter));
     } catch (err: unknown) {
       setError((err as Error).message);
     }
-  }, [includeInactive]);
+  }, [statusFilter]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
-    if (!newGroup.trim()) return;
+    if (!newGroup.trim() || !newGroupSemester) return;
     setCreating(true);
     setError(null);
     try {
@@ -100,14 +100,16 @@ export default function InstructorOverview({ user, onLogout }: Props) {
               <Badge variant="outline" className="gap-1.5 text-muted-foreground">
                 <BookMarked className="size-3.5" /> {data.total_labs} lab{data.total_labs !== 1 ? "s" : ""}
               </Badge>
-              {data.inactive_groups_count > 0 && (
-                <div className="flex items-center gap-2">
-                  <Switch id="include-inactive" checked={includeInactive} onCheckedChange={setIncludeInactive} />
-                  <Label htmlFor="include-inactive" className="text-sm font-normal text-muted-foreground">
-                    Include {data.inactive_groups_count} inactive
-                  </Label>
-                </div>
-              )}
+              <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+                <SelectTrigger size="sm" className="w-36"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="active">Active groups</SelectItem>
+                  <SelectItem value="archived">
+                    Archived{data.archived_groups_count > 0 ? ` (${data.archived_groups_count})` : ""}
+                  </SelectItem>
+                  <SelectItem value="all">All groups</SelectItem>
+                </SelectContent>
+              </Select>
             </>
           ) : undefined
         }
@@ -166,7 +168,14 @@ export default function InstructorOverview({ user, onLogout }: Props) {
               >
                 <CardContent className="flex h-full flex-col gap-3">
                   <div>
-                    <div className="font-medium text-foreground">{g.name}</div>
+                    <div className="flex items-center gap-1.5">
+                      <div className="font-medium text-foreground">{g.name}</div>
+                      {g.is_archived && (
+                        <Badge variant="outline" className="gap-1 text-muted-foreground">
+                          <Archive className="size-3" /> Archived
+                        </Badge>
+                      )}
+                    </div>
                     <div className="mt-2 flex flex-wrap gap-1.5">
                       <Badge variant="outline">{g.total_students} student{g.total_students !== 1 ? "s" : ""}</Badge>
                       <Badge variant="outline">{g.labs_assigned} lab{g.labs_assigned !== 1 ? "s" : ""}</Badge>
@@ -250,13 +259,12 @@ export default function InstructorOverview({ user, onLogout }: Props) {
                 autoFocus
                 required
               />
-              <Input
-                type="text"
-                placeholder="Semester, e.g. WS 2026/27"
-                value={newGroupSemester}
-                onChange={(e) => setNewGroupSemester(e.target.value)}
-                required
-              />
+              <Select value={newGroupSemester} onValueChange={setNewGroupSemester}>
+                <SelectTrigger className="w-full"><SelectValue placeholder="Select semester…" /></SelectTrigger>
+                <SelectContent>
+                  {SEMESTERS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+                </SelectContent>
+              </Select>
               <label className="flex items-center gap-2 text-sm text-foreground">
                 <Checkbox checked={newGroupActive} onCheckedChange={(v) => setNewGroupActive(v === true)} />
                 Active group
@@ -264,7 +272,7 @@ export default function InstructorOverview({ user, onLogout }: Props) {
             </div>
             <DialogFooter className="mt-4">
               <Button type="button" variant="outline" size="sm" onClick={() => setNewGroupOpen(false)}>Cancel</Button>
-              <Button type="submit" size="sm" disabled={creating}>
+              <Button type="submit" size="sm" disabled={creating || !newGroup.trim() || !newGroupSemester}>
                 {creating ? "Creating…" : "Create group"}
               </Button>
             </DialogFooter>

@@ -1,0 +1,29 @@
+lab_id: ftp-anonymous-access
+
+intentional_findings:
+  - id: ftp-dummy-seed-secrets
+    tool: gitleaks
+    files:
+      - setup-ftp.sh
+    patterns:
+      - demo-pipeline-pass-2024
+      - demo-monitor-pass-2024
+    reason: >
+      Dummy files seeded into the anonymous FTP drop directory contain
+      obviously fake credentials so students can enumerate realistic-looking
+      sensitive data without exposing real secrets. All values carry "demo"
+      markers and reference internal-only hostnames.
+
+  - id: ftp-named-user-demo-password
+    tool: gitleaks
+    files:
+      - Dockerfile
+      - docs/solution-notes.md
+    patterns:
+      - ftp-demo-password
+    reason: >
+      The pre-provisioned named FTP account (ftpuser) uses an obvious demo
+      password (ftp-demo-password) so students can demonstrate cleartext
+      credential capture with tcpdump before remediation, and the checker
+      can verify the same account authenticates over FTPS afterward. This
+      is a fixed, dummy, in-lab-only credential, never a real one.
