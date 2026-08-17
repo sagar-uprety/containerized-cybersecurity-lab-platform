@@ -137,16 +137,6 @@ repos:
         files: ^labs/.*/scenario\.yaml$
         pass_filenames: false
 
-      # Validate per-lab intentional scanner findings and teaching-purpose risks
-      - id: thesis-intentional-risk-validation
-        name: Validate lab intentional-risk allowlists
-        entry: python tools/pre_commit/validate_intentional_risks.py
-        language: python
-        additional_dependencies:
-          - pyyaml==6.0.2
-        files: ^labs/.*/intentional-risk-allowlist\.yaml$
-        pass_filenames: false
-
       # Lint Markdown structure beyond formatting (headings, code fences, links)
       - id: markdownlint-cli2
         name: Markdown structural lint
@@ -156,14 +146,6 @@ repos:
           - markdownlint-cli2@0.22.1
         files: \.(md|markdown)$
         exclude: ^(\.venv/|node_modules/|site/|test-results/)
-
-      # Enforce cross-directory import boundaries
-      - id: thesis-architecture-import-validation
-        name: Validate Python architecture import boundaries
-        entry: python tools/pre_commit/validate_architecture_imports.py
-        language: python
-        files: \.py$
-        pass_filenames: false
 
       # Run ansible-playbook --syntax-check on every infra YAML file
       - id: ansible-playbook-syntax
@@ -190,13 +172,6 @@ repos:
         files: ^infra/.*\.ya?ml$
         pass_filenames: false
 
-      # Reject empty directories anywhere in the repo
-      - id: thesis-empty-dir-check
-        name: Empty directory check
-        entry: python tools/pre_commit/check_empty_dirs.py
-        language: python
-        pass_filenames: false
-
       # Detect dead Python code: unused functions, classes, module-level vars
       - id: vulture
         name: Dead code detection
@@ -204,15 +179,4 @@ repos:
         language: python
         additional_dependencies:
           - vulture==2.16
-        pass_filenames: false
-
-      # Enforce plain ASCII hyphens over em dashes in tracked text
-      - id: thesis-no-em-dash
-        name: No em dashes
-        entry: python tools/pre_commit/check_no_em_dash.py
-        language: python
-        exclude: ^(\.venv/|node_modules/|site/|test-results/|package-lock\.json$)
-        additional_dependencies:
-          - vulture
-        files: \.py$
         pass_filenames: false

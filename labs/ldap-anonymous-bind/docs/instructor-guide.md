@@ -19,7 +19,7 @@ Students investigate an OpenLDAP directory server on the internal network. They 
 
 -   **Contained blast radius:** The directory server and workstation run in a per-student isolated Podman network. No directory data leaves the lab.
 -   **Synthetic data only:** The directory is seeded with 50+ fabricated employee entries and dummy password material (`dummypassword` and similar). No real personal data or credentials are present.
--   **Intentional risks:** Anonymous read/search is permitted and TLS is not enforced in the baseline (`intentional-risk-allowlist.yaml`). Safe because the directory is disposable, isolated, and synthetically populated.
+-   **Intentional risks:** Anonymous read/search is permitted and TLS is not enforced in the baseline. Safe because the directory is disposable, isolated, and synthetically populated.
 -   **Student boundaries:** Students stay on the lab network, use only the seeded directory, and administer the server through the `root` SSH account using `/lab/access/credentials.txt` - not platform operator commands.
 -   **Instructor recovery:** Portal **Reset** restores the vulnerable baseline and discards the fix; it does not reload slapd with a student's config. A student who wedges slapd should restart it from the SSH session, or End Lab and Start again.
 

@@ -27,7 +27,7 @@ This guide is split into pages you can read in order or jump into directly:
 3. [Choose a Topology Pattern](02-topology-patterns.md)
 4. [Author `scenario.yaml`](03-scenario-yaml.md)
 5. [Build the Image and Design the Checker](04-build-and-checker.md)
-6. [Write Documentation and Declare Risk](05-documentation.md)
+6. [Write Documentation](05-documentation.md)
 7. [Validate, Deploy, and Publish](06-validate-and-deploy.md)
 8. [Live Verification and Release Checklist](07-verify-and-ship.md)
 

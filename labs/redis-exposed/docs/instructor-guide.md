@@ -20,7 +20,7 @@ Students discover an unauthenticated, dual-homed Redis instance listening on bot
 
 -   **Contained blast radius:** Redis, the demo order application, and the workstation run in per-student Podman networks (`client-net`, `app-net`). Nothing reaches outside the lab; the dual-homed cache is the only host bridging the two networks.
 -   **Synthetic data only:** The cache is seeded with obviously fake demo values (`demo-only-token`, `demo-postgresql://fake-svc`, and similar). No real PII, credentials, or customer records are present.
--   **Intentional risks:** Protected mode is disabled and Redis binds all interfaces with no authentication (`intentional-risk-allowlist.yaml`). This is safe only because the topology is per-student and network-isolated.
+-   **Intentional risks:** Protected mode is disabled and Redis binds all interfaces with no authentication. This is safe only because the topology is per-student and network-isolated.
 -   **Student boundaries:** Students stay on the lab network, use only seeded data, and reach the cache host through the `redisadmin` SSH account - never platform operator commands.
 -   **Instructor recovery:** Portal **Reset** restores the vulnerable baseline and discards a student's fix; it does not repair a workstation a student has wedged. To fully recover, End Lab and Start again.
 

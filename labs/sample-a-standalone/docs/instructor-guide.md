@@ -26,7 +26,7 @@ commands, and documentation with scenario-specific content.
 
 -   **Contained blast radius:** The records service and workstation run in a per-student isolated Podman network. Nothing is reachable outside the lab.
 -   **Synthetic data only:** The service returns fabricated sample records and a dummy authorization token. No real data or credentials are present.
--   **Intentional risks:** Access control is disabled in the baseline (`ACCESS_CONTROL=disabled`) and a dummy token is seeded (`intentional-risk-allowlist.yaml`). Safe because the service is disposable, isolated, and synthetically populated.
+-   **Intentional risks:** Access control is disabled in the baseline (`ACCESS_CONTROL=disabled`) and a dummy token is seeded. Safe because the service is disposable, isolated, and synthetically populated.
 -   **Student boundaries:** Students stay on the lab network, use only synthetic data, and apply changes through the service's narrow reload helper - not platform operator commands.
 -   **Instructor recovery:** Portal **Reset** restores the vulnerable baseline and discards the fix. If a student wedges the service, End Lab and Start again.
 

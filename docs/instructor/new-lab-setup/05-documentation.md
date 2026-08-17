@@ -1,4 +1,4 @@
-# Write Documentation and Declare Risk
+# Write Documentation
 
 _[← Build the Image and Design the Checker](04-build-and-checker.md) · [Guide overview](index.md)_
 
@@ -75,18 +75,9 @@ snippet include. MkDocs 1.6 discovers student pages automatically; solution and
 instructor pages build but are excluded from navigation and protected by Nginx.
 No manual navigation edit is needed.
 
-## Document Intentional Risk
+## Keep Seeded Data Synthetic
 
-Every real lab needs `intentional-risk-allowlist.yaml`. Each finding includes:
-
--   stable slug ID
--   scanner/tool name
--   exact files
--   exact rule or literal pattern
--   at least 20 characters explaining why risk is required for teaching
-
-The allowlist documents a narrow, deliberate finding. It is not a broad scanner
-exclusion. Dummy credentials must visibly look fake/demo/example/lab-only.
+Dummy credentials and seeded data must visibly look fake, demo, example, or lab-only.
 
 ---
 

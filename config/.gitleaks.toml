@@ -4,7 +4,7 @@ title = "thesis-project gitleaks config"
 useDefault = true
 
 [allowlist]
-description = "Documented fake lab-only secrets; see each lab intentional-risk-allowlist.yaml"
+description = "Documented fake lab-only secrets"
 regexes = [
   '''support_token:demo-only-token''',
   '''REDIS_PASSWORD=''',

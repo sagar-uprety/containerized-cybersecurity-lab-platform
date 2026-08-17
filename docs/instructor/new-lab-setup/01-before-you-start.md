@@ -62,7 +62,6 @@ labs/ftp-anonymous-access/
 |-- setup-sample.sh
 |-- reload-sample-service.sh
 |-- sample-service.py
-|-- intentional-risk-allowlist.yaml
 `-- docs/
     |-- student-guide.md
     |-- instructor-guide.md

@@ -21,7 +21,7 @@ Students discover a Samba file server exposing a `backup` share to anyone on the
 
 -   **Contained blast radius:** The Samba server and workstation run in a per-student isolated Podman network. No share is reachable outside the lab.
 -   **Synthetic data only:** The share holds fabricated backup and credential files (`demo-backup-pass-2024`, `demo-api-key-DEADBEEF2024`, and similar). No real files or secrets are present.
--   **Intentional risks:** Guest mapping and an unauthenticated, unencrypted share are the deliberate weaknesses (`intentional-risk-allowlist.yaml`). Safe because the server is disposable, isolated, and synthetically seeded.
+-   **Intentional risks:** Guest mapping and an unauthenticated, unencrypted share are the deliberate weaknesses. Safe because the server is disposable, isolated, and synthetically seeded.
 -   **Student boundaries:** Students stay on the lab network, use only seeded data, and administer the server through the `sambaadmin` SSH account - not platform operator commands.
 -   **Instructor recovery:** Portal **Reset** restores the vulnerable baseline and discards a student's fix. A pre-created Unix account and `allowed` group exist for the intended solution; if a student wedges Samba, End Lab and Start again.
 

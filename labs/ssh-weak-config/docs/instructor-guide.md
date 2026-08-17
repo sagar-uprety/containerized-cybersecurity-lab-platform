@@ -19,7 +19,7 @@ Students investigate an SSH server flagged for suspicious login activity. They d
 
 -   **Contained blast radius:** The SSH target and workstation run in a per-student isolated Podman network. Brute-force tooling (Hydra) is confined to the lab; there is no route to any host outside it.
 -   **Synthetic data only:** The planted weak passwords (`demo-ssh-pass` and the candidate list) and the unauthorized keys are obviously fake teaching material. No real credentials exist on the host.
--   **Intentional risks:** Weak account passwords, permitted password/root login, and planted `authorized_keys` entries are the deliberate weaknesses students discover (`intentional-risk-allowlist.yaml`). Safe because the host is disposable and isolated.
+-   **Intentional risks:** Weak account passwords, permitted password/root login, and planted `authorized_keys` entries are the deliberate weaknesses students discover. Safe because the host is disposable and isolated.
 -   **Student boundaries:** The password assessment is authorized only against the `lab-user` account using the supplied candidate list; students must not target hosts outside the lab or introduce external wordlists or credentials.
 -   **Instructor recovery:** Portal **Reset** restores the vulnerable baseline. A student who locks themselves out of key access should End Lab and Start again rather than expecting Reset to repair a broken `authorized_keys`.
 

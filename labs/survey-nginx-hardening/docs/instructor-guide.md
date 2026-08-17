@@ -28,7 +28,7 @@ conditions, not to assess learning gain or advanced security skill.
 
 -   **Contained blast radius:** the nginx server and workstation run in one per-student isolated Podman network. Nothing is reachable outside the lab.
 -   **Synthetic data only:** the "backup" and "notes" in `/files/` are clearly-marked demo files with fake values. No real data or credentials.
--   **Intentional risks:** `server_tokens on` and `autoindex on` (`intentional-risk-allowlist.yaml`). Safe because the server is disposable, isolated, and synthetically seeded.
+-   **Intentional risks:** `server_tokens on` and `autoindex on`. Safe because the server is disposable, isolated, and synthetically seeded.
 -   **Student boundaries:** students edit the config from the workstation and reload via the `nginxadmin` SSH account's narrow sudo helper - not platform operator commands.
 -   **Instructor recovery:** portal **Reset** restores the vulnerable baseline. A student who wedges nginx (invalid config) is protected by `nginx -t` in the reload helper, which refuses a bad reload; if needed, End Lab and Start again.
 

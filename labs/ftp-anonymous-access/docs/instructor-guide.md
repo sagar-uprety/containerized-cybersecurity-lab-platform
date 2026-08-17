@@ -30,7 +30,7 @@ and data transfer are encrypted.
     (`demo-pipeline-pass-2024`, `demo-monitor-pass-2024`, and similar). No
     real files, credentials, or personal data are present. The named
     account's password (`ftp-demo-password`) is a fixed, dummy, in-lab-only
-    credential documented in `intentional-risk-allowlist.yaml`.
+    credential.
 -   **Intentional risks:** Anonymous read/write access and a disabled TLS
     configuration are the deliberate weaknesses this lab teaches against.
     Safe because the server is disposable, isolated, and synthetically

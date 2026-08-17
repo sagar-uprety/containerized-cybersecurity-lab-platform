@@ -17,7 +17,7 @@ Students investigate a Postfix mail relay that accepts and queues mail from any 
 
 -   **Contained blast radius:** The Postfix relay and workstation run in a per-student isolated Podman network. The relay cannot deliver to any real external mail server; all traffic stays in the lab.
 -   **Synthetic data only:** Test mail uses lab-only sender and recipient addresses. No real email addresses are involved and nothing leaves the lab network.
--   **Intentional risks:** A broad trusted-client setting (`mynetworks = 0.0.0.0/0`) that makes the relay open is the deliberate weakness (`intentional-risk-allowlist.yaml`). Safe because the relay has no outbound path beyond the isolated lab.
+-   **Intentional risks:** A broad trusted-client setting (`mynetworks = 0.0.0.0/0`) that makes the relay open is the deliberate weakness. Safe because the relay has no outbound path beyond the isolated lab.
 -   **Student boundaries:** Students send test mail only through the lab relay using lab-only addresses; they must not introduce real recipients or attempt delivery to external hosts.
 -   **Instructor recovery:** Portal **Reset** restores the vulnerable configuration. A student who wedges Postfix should End Lab and Start again.
 

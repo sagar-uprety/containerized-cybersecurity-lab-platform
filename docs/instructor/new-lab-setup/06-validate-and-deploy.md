@@ -1,6 +1,6 @@
 # Validate, Deploy, and Publish
 
-_[← Write Documentation and Declare Risk](05-documentation.md) · [Guide overview](index.md)_
+_[← Write Documentation](05-documentation.md) · [Guide overview](index.md)_
 
 ## Local Validation
 
@@ -15,18 +15,11 @@ python3 -m venv .venv
 
 Do not bypass hooks.
 
-### Scaffold Contract
-
-```bash
-PYTHONPATH=. .venv/bin/python tests/test_create_lab.py
-```
-
-### Scenario, Checker, and Risk Contracts
+### Scenario and Checker Contracts
 
 ```bash
 PYTHONPATH=controller .venv/bin/python tools/pre_commit/validate_scenarios.py
 .venv/bin/python tools/pre_commit/check_scenario_checker_shell.py
-.venv/bin/python tools/pre_commit/validate_intentional_risks.py
 ```
 
 ### Python Syntax
@@ -173,4 +166,4 @@ release:
 
 ---
 
-_[← Write Documentation and Declare Risk](05-documentation.md) · [Guide overview](index.md) · [Next: Live Verification and Release Checklist →](07-verify-and-ship.md)_
+_[← Write Documentation](05-documentation.md) · [Guide overview](index.md) · [Next: Live Verification and Release Checklist →](07-verify-and-ship.md)_

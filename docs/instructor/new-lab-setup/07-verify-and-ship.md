@@ -86,7 +86,6 @@ so coordinate this test only when concurrent capacity is configured.
 -   Sample service names/text/files have been replaced or deliberately retained.
 -   Dockerfile extends shared service base where appropriate.
 -   Baseline config and setup recreate vulnerable state deterministically.
--   Intentional-risk allowlist covers deliberate scanner findings only.
 -   Every service and workstation has explicit limits.
 -   Vulnerable ports remain private unless safe publication is justified.
 
@@ -109,8 +108,7 @@ so coordinate this test only when concurrent capacity is configured.
 
 ### Verification and Deployment
 
--   Scaffold contract passes.
--   Scenario, checker-shell, and intentional-risk validators pass.
+-   Scenario and checker-shell validators pass.
 -   Python syntax passes for every lab Python file.
 -   Full pre-commit passes without bypass.
 -   All three Ansible syntax checks pass.

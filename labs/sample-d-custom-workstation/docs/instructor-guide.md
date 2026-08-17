@@ -25,7 +25,7 @@ tool without changing the global image.
 
 -   **Contained blast radius:** service and workstation run in one per-student isolated Podman network. Nothing is reachable outside the lab.
 -   **Synthetic data only:** two fabricated records and one demo token (`sample-demo-token`). No real data.
--   **Intentional risks:** `ACCESS_CONTROL=disabled` baseline (`intentional-risk-allowlist.yaml`). Safe because the service is disposable and isolated.
+-   **Intentional risks:** `ACCESS_CONTROL=disabled` baseline. Safe because the service is disposable and isolated.
 -   **Student boundaries:** students edit config from the workstation and reload via the `recadmin` SSH account's narrow helper - not platform operator commands.
 -   **Instructor recovery:** portal **Reset** restores the vulnerable baseline. A student who wedges the service should End Lab and Start again.
 -   **Build note:** this lab builds two images - the service and the custom workstation (`thesis-labs/sample-d-custom-workstation-ws:latest`). Both must be built on the lab worker before the lab can start; if `http` is missing on the workstation, the custom image was not built or not wired.

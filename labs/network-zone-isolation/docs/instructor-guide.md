@@ -41,7 +41,7 @@ application reachable.
     reachability evidence only.
 -   **Intentional risks:** the unconditional `FORWARD ACCEPT` baseline
     (`config.vulnerable`) is the deliberate finding students are meant to
-    discover and correct; see `intentional-risk-allowlist.yaml`.
+    discover and correct.
 -   **Student boundaries:** students work only within the lab's own
     containers and networks. They must not attempt to reach hosts outside
     the lab topology, introduce real credentials, or run platform operator

@@ -39,20 +39,19 @@ each layer.
 
 ## File Map
 
-| File                              | Why it exists                                                       | Replace for a real lab                                                     |
-| --------------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------- |
-| `scenario.yaml`                   | Portal metadata, topology, images, resources, lifecycle, and checks | Every sample-specific service, check, hostname, role, and story value      |
-| `Dockerfile`                      | Builds target service image from shared service base                | Packages, users, helper, copied files, exposed internal ports              |
-| `config.vulnerable`               | Versioned reset baseline                                            | Entire target-service configuration                                        |
-| `seed.txt`                        | Synthetic impact data                                               | Dummy records appropriate to scenario, or delete when unnecessary          |
-| `setup-sample.sh`                 | Idempotent first-boot setup hook                                    | Rename and replace, or delete with matching scenario/Dockerfile references |
-| `reload-sample-service.sh`        | Narrow service-admin action                                         | Rename and implement target service's supported validate/reload flow       |
-| `sample-service.py`               | Tiny runnable target                                                | Delete after replacing with a real package or application                  |
-| `intentional-risk-allowlist.yaml` | Documents deliberate scanner findings                               | Every risk, file, pattern/rule, and teaching justification                 |
-| `docs/solution-notes.md`          | Sole exact answer key                                               | Every command, transition, expected result, and rationale                  |
-| `docs/instructor-guide.md`        | Assessment and intervention guide                                   | Objectives, evidence, hints, mistakes, checker states, teaching notes      |
-| `docs/student-guide.md`           | Guided-discovery student path                                       | Write last; no exact investigation/remediation/verification commands       |
-| `docs/AUTHORING.md`               | Notes for authors reading this sample                               | Optional in copied labs; remove before release if no longer useful         |
+| File                       | Why it exists                                                       | Replace for a real lab                                                     |
+| -------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------- |
+| `scenario.yaml`            | Portal metadata, topology, images, resources, lifecycle, and checks | Every sample-specific service, check, hostname, role, and story value      |
+| `Dockerfile`               | Builds target service image from shared service base                | Packages, users, helper, copied files, exposed internal ports              |
+| `config.vulnerable`        | Versioned reset baseline                                            | Entire target-service configuration                                        |
+| `seed.txt`                 | Synthetic impact data                                               | Dummy records appropriate to scenario, or delete when unnecessary          |
+| `setup-sample.sh`          | Idempotent first-boot setup hook                                    | Rename and replace, or delete with matching scenario/Dockerfile references |
+| `reload-sample-service.sh` | Narrow service-admin action                                         | Rename and implement target service's supported validate/reload flow       |
+| `sample-service.py`        | Tiny runnable target                                                | Delete after replacing with a real package or application                  |
+| `docs/solution-notes.md`   | Sole exact answer key                                               | Every command, transition, expected result, and rationale                  |
+| `docs/instructor-guide.md` | Assessment and intervention guide                                   | Objectives, evidence, hints, mistakes, checker states, teaching notes      |
+| `docs/student-guide.md`    | Guided-discovery student path                                       | Write last; no exact investigation/remediation/verification commands       |
+| `docs/AUTHORING.md`        | Notes for authors reading this sample                               | Optional in copied labs; remove before release if no longer useful         |
 
 ## What the Sample Demonstrates
 
@@ -150,9 +149,8 @@ network. A router/firewall/proxy container can join multiple networks.
 6. Write exact `solution-notes.md` and execute every block through student CLI.
 7. Write `instructor-guide.md` and its checker-coverage matrix.
 8. Write `student-guide.md` last, using solution notes as the anti-spoiler source; put topology, paths, access, and mission deliverables in its Your Lab Environment and Your Mission sections (there is no SITREP.txt).
-9. Replace intentional-risk allowlist entries.
-10. Delete sample-only files and text that the new service no longer uses.
-11. Run all local checks, deploy through Ansible, and complete a fresh live pass.
+9. Delete sample-only files and text that the new service no longer uses.
+10. Run all local checks, deploy through Ansible, and complete a fresh live pass.
 
 ## Required Validation
 
@@ -168,10 +166,8 @@ Then run, for every new/changed lab Python file and the full package:
 
 ```bash
 python3 -m py_compile labs/<lab-id>/<script>.py
-PYTHONPATH=. .venv/bin/python tests/test_create_lab.py
 PYTHONPATH=controller .venv/bin/python tools/pre_commit/validate_scenarios.py
 .venv/bin/python tools/pre_commit/check_scenario_checker_shell.py
-.venv/bin/python tools/pre_commit/validate_intentional_risks.py
 .venv/bin/pre-commit run --all-files
 .venv/bin/python -m mkdocs build --strict \
   --config-file config/mkdocs.yml

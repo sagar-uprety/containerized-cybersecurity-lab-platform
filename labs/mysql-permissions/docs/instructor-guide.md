@@ -41,7 +41,7 @@ dangerous accounts, scopes the application account's grants, restricts
 -   **Intentional risks:** the blank-password `root@'%'` account, the
     passwordless anonymous account, `bind-address = 0.0.0.0`, and
     `app_user`'s `GRANT ALL ON *.*` are the four deliberate weaknesses this
-    lab teaches (see `intentional-risk-allowlist.yaml`). Each exists only
+    lab teaches. Each exists only
     inside this student's isolated Podman network and only until the
     student remediates it.
 -   **Student boundaries:** students must stay inside their own lab

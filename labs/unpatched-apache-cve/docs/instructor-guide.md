@@ -22,7 +22,7 @@ Apache remains 2.4.49, so this is not presented as patching the binary.
 
 -   **Contained blast radius:** The Apache server and workstation run in a per-student isolated Podman network. The vulnerable server is reachable only inside the lab; there is no route to any external host.
 -   **Synthetic data only:** The server serves placeholder web content and a sentinel file used to demonstrate traversal. No real data is present.
--   **Intentional risks:** Apache 2.4.49 with a permissive CGI/root configuration (CVE-2021-41773) is deliberately installed (`intentional-risk-allowlist.yaml`). Safe because the host is disposable, isolated, and holds no real data; the exploit cannot reach beyond the lab.
+-   **Intentional risks:** Apache 2.4.49 with a permissive CGI/root configuration (CVE-2021-41773) is deliberately installed. Safe because the host is disposable, isolated, and holds no real data; the exploit cannot reach beyond the lab.
 -   **Student boundaries:** Students exercise the vulnerability only against the lab server, using only the lab environment - no external exploit infrastructure or real payloads.
 -   **Instructor recovery:** Portal **Reset** restores the vulnerable baseline. Emphasise in debrief that the mitigation is virtual patching, not a real fix; the binary stays vulnerable by design.
 

@@ -15,7 +15,7 @@
 
 -   **Contained blast radius:** <what the vulnerable service can and cannot reach; which Podman networks are isolated>
 -   **Synthetic data only:** <what seeded data exists and confirmation that it contains no real personal data, credentials, or customer records>
--   **Intentional risks:** <the deliberate weaknesses declared in intentional-risk-allowlist.yaml, and why each is safe in this topology>
+-   **Intentional risks:** <the deliberate weaknesses, and why each is safe in this topology>
 -   **Student boundaries:** <what students must not do - attack hosts outside the lab network, introduce real credentials, or use platform operator commands>
 -   **Instructor recovery:** <how to restore a lab a student has broken beyond the checker's guardrails, and what Reset does and does not undo>
 

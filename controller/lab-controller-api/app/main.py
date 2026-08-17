@@ -104,7 +104,7 @@ SPA_INDEX = Path(__file__).resolve().parent / "static" / "dist" / "index.html"
 def _load_session_secret() -> bytes:
     """Read the session-signing secret that provisioning generated.
 
-    Without a configured file (local development and tests) the portal uses a
+    Without a configured file (local development) the portal uses a
     random secret per process, so sessions end when the process restarts.
     """
     if not settings.PORTAL_SESSION_SECRET_FILE:
@@ -1411,7 +1411,7 @@ def _portal_cpu_percent(sample_seconds: float = 0.2) -> Optional[float]:
 
     Deliberately a local reimplementation rather than importing
     labctl_core.system_status: the portal is not allowed to depend on the lab
-    runtime package (tools/pre_commit/validate_architecture_imports.py).
+    runtime package.
     """
     first = _read_proc_stat_totals()
     if first is None:

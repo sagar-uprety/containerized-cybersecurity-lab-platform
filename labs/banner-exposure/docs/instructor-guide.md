@@ -31,7 +31,7 @@ exposed - without breaking SSH administrator access or the web server itself.
     container.
 -   **Synthetic data only:** The internal diagnostic page contains entirely
     fabricated lab-internal hostnames, RFC 1918 addresses, and an obviously
-    fake token (`intentional-risk-allowlist.yaml`). No real personal data,
+    fake token. No real personal data,
     credentials, or infrastructure detail is present anywhere in the lab.
 -   **Intentional risks:** SSH's `DebianBanner yes` and Apache's
     `ServerTokens Full` / `ServerSignature On` are the deliberate vulnerable

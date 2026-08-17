@@ -172,4 +172,4 @@ Missing either direction is a blocking design bug.
 
 ---
 
-_[← Author `scenario.yaml`](03-scenario-yaml.md) · [Guide overview](index.md) · [Next: Write Documentation and Declare Risk →](05-documentation.md)_
+_[← Author `scenario.yaml`](03-scenario-yaml.md) · [Guide overview](index.md) · [Next: Write Documentation →](05-documentation.md)_

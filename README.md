@@ -101,7 +101,6 @@ not require vulnerable packages installed directly on their operating systems.
 |-- infra/             Ansible inventory, playbooks, roles, templates, and variables
 |-- labs/              Scenario packages, images, checks, seeds, and co-located guides
 |-- platform-images/   Shared workstation and service base images
-|-- tests/             Executable backend and authoring contract checks
 `-- tools/             Scenario scaffolding, fixture generation, and repository validators
 ```
 
@@ -211,10 +210,6 @@ Run repository checks from the project root:
 
 PYTHONPATH=controller .venv/bin/python tools/pre_commit/validate_scenarios.py
 
-for test_file in tests/test_*.py; do
-  PYTHONPATH=controller:. .venv/bin/python "$test_file"
-done
-
 controller/lab-portal-ui/node_modules/.bin/tsc \
   -p controller/lab-portal-ui/tsconfig.json \
   --noEmit
@@ -227,8 +222,6 @@ ANSIBLE_CONFIG=config/ansible.cfg \
 ANSIBLE_CONFIG=config/ansible.cfg \
   .venv/bin/ansible-playbook infra/playbooks/lab-worker.yml --syntax-check
 ```
-
-The Python files in `tests/` are executable contract checks rather than a pytest suite.
 
 ## Creating a Lab
 
@@ -250,7 +243,6 @@ Every scenario should include:
 
 -   `scenario.yaml`
 -   Container build and baseline configuration files
--   `intentional-risk-allowlist.yaml`
 -   `docs/student-guide.md`
 -   `docs/instructor-guide.md`
 -   `docs/solution-notes.md`

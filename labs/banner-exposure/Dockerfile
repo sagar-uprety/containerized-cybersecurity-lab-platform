@@ -15,7 +15,7 @@ COPY config.vulnerable /opt/lab/baseline/apache-security.conf
 
 # A small internal diagnostic page that should never be reachable from the
 # outside. Content is entirely fabricated lab-internal detail (dummy IPs,
-# dummy backend names) - see intentional-risk-allowlist.yaml.
+# dummy backend names).
 COPY debug-page.html /var/www/html/internal-status.html
 
 EXPOSE 22 80

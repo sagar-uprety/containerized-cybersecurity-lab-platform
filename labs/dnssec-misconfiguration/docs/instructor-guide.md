@@ -41,7 +41,7 @@ lookups keep working throughout.
     resolver's configuration.
 -   **Intentional risks:** `allow-recursion { any; }` and
     `dnssec-validation no;` in `config.vulnerable` are the isolated teaching
-    vulnerabilities (see `intentional-risk-allowlist.yaml`); they exist only
+    vulnerabilities; they exist only
     inside this lab's isolated network and are never reachable from outside
     the two lab containers.
 -   **Student boundaries:** students must not attempt to reach hosts outside

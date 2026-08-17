@@ -25,7 +25,7 @@ without breaking its dependents.
 
 -   **Contained blast radius:** backend, app, and workstation run in one per-student isolated Podman network. Nothing is reachable outside the lab.
 -   **Synthetic data only:** two fabricated records and one clearly-marked demo token (`sample-demo-token`). No real data or credentials.
--   **Intentional risks:** `ACCESS_CONTROL=disabled` on the backend baseline (`intentional-risk-allowlist.yaml`). Safe because the topology is per-student and isolated.
+-   **Intentional risks:** `ACCESS_CONTROL=disabled` on the backend baseline. Safe because the topology is per-student and isolated.
 -   **Student boundaries:** students edit config from the workstation and reload via the `appadmin` SSH account and its narrow sudo helpers - not platform operator commands.
 -   **Instructor recovery:** portal **Reset** restores the vulnerable baseline (backend disabled, app token empty). A student who wedges either service should End Lab and Start again.
 

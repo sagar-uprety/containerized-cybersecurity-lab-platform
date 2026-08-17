@@ -63,7 +63,7 @@ export default function Feedback({ user, labId, groupId, onLogout }: FeedbackPro
         issueCategory: issueCategory === "none" ? undefined : issueCategory,
         groupId: groupId!,
       });
-      // Show the toast before navigating so it survives the route swap —
+      // Show the toast before navigating so it survives the route swap:
       // ToastContainer is mounted once at the app root and persists across pages.
       showToast("Feedback submitted. Thank you!");
       navigate(result?.redirect || "/results");
