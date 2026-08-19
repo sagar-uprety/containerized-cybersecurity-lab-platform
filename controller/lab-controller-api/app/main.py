@@ -2338,6 +2338,12 @@ def instructor_students_spa():
     return _serve_spa()
 
 
+@app.get("/instructor/students/{student_id}", response_class=HTMLResponse)
+def instructor_student_detail_spa(student_id: str):
+    _ = student_id
+    return _serve_spa()
+
+
 @app.get("/instructor/pending", response_class=HTMLResponse)
 def instructor_pending_spa():
     return _serve_spa()
