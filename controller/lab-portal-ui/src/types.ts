@@ -187,6 +187,12 @@ export interface StudentLabDetail {
   checks_submitted?: number;
   criteria?: CriterionEvidence[];
   sessions?: SessionSummary[];
+  // Present when the detail was fetched without a group_id (cross-group view);
+  // a student can now be in several groups so each lab obligation is tagged
+  // with the group it came from.
+  group_id?: number;
+  group_name?: string;
+  semester?: string | null;
 }
 
 export interface SessionSummary {

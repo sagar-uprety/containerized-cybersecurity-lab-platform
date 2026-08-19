@@ -27,6 +27,7 @@ const InstructorFeedback = lazy(() => import("./pages/InstructorFeedback"));
 const InstructorLabCatalogue = lazy(() => import("./pages/InstructorLabCatalogue"));
 const InstructorGroupDetail = lazy(() => import("./pages/InstructorGroupDetail"));
 const InstructorGroupStudentDetail = lazy(() => import("./pages/InstructorGroupStudentDetail"));
+const InstructorStudentDetail = lazy(() => import("./pages/InstructorStudentDetail"));
 const InstructorGroupSessionDetail = lazy(() => import("./pages/InstructorGroupSessionDetail"));
 const InstructorStudents = lazy(() => import("./pages/InstructorStudents"));
 const InstructorPending = lazy(() => import("./pages/InstructorPending"));
@@ -83,6 +84,14 @@ function parseRoute(): Route {
   const instructorGroupMatch = path.match(/^\/instructor\/groups\/(\d+)\/?$/);
   if (instructorGroupMatch) {
     return { page: "instructor-group-detail", groupId: parseInt(instructorGroupMatch[1], 10) };
+  }
+
+  // Must be checked after the bare list route below is ruled impossible by
+  // requiring a non-empty id segment, so "/instructor/students" and
+  // "/instructor/students/" never match here.
+  const instructorStudentDetailMatch = path.match(/^\/instructor\/students\/([^/]+)\/?$/);
+  if (instructorStudentDetailMatch) {
+    return { page: "instructor-student-detail", studentId: instructorStudentDetailMatch[1] };
   }
 
   if (/^\/instructor\/groups\/?$/.test(path)) return { page: "instructor-groups" };
@@ -261,6 +270,9 @@ function AppContent() {
       break;
     case "instructor-students":
       page = <InstructorStudents user={user} onLogout={handleLogout} />;
+      break;
+    case "instructor-student-detail":
+      page = <InstructorStudentDetail user={user} studentId={route.studentId!} onLogout={handleLogout} />;
       break;
     case "instructor-results":
       page = <InstructorResults user={user} groupId={route.groupId} onLogout={handleLogout} />;
