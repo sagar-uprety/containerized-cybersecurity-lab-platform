@@ -11,7 +11,6 @@ import { useDocumentTitle } from "../utils/useDocumentTitle";
 import type { User, InstructorAnalyticsData, AnalyticsGroup } from "../types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -37,7 +36,6 @@ export default function InstructorOverview({ user, onLogout }: Props) {
   const [newGroupOpen, setNewGroupOpen] = useState(false);
   const [newGroup, setNewGroup] = useState("");
   const [newGroupSemester, setNewGroupSemester] = useState("");
-  const [newGroupActive, setNewGroupActive] = useState(true);
   const [creating, setCreating] = useState(false);
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"active" | "archived" | "all">("active");
@@ -60,10 +58,9 @@ export default function InstructorOverview({ user, onLogout }: Props) {
     setCreating(true);
     setError(null);
     try {
-      await createGroup(newGroup.trim(), newGroupSemester.trim(), newGroupActive);
+      await createGroup(newGroup.trim(), newGroupSemester.trim());
       setNewGroup("");
       setNewGroupSemester("");
-      setNewGroupActive(true);
       setNewGroupOpen(false);
       await refresh();
     } catch (err: unknown) {
@@ -265,10 +262,6 @@ export default function InstructorOverview({ user, onLogout }: Props) {
                   {SEMESTERS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
                 </SelectContent>
               </Select>
-              <label className="flex items-center gap-2 text-sm text-foreground">
-                <Checkbox checked={newGroupActive} onCheckedChange={(v) => setNewGroupActive(v === true)} />
-                Active group
-              </label>
             </div>
             <DialogFooter className="mt-4">
               <Button type="button" variant="outline" size="sm" onClick={() => setNewGroupOpen(false)}>Cancel</Button>

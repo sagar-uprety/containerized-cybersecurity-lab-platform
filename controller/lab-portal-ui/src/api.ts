@@ -97,54 +97,56 @@ export function getWorkstationAccess(): Promise<WorkstationAccess> {
   return request("/workstation-access");
 }
 
-export function getLabs(): Promise<Lab[]> {
-  return request("/labs");
+export function getLabs(groupId?: number): Promise<Lab[]> {
+  const query = groupId != null ? `?group_id=${groupId}` : "";
+  return request(`/labs${query}`);
 }
 
-export function getLabDetail(labId: string): Promise<LabDetail> {
-  return request(`/labs/${labId}`);
+export function getLabDetail(labId: string, groupId?: number): Promise<LabDetail> {
+  const query = groupId != null ? `?group_id=${groupId}` : "";
+  return request(`/labs/${labId}${query}`);
 }
 
-export function getLabFeedback(labId: string): Promise<FeedbackInfo> {
-  return request(`/labs/${labId}/feedback`);
+export function getLabFeedback(labId: string, groupId: number): Promise<FeedbackInfo> {
+  return request(`/labs/${labId}/feedback?group_id=${groupId}`);
 }
 
-export function startLab(labId: string, csrfToken: string): Promise<unknown> {
+export function startLab(labId: string, csrfToken: string, groupId: number): Promise<unknown> {
   return request(`/labs/${labId}/start`, {
     method: "POST",
-    body: JSON.stringify({ csrf_token: csrfToken }),
+    body: JSON.stringify({ csrf_token: csrfToken, group_id: groupId }),
     headers: { "Content-Type": "application/json" },
   });
 }
 
-export function stopLab(labId: string, csrfToken: string): Promise<unknown> {
+export function stopLab(labId: string, csrfToken: string, groupId: number): Promise<unknown> {
   return request(`/labs/${labId}/stop`, {
     method: "POST",
-    body: JSON.stringify({ csrf_token: csrfToken }),
+    body: JSON.stringify({ csrf_token: csrfToken, group_id: groupId }),
     headers: { "Content-Type": "application/json" },
   });
 }
 
-export function resetLab(labId: string, csrfToken: string): Promise<unknown> {
+export function resetLab(labId: string, csrfToken: string, groupId: number): Promise<unknown> {
   return request(`/labs/${labId}/reset`, {
     method: "POST",
-    body: JSON.stringify({ csrf_token: csrfToken }),
+    body: JSON.stringify({ csrf_token: csrfToken, group_id: groupId }),
     headers: { "Content-Type": "application/json" },
   });
 }
 
-export function endLab(labId: string, csrfToken: string): Promise<unknown> {
+export function endLab(labId: string, csrfToken: string, groupId: number): Promise<unknown> {
   return request(`/labs/${labId}/end`, {
     method: "POST",
-    body: JSON.stringify({ csrf_token: csrfToken }),
+    body: JSON.stringify({ csrf_token: csrfToken, group_id: groupId }),
     headers: { "Content-Type": "application/json" },
   });
 }
 
-export function runCheck(labId: string, csrfToken: string): Promise<CheckResultData> {
+export function runCheck(labId: string, csrfToken: string, groupId: number): Promise<CheckResultData> {
   return request(`/labs/${labId}/check`, {
     method: "POST",
-    body: JSON.stringify({ csrf_token: csrfToken }),
+    body: JSON.stringify({ csrf_token: csrfToken, group_id: groupId }),
     headers: { "Content-Type": "application/json" },
   });
 }
@@ -157,6 +159,7 @@ export function submitFeedback(
     rating: number;
     comment: string;
     issueCategory?: string;
+    groupId: number;
   }
 ): Promise<unknown> {
   return request(`/labs/${labId}/feedback`, {
@@ -167,13 +170,14 @@ export function submitFeedback(
       rating: opts.rating,
       comment: opts.comment,
       issue_category: opts.issueCategory,
+      group_id: opts.groupId,
     }),
     headers: { "Content-Type": "application/json" },
   });
 }
 
-export function sendHeartbeat(labId: string): Promise<unknown> {
-  return request(`/heartbeat/${labId}`, { method: "POST" });
+export function sendHeartbeat(labId: string, groupId: number): Promise<unknown> {
+  return request(`/heartbeat/${labId}?group_id=${groupId}`, { method: "POST" });
 }
 
 export function getInstructorLabs(): Promise<InstructorLabInfo[]> {
@@ -213,12 +217,13 @@ export function exportEvidence(opts: { csrfToken: string; evaluationId: string; 
   });
 }
 
-export function getStudentResults(): Promise<StudentResultsData> {
-  return request("/results");
+export function getStudentResults(groupId?: number): Promise<StudentResultsData> {
+  const query = groupId != null ? `?group_id=${groupId}` : "";
+  return request(`/results${query}`);
 }
 
-export function getStudentLabResults(labId: string): Promise<StudentLabResultsData> {
-  return request(`/results/${labId}`);
+export function getStudentLabResults(labId: string, groupId: number): Promise<StudentLabResultsData> {
+  return request(`/results/${labId}?group_id=${groupId}`);
 }
 
 export function getInstructorAnalytics(
@@ -280,8 +285,8 @@ export function getGroups(): Promise<Group[]> {
   return request("/instructor/groups");
 }
 
-export function createGroup(name: string, semester?: string, isActive = true): Promise<unknown> {
-  return instructorPost("/instructor/groups", { name, semester, is_active: isActive });
+export function createGroup(name: string, semester?: string): Promise<unknown> {
+  return instructorPost("/instructor/groups", { name, semester });
 }
 
 export function deleteGroup(groupId: number): Promise<unknown> {
@@ -368,12 +373,10 @@ export function renameGroup(
   groupId: number,
   name: string,
   semester?: string,
-  isActive?: boolean,
 ): Promise<unknown> {
   return instructorPost(`/instructor/groups/${groupId}/rename`, {
     name,
     semester,
-    is_active: isActive,
   });
 }
 

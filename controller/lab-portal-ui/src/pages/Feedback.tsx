@@ -10,6 +10,7 @@ import { getLabFeedback, submitFeedback } from "../api";
 import { navigate } from "../utils/navigate";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,10 +22,11 @@ import { Info } from "lucide-react";
 interface FeedbackProps {
   user: User;
   labId: string;
+  groupId?: number;
   onLogout: () => void;
 }
 
-export default function Feedback({ user, labId, onLogout }: FeedbackProps) {
+export default function Feedback({ user, labId, groupId, onLogout }: FeedbackProps) {
   const [info, setInfo] = useState<FeedbackInfo | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
@@ -34,18 +36,22 @@ export default function Feedback({ user, labId, onLogout }: FeedbackProps) {
 
   useDocumentTitle("Lab Feedback");
 
+  const groupValid = groupId != null && !Number.isNaN(groupId);
+
   useEffect(() => {
+    if (!groupValid) return;
     let cancelled = false;
     setInfo(null);
     setError(null);
-    getLabFeedback(labId)
+    getLabFeedback(labId, groupId!)
       .then((data: FeedbackInfo) => { if (!cancelled) setInfo(data); })
       .catch((err: Error) => { if (!cancelled) setError(err.message); });
     return () => { cancelled = true; };
-  }, [labId]);
+  }, [labId, groupId, groupValid]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!groupValid) return;
     setSubmitting(true);
     try {
       await submitFeedback(labId, {
@@ -54,12 +60,22 @@ export default function Feedback({ user, labId, onLogout }: FeedbackProps) {
         rating,
         comment,
         issueCategory: issueCategory === "none" ? undefined : issueCategory,
+        groupId: groupId!,
       });
       navigate("/");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Submission failed");
       setSubmitting(false);
     }
+  }
+
+  if (!groupValid) {
+    return (
+      <StudentLayout user={user} onLogout={onLogout}>
+        <PageHeader title="Lab feedback" breadcrumbs={[{ label: "Labs", href: "/" }, { label: "Feedback" }]} />
+        <AlertError message="No group specified for this feedback. Open this page from the lab you just ended." />
+      </StudentLayout>
+    );
   }
 
   if (!info && !error) {
@@ -71,9 +87,17 @@ export default function Feedback({ user, labId, onLogout }: FeedbackProps) {
     );
   }
 
+  const groupLabel = info?.group?.name && info.group.semester
+    ? `${info.group.name} · ${info.group.semester}`
+    : info?.group?.name ?? info?.group?.semester ?? undefined;
+
   return (
     <StudentLayout user={user} onLogout={onLogout}>
-      <PageHeader title="Lab feedback" breadcrumbs={[{ label: "Labs", href: "/" }, { label: "Feedback" }]} />
+      <PageHeader
+        title="Lab feedback"
+        breadcrumbs={[{ label: "Labs", href: "/" }, { label: "Feedback" }]}
+        actions={groupLabel ? <Badge className="border-transparent bg-muted text-muted-foreground">{groupLabel}</Badge> : undefined}
+      />
 
       <AlertError message={error} className="mb-6" />
 

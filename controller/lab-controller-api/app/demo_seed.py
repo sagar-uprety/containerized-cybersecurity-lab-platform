@@ -107,11 +107,16 @@ def replace_with_demo_data(data_path: Path, credentials_path: Path) -> dict:
                 }
             )
         for item in payload["groups"]:
+            archived = bool(item.get("is_archived", False))
+            archived_at = _dt(item.get("archived_at"))
+            if archived and archived_at is None:
+                archived_at = _dt(item["created_at"])
             group = Group(
                 id=item["id"],
                 name=item["name"],
                 semester=item["semester"],
-                is_active=bool(item.get("is_active", True)),
+                is_archived=archived,
+                archived_at=archived_at,
                 created_at=_dt(item["created_at"]),
                 synthetic=True,
             )

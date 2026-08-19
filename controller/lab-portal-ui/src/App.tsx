@@ -27,6 +27,7 @@ const InstructorFeedback = lazy(() => import("./pages/InstructorFeedback"));
 const InstructorLabCatalogue = lazy(() => import("./pages/InstructorLabCatalogue"));
 const InstructorGroupDetail = lazy(() => import("./pages/InstructorGroupDetail"));
 const InstructorGroupStudentDetail = lazy(() => import("./pages/InstructorGroupStudentDetail"));
+const InstructorStudentDetail = lazy(() => import("./pages/InstructorStudentDetail"));
 const InstructorGroupSessionDetail = lazy(() => import("./pages/InstructorGroupSessionDetail"));
 const InstructorStudents = lazy(() => import("./pages/InstructorStudents"));
 const InstructorPending = lazy(() => import("./pages/InstructorPending"));
@@ -39,6 +40,8 @@ const AdminAccountPassword = lazy(() => import("./pages/AdminAccountPassword"));
 
 function parseRoute(): Route {
   const path = window.location.pathname;
+  const searchGroup = new URLSearchParams(window.location.search).get("group");
+  const searchGroupId = searchGroup != null && searchGroup !== "" ? Number(searchGroup) : undefined;
 
   const groupSessionMatch = path.match(/^\/instructor\/groups\/(\d+)\/students\/([^/]+)\/labs\/([^/]+)\/?$/);
   if (groupSessionMatch) {
@@ -83,6 +86,14 @@ function parseRoute(): Route {
     return { page: "instructor-group-detail", groupId: parseInt(instructorGroupMatch[1], 10) };
   }
 
+  // Must be checked after the bare list route below is ruled impossible by
+  // requiring a non-empty id segment, so "/instructor/students" and
+  // "/instructor/students/" never match here.
+  const instructorStudentDetailMatch = path.match(/^\/instructor\/students\/([^/]+)\/?$/);
+  if (instructorStudentDetailMatch) {
+    return { page: "instructor-student-detail", studentId: instructorStudentDetailMatch[1] };
+  }
+
   if (/^\/instructor\/groups\/?$/.test(path)) return { page: "instructor-groups" };
   if (/^\/instructor\/students\/?$/.test(path)) return { page: "instructor-students" };
   if (/^\/instructor\/results\/?$/.test(path)) return { page: "instructor-results" };
@@ -99,13 +110,13 @@ function parseRoute(): Route {
   if (/^\/privacy-policy\/?$/.test(path)) return { page: "privacy-policy" };
 
   const feedbackMatch = path.match(/^\/labs\/([^/]+)\/feedback\/?$/);
-  if (feedbackMatch) return { page: "feedback", labId: feedbackMatch[1] };
+  if (feedbackMatch) return { page: "feedback", labId: feedbackMatch[1], groupId: searchGroupId };
 
   const detailMatch = path.match(/^\/labs\/([^/]+)\/?$/);
-  if (detailMatch) return { page: "detail", labId: detailMatch[1] };
+  if (detailMatch) return { page: "detail", labId: detailMatch[1], groupId: searchGroupId };
 
   const studentLabResultsMatch = path.match(/^\/results\/([^/]+)\/?$/);
-  if (studentLabResultsMatch) return { page: "student-lab-results", labId: studentLabResultsMatch[1] };
+  if (studentLabResultsMatch) return { page: "student-lab-results", labId: studentLabResultsMatch[1], groupId: searchGroupId };
 
   if (/^\/results\/?$/.test(path)) return { page: "results" };
   if (/^\/enrollment\/?$/.test(path)) return { page: "enrollment" };
@@ -260,6 +271,9 @@ function AppContent() {
     case "instructor-students":
       page = <InstructorStudents user={user} onLogout={handleLogout} />;
       break;
+    case "instructor-student-detail":
+      page = <InstructorStudentDetail user={user} studentId={route.studentId!} onLogout={handleLogout} />;
+      break;
     case "instructor-results":
       page = <InstructorResults user={user} groupId={route.groupId} onLogout={handleLogout} />;
       break;
@@ -307,10 +321,10 @@ function AppContent() {
       );
       break;
     case "feedback":
-      page = <Feedback user={user} labId={route.labId!} onLogout={handleLogout} />;
+      page = <Feedback user={user} labId={route.labId!} groupId={route.groupId} onLogout={handleLogout} />;
       break;
     case "detail":
-      page = <LabDetail user={user} labId={route.labId!} onLogout={handleLogout} />;
+      page = <LabDetail user={user} labId={route.labId!} groupId={route.groupId} onLogout={handleLogout} />;
       break;
     case "results":
       page = <StudentResults user={user} onLogout={handleLogout} />;
@@ -319,7 +333,7 @@ function AppContent() {
       page = <Enrollment user={user} onLogout={handleLogout} />;
       break;
     case "student-lab-results":
-      page = <StudentLabResults user={user} labId={route.labId!} onLogout={handleLogout} />;
+      page = <StudentLabResults user={user} labId={route.labId!} groupId={route.groupId} onLogout={handleLogout} />;
       break;
     case "student-account-password":
       page = (

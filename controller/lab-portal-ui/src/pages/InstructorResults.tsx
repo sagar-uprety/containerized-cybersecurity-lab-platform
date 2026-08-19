@@ -54,8 +54,14 @@ export default function InstructorResults({ user, groupId, onLogout }: Props) {
   }, [rows, search, status]);
 
   function openStudent(row: ResultRow) {
-    const targetGroupId = groupId ?? row.groups?.[0]?.id;
-    if (targetGroupId) navigate(`/instructor/groups/${targetGroupId}/students/${row.student_id}`);
+    // Scoped to one group, stay in that group's view. Unscoped, go to the
+    // all-groups page: a student can be in several groups, and picking one
+    // here would silently hide the rest.
+    if (groupId != null) {
+      navigate(`/instructor/groups/${groupId}/students/${row.student_id}`);
+      return;
+    }
+    navigate(`/instructor/students/${row.student_id}`);
   }
 
   return (
@@ -90,7 +96,7 @@ export default function InstructorResults({ user, groupId, onLogout }: Props) {
           {filtered.map((row) => {
             const pct = row.labs_assigned > 0 ? Math.round((row.labs_passed / row.labs_assigned) * 100) : 0;
             return (
-              <button key={`${row.student_id}-${row.groups?.[0]?.id || groupId || "all"}`} type="button" onClick={() => openStudent(row)} className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-accent/40 focus-visible:bg-accent/40 focus-visible:outline-none">
+              <button key={row.student_id} type="button" onClick={() => openStudent(row)} className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-accent/40 focus-visible:bg-accent/40 focus-visible:outline-none">
                 <Avatar size="sm"><AvatarFallback className="bg-accent text-primary">{(row.email || row.student_id).charAt(0).toUpperCase()}</AvatarFallback></Avatar>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">

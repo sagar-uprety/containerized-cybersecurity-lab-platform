@@ -55,10 +55,11 @@ def _migrate_columns() -> None:
         ("group_labs", "synthetic", "BOOLEAN NOT NULL DEFAULT 0"),
         ("groups", "synthetic", "BOOLEAN NOT NULL DEFAULT 0"),
         ("groups", "semester", "TEXT"),
-        ("groups", "is_active", "BOOLEAN NOT NULL DEFAULT 1"),
         ("groups", "owner_id", "INTEGER REFERENCES users(id)"),
         ("groups", "is_archived", "BOOLEAN NOT NULL DEFAULT 0"),
         ("groups", "archived_at", "TEXT"),
+        ("lab_sessions", "group_id", "INTEGER REFERENCES groups(id)"),
+        ("runtime_leases", "group_id", "INTEGER REFERENCES groups(id)"),
     ]
     with engine.connect() as conn:
         for table, column, col_type in migrations:
@@ -75,6 +76,24 @@ def _migrate_columns() -> None:
                 "AND EXISTS (SELECT 1 FROM users WHERE email = 'instructor@thesis.local')"
             )
         )
+        # One-time backfill: evidence rows used to record a student's email as
+        # the actor. That is redundant PII -- the row already carries student_id,
+        # and actor_type already says who acted -- so rewrite it to the student's
+        # pseudonymous internal id. Matches only rows whose actor_id is exactly a
+        # student's email, so instructor and 'system'/'scheduler' actors are left
+        # untouched.
+        for table in ("lifecycle_evidence", "check_attempts"):
+            conn.execute(
+                sqlalchemy.text(
+                    f"UPDATE {table} SET actor_id = "
+                    "(SELECT internal_id FROM users WHERE users.email = actor_id) "
+                    "WHERE actor_id LIKE '%@%' "
+                    "AND EXISTS ("
+                    "  SELECT 1 FROM users"
+                    "  WHERE users.email = actor_id AND users.internal_id IS NOT NULL"
+                    ")"
+                )
+            )
         conn.commit()
 
 

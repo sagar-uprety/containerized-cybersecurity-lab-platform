@@ -23,13 +23,6 @@ export default function Enrollment({ user, onLogout }: { user: User; onLogout: (
       .catch((err: Error) => setError(err.message));
   }, []);
 
-  const occupiedSemesters = new Set(
-    (enrollments || [])
-      .filter((group) => group.status === "approved" || group.status === "pending")
-      .map((group) => group.semester)
-      .filter((semester): semester is string => Boolean(semester)),
-  );
-
   async function handleEnroll(groupId: number) {
     setEnrollLoading(groupId);
     setError(null);
@@ -46,7 +39,7 @@ export default function Enrollment({ user, onLogout }: { user: User; onLogout: (
 
   return (
     <StudentLayout user={user} onLogout={onLogout}>
-      <PageHeader title="Enrollment" description="Request to join one group per semester. Memberships from other semesters remain available, and your instructor approves each request." />
+      <PageHeader title="Enrollment" description="Request to join any group you need, including several in the same semester. Your instructor approves each request. If two of your groups assign the same lab, you complete it once per group and each result is tracked separately." />
 
       <AlertError message={error} className="mb-6" />
 
@@ -79,8 +72,8 @@ export default function Enrollment({ user, onLogout }: { user: User; onLogout: (
                   <div className="font-medium text-foreground">{group.name}</div>
                   <div className="flex flex-wrap justify-end gap-1.5">
                     {group.semester && <Badge variant="outline">{group.semester}</Badge>}
-                    {group.is_active === false && (
-                      <Badge className="border-transparent bg-muted text-muted-foreground">Inactive</Badge>
+                    {group.is_archived && (
+                      <Badge className="border-transparent bg-muted text-muted-foreground">Archived</Badge>
                     )}
                   </div>
                 </div>
@@ -94,12 +87,7 @@ export default function Enrollment({ user, onLogout }: { user: User; onLogout: (
                   {group.status === "pending" && (
                     <Badge className="border-transparent bg-warning-bg text-warning">Pending approval</Badge>
                   )}
-                  {group.is_active !== false && !group.status && group.semester && occupiedSemesters.has(group.semester) && (
-                    <Badge className="border-transparent bg-muted text-muted-foreground">
-                      Another group selected for {group.semester}
-                    </Badge>
-                  )}
-                  {group.is_active !== false && !group.status && (!group.semester || !occupiedSemesters.has(group.semester)) && (
+                  {!group.is_archived && !group.status && (
                     <Button size="sm" disabled={enrollLoading === group.id} onClick={() => handleEnroll(group.id)}>
                       {enrollLoading === group.id ? "Requesting…" : "Request to join"}
                     </Button>

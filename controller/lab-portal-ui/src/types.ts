@@ -19,13 +19,14 @@ export interface WorkstationAccess {
 }
 
 export interface Lab {
+  assignment_id: string;
   id: string;
   title: string;
   difficulty?: string;
   status?: string;
   story?: { situation?: string; role?: string };
   deadline?: string;
-  group?: { id: number | null; name: string | null; semester?: string | null; is_active?: boolean };
+  group: { id: number | null; name: string | null; semester?: string | null; is_archived?: boolean };
 }
 
 export interface LabDetail {
@@ -34,7 +35,7 @@ export interface LabDetail {
   endpoints?: LabEndpoints;
   csrf_token: string;
   deadline?: string;
-  group?: { id: number | null; name: string | null; semester?: string | null; is_active?: boolean };
+  group: { id: number | null; name: string | null; semester?: string | null; is_archived?: boolean };
 }
 
 export interface Scenario {
@@ -72,7 +73,7 @@ export interface EnrollmentOption {
   id: number;
   name: string;
   semester?: string | null;
-  is_active?: boolean;
+  is_archived?: boolean;
   member_count: number;
   status?: "approved" | "pending" | null;
 }
@@ -81,7 +82,6 @@ export interface Group {
   id: number;
   name: string;
   semester?: string | null;
-  is_active?: boolean;
   is_archived?: boolean;
   archived_at?: string | null;
   member_count: number;
@@ -94,7 +94,6 @@ export interface GroupDetail {
   id: number;
   name: string;
   semester?: string | null;
-  is_active?: boolean;
   is_archived?: boolean;
   archived_at?: string | null;
   csrf_token: string;
@@ -186,6 +185,12 @@ export interface StudentLabDetail {
   checks_submitted?: number;
   criteria?: CriterionEvidence[];
   sessions?: SessionSummary[];
+  // Present when the detail was fetched without a group_id (cross-group view);
+  // a student can now be in several groups so each lab obligation is tagged
+  // with the group it came from.
+  group_id?: number;
+  group_name?: string;
+  semester?: string | null;
 }
 
 export interface SessionSummary {
@@ -242,6 +247,9 @@ export interface FeedbackInfo {
   csrf_token: string;
   session_id?: string;
   already_submitted?: boolean;
+  // Not explicitly documented on GET /api/labs/{lab_id}/feedback; inferred so the page can
+  // show which group the feedback prompt belongs to. Rendered only when present.
+  group?: { id: number | null; name: string | null; semester?: string | null };
 }
 
 export interface SystemStatus {
@@ -296,6 +304,7 @@ export interface Route {
 }
 
 export interface StudentLabResult {
+  assignment_id: string;
   lab_id: string;
   lab_title: string;
   difficulty?: string;
@@ -303,6 +312,9 @@ export interface StudentLabResult {
   sessions_attempted: number;
   total_time_seconds: number;
   last_active: string | null;
+  group_id: number;
+  group_name: string;
+  semester: string | null;
 }
 
 export interface StudentResultsData {
@@ -317,6 +329,12 @@ export interface StudentLabResultsData extends StudentLabDetail {
   difficulty?: string;
   result: "passed" | "failed" | "not_attempted";
   total_time_seconds: number;
+  // Contract doesn't explicitly document group fields on GET /api/results/{lab_id};
+  // inferred from the group-scoped nature of the endpoint (group_id is required in the
+  // request). Rendered only when present.
+  group_id?: number;
+  group_name?: string;
+  semester?: string | null;
 }
 
 export interface AnalyticsPoint {
@@ -352,7 +370,6 @@ export interface AnalyticsLab {
 export interface AnalyticsGroup {
   id: number;
   name: string;
-  is_active?: boolean;
   is_archived?: boolean;
   completion_rate: number;
   active_rate: number;
@@ -373,7 +390,6 @@ export interface InstructorAnalyticsData {
   timezone: string;
   window_label: string;
   status: "active" | "archived" | "all";
-  inactive_groups_count: number;
   archived_groups_count: number;
   total_groups: number;
   total_labs: number;

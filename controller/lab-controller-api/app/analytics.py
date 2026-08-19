@@ -283,6 +283,19 @@ def student_detail(student_id: str, group_id=None, group_ids=None):
             session, group_id=group_id, group_ids=group_ids, student_id=student_id
         )
         _prime_evidence_cache(session, obligations)
+        # Batch the Group lookup rather than querying once per obligation --
+        # obligations for the same student commonly repeat a handful of groups.
+        obligation_group_ids = {item.group_id for item in obligations}
+        groups_by_id = (
+            {
+                group.id: group
+                for group in session.scalars(
+                    select(Group).where(Group.id.in_(obligation_group_ids))
+                ).all()
+            }
+            if obligation_group_ids
+            else {}
+        )
         labs = []
         for obligation in obligations:
             sessions = _linked_sessions(session, obligation.id)
@@ -295,11 +308,15 @@ def student_detail(student_id: str, group_id=None, group_ids=None):
             ]
             latest_current = current_checks[-1] if current_checks else None
             first_pass = next((check for check in checks if check.passed), None)
+            group = groups_by_id.get(obligation.group_id)
             labs.append(
                 {
                     "lab_id": obligation.lab_id,
                     "lab_title": _title(obligation.lab_id),
                     "assignment_id": obligation.id,
+                    "group_id": obligation.group_id,
+                    "group_name": group.name if group else None,
+                    "semester": group.semester if group else None,
                     "ever_passed": _achieved(session, obligation),
                     "first_pass_at": _iso(first_pass.occurred_at) if first_pass else None,
                     "latest_check": (
@@ -537,11 +554,7 @@ def instructor_analytics(owner_group_ids, group_id=None, status="active"):
                 )
             else:
                 status_group_ids = set(
-                    session.scalars(
-                        select(Group.id).where(
-                            Group.is_active.is_(True), Group.is_archived.is_(False)
-                        )
-                    ).all()
+                    session.scalars(select(Group.id).where(Group.is_archived.is_(False))).all()
                 )
             obligations = [item for item in obligations if item.group_id in status_group_ids]
         _prime_evidence_cache(session, obligations)
@@ -698,9 +711,7 @@ def instructor_analytics(owner_group_ids, group_id=None, status="active"):
             ) & set(owner_group_ids)
         else:
             group_candidate_ids = set(
-                session.scalars(
-                    select(Group.id).where(Group.is_active.is_(True), Group.is_archived.is_(False))
-                ).all()
+                session.scalars(select(Group.id).where(Group.is_archived.is_(False))).all()
             ) & set(owner_group_ids)
         groups = []
         for candidate_id in sorted(group_candidate_ids):
@@ -721,7 +732,6 @@ def instructor_analytics(owner_group_ids, group_id=None, status="active"):
                 {
                     "id": candidate_id,
                     "name": group.name,
-                    "is_active": group.is_active,
                     "is_archived": group.is_archived,
                     "completion_rate": round(group_completed / len(group_obligations) * 100)
                     if group_obligations
@@ -743,15 +753,6 @@ def instructor_analytics(owner_group_ids, group_id=None, status="active"):
                 }
             )
         group = session.get(Group, group_id) if group_id is not None else None
-        inactive_groups_count = session.scalar(
-            select(func.count())
-            .select_from(Group)
-            .where(
-                Group.is_active.is_(False),
-                Group.is_archived.is_(False),
-                Group.id.in_(owner_group_ids),
-            )
-        )
         archived_groups_count = session.scalar(
             select(func.count())
             .select_from(Group)
@@ -763,7 +764,6 @@ def instructor_analytics(owner_group_ids, group_id=None, status="active"):
             "timezone": "Europe/Berlin",
             "window_label": "Last 8 weeks; current week to date",
             "status": status,
-            "inactive_groups_count": inactive_groups_count,
             "archived_groups_count": archived_groups_count,
             "total_groups": len(groups),
             "total_labs": len(list_scenarios()),
@@ -788,7 +788,13 @@ def instructor_analytics(owner_group_ids, group_id=None, status="active"):
         }
 
 
-def recent_activity(student_ids: set[str], limit: int = 10):
+def recent_activity(student_ids: set[str], limit: int = 10, redact_email: bool = False):
+    """Lifecycle events for a set of students, newest first.
+
+    `redact_email` drops the per-event email the same way an archived group's
+    roster drops it. The pseudonymous `student_id` stays either way -- it is
+    what the instructor needs to open a session, and it is not PII.
+    """
     if not student_ids:
         return []
     with SessionLocal() as session:
@@ -798,10 +804,16 @@ def recent_activity(student_ids: set[str], limit: int = 10):
             .order_by(LifecycleEvidence.occurred_at.desc())
             .limit(limit)
         ).all()
-        emails = {
-            user.internal_id: user.email
-            for user in session.scalars(select(User).where(User.internal_id.in_(student_ids))).all()
-        }
+        emails = (
+            {}
+            if redact_email
+            else {
+                user.internal_id: user.email
+                for user in session.scalars(
+                    select(User).where(User.internal_id.in_(student_ids))
+                ).all()
+            }
+        )
         return [
             {
                 "timestamp": _iso(event.occurred_at),
@@ -818,8 +830,8 @@ def recent_activity(student_ids: set[str], limit: int = 10):
         ]
 
 
-def student_results(student_id: str):
-    detail = student_detail(student_id)
+def student_results(student_id: str, group_id=None):
+    detail = student_detail(student_id, group_id=group_id)
     labs = []
     for lab in detail["labs"]:
         runtime = sum(item.get("duration_seconds") or 0 for item in lab["sessions"])
@@ -831,6 +843,10 @@ def student_results(student_id: str):
             {
                 "lab_id": lab["lab_id"],
                 "lab_title": lab["lab_title"],
+                "assignment_id": lab["assignment_id"],
+                "group_id": lab["group_id"],
+                "group_name": lab["group_name"],
+                "semester": lab["semester"],
                 "result": "passed"
                 if lab["ever_passed"]
                 else "failed"

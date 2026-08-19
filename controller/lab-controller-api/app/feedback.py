@@ -25,10 +25,10 @@ from app.models import (
     TerminalCommand,
     User,
 )
+from app.obligations import obligation_id
 
 EVIDENCE_DIR = Path(settings.PORTAL_DB_PATH).parent / "evidence"
 EVIDENCE_DIR.mkdir(parents=True, exist_ok=True)
-_OBLIGATION_NAMESPACE = uuid.UUID("74162d83-7f33-4d1b-a330-5084787ed3aa")
 _COMMAND_NAMESPACE = uuid.UUID("811fe683-9aac-457b-a63e-fe36f3070fcc")
 
 
@@ -75,17 +75,15 @@ def sync_assignment_obligations() -> int:
                 select(GroupLab).where(GroupLab.group_id == membership.group_id)
             ).all()
             for group_lab in group_labs:
-                obligation_id = str(
-                    uuid.uuid5(_OBLIGATION_NAMESPACE, f"{group_lab.id}:{membership.user_id}")
-                )
-                current_ids.add(obligation_id)
+                oid = obligation_id(group_lab.id, membership.user_id)
+                current_ids.add(oid)
                 approved_at = membership.approved_at or membership.requested_at
                 assigned_at = group_lab.assigned_at or approved_at
                 eligible_at = max(_aware(approved_at), _aware(assigned_at))
-                obligation = session.get(AssignmentObligation, obligation_id)
+                obligation = session.get(AssignmentObligation, oid)
                 if obligation is None:
                     obligation = AssignmentObligation(
-                        id=obligation_id,
+                        id=oid,
                         group_lab_id=group_lab.id,
                         group_id=membership.group_id,
                         user_id=membership.user_id,
@@ -114,15 +112,25 @@ def sync_assignment_obligations() -> int:
     return changed
 
 
-def _active_obligations(session, lab_id: str, student_id: str, at: datetime):
-    return session.scalars(
-        select(AssignmentObligation).where(
-            AssignmentObligation.lab_id == lab_id,
-            AssignmentObligation.student_id == student_id,
-            AssignmentObligation.eligible_at <= at,
-            AssignmentObligation.removed_at.is_(None),
-        )
-    ).all()
+def _active_obligations(
+    session, lab_id: str, student_id: str, at: datetime, group_id: Optional[int] = None
+):
+    """Obligations a session/check should be credited against.
+
+    With `group_id` given, only that group's obligation is credited -- a run
+    started for one group must not also count for a sibling group that
+    assigns the same lab. Without it (legacy callers with no group context),
+    every matching obligation is credited, preserving the historical fan-out.
+    """
+    query = select(AssignmentObligation).where(
+        AssignmentObligation.lab_id == lab_id,
+        AssignmentObligation.student_id == student_id,
+        AssignmentObligation.eligible_at <= at,
+        AssignmentObligation.removed_at.is_(None),
+    )
+    if group_id is not None:
+        query = query.where(AssignmentObligation.group_id == group_id)
+    return session.scalars(query).all()
 
 
 def create_lab_session(
@@ -131,6 +139,7 @@ def create_lab_session(
     student_id: str,
     started_at: Optional[datetime] = None,
     synthetic: bool = False,
+    group_id: Optional[int] = None,
 ) -> None:
     started = started_at or _utcnow()
     sync_assignment_obligations()
@@ -144,9 +153,10 @@ def create_lab_session(
             started_at=started,
             outcome="running",
             synthetic=synthetic,
+            group_id=group_id,
         )
         session.add(record)
-        for obligation in _active_obligations(session, lab_id, student_id, started):
+        for obligation in _active_obligations(session, lab_id, student_id, started, group_id):
             session.add(SessionObligation(session_id=session_id, assignment_id=obligation.id))
         session.commit()
 
@@ -318,6 +328,7 @@ def save_check_result(
     phase: str = "student",
     scenario_version: str = "1",
     synthetic: bool = False,
+    group_id: Optional[int] = None,
 ) -> str:
     result_id = str(uuid.uuid4())
     occurred_at = _utcnow()
@@ -353,7 +364,7 @@ def save_check_result(
                     output=(criterion.get("output") or "")[:500],
                 )
             )
-        for obligation in _active_obligations(session, lab_id, student_id, occurred_at):
+        for obligation in _active_obligations(session, lab_id, student_id, occurred_at, group_id):
             session.add(CheckObligation(check_id=result_id, assignment_id=obligation.id))
         session.commit()
     return result_id

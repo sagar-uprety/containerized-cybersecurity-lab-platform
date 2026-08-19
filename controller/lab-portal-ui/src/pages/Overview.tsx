@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import type { User, Lab } from "../types";
 import StudentLayout from "../components/StudentLayout";
 import StatusBadge from "../components/StatusBadge";
@@ -12,11 +12,14 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 
 export default function Overview({ user, onLogout }: { user: User; onLogout: () => void }) {
   const [labs, setLabs] = useState<Lab[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [groupFilter, setGroupFilter] = useState("all");
 
   useDocumentTitle("Assigned Labs");
 
@@ -26,11 +29,29 @@ export default function Overview({ user, onLogout }: { user: User; onLogout: () 
       .catch((err: Error) => setError(err.message));
   }, []);
 
+  // A student may now belong to several groups; derive the filter's options from whatever
+  // groups actually appear in the assignments, rather than a separate API call.
+  const groupOptions = useMemo(() => {
+    const seen = new Map<number, string>();
+    for (const lab of labs ?? []) {
+      if (lab.group.id != null && !seen.has(lab.group.id)) {
+        seen.set(lab.group.id, groupLabel(lab.group));
+      }
+    }
+    return [...seen.entries()].map(([id, label]) => ({ id, label }));
+  }, [labs]);
+
+  const filteredLabs = useMemo(() => {
+    if (groupFilter === "all") return labs ?? [];
+    const gid = Number(groupFilter);
+    return (labs ?? []).filter((lab) => lab.group.id === gid);
+  }, [labs, groupFilter]);
+
   const isPastDue = (lab: Lab) =>
     Boolean(lab.deadline && new Date(lab.deadline).getTime() < Date.now());
 
-  const activeLabs = labs?.filter((lab) => !isPastDue(lab)) ?? [];
-  const pastLabs = labs?.filter(isPastDue) ?? [];
+  const activeLabs = filteredLabs.filter((lab) => !isPastDue(lab));
+  const pastLabs = filteredLabs.filter(isPastDue);
 
   return (
     <StudentLayout user={user} onLogout={onLogout}>
@@ -60,6 +81,21 @@ export default function Overview({ user, onLogout }: { user: User; onLogout: () 
 
       {labs && labs.length > 0 && (
         <>
+          {groupOptions.length > 1 && (
+            <div className="mb-6 flex items-center gap-2">
+              <Label htmlFor="group-filter" className="text-sm text-muted-foreground">Group</Label>
+              <Select value={groupFilter} onValueChange={setGroupFilter}>
+                <SelectTrigger id="group-filter" size="sm" className="w-64"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All groups</SelectItem>
+                  {groupOptions.map((option) => (
+                    <SelectItem key={option.id} value={String(option.id)}>{option.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          )}
+
           <section>
             <h2 className="mb-3 text-lg font-semibold text-foreground">Active labs</h2>
             {activeLabs.length === 0 ? (
@@ -69,7 +105,7 @@ export default function Overview({ user, onLogout }: { user: User; onLogout: () 
             ) : (
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {activeLabs.map((lab) => (
-                  <LabCard key={lab.id} lab={lab} pastDue={false} />
+                  <LabCard key={lab.assignment_id} lab={lab} pastDue={false} />
                 ))}
               </div>
             )}
@@ -81,7 +117,7 @@ export default function Overview({ user, onLogout }: { user: User; onLogout: () 
               <p className="mb-3 -mt-2 text-sm text-muted-foreground">Deadline has passed. Shown for reference only.</p>
               <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                 {pastLabs.map((lab) => (
-                  <LabCard key={lab.id} lab={lab} pastDue={true} />
+                  <LabCard key={lab.assignment_id} lab={lab} pastDue={true} />
                 ))}
               </div>
             </section>
@@ -92,10 +128,15 @@ export default function Overview({ user, onLogout }: { user: User; onLogout: () 
   );
 }
 
+function groupLabel(group: Lab["group"]): string {
+  if (group.name && group.semester) return `${group.name} · ${group.semester}`;
+  return group.name ?? group.semester ?? "Group";
+}
+
 function LabCard({ lab, pastDue }: { lab: Lab; pastDue: boolean }) {
-  const groupInactive = lab.group?.is_active === false;
+  const groupArchived = lab.group.is_archived === true;
   return (
-    <Card className={cn((pastDue || groupInactive) && "bg-muted/40")}>
+    <Card className={cn((pastDue || groupArchived) && "bg-muted/40")}>
       <CardContent className="flex h-full flex-col items-start gap-3">
         <div className="flex w-full items-start justify-between gap-2">
           <span className="font-medium text-foreground">{lab.title}</span>
@@ -103,14 +144,14 @@ function LabCard({ lab, pastDue }: { lab: Lab; pastDue: boolean }) {
         </div>
         <div className="flex flex-wrap gap-1.5">
           <Badge variant="outline">{lab.difficulty}</Badge>
-          {(lab.group?.semester || lab.group?.name) && (
+          {(lab.group.name || lab.group.semester) && (
             <Badge className="border-transparent bg-muted text-muted-foreground">
-              {lab.group?.semester ?? lab.group?.name}
+              {groupLabel(lab.group)}
             </Badge>
           )}
-          {groupInactive && (
+          {groupArchived && (
             <Badge className="border-transparent bg-muted text-muted-foreground">
-              Group inactive
+              Group archived
             </Badge>
           )}
           {lab.deadline && <DeadlineBadge deadline={lab.deadline} />}
@@ -120,7 +161,7 @@ function LabCard({ lab, pastDue }: { lab: Lab; pastDue: boolean }) {
         </p>
         {!pastDue && (
           <Button asChild size="sm" className="mt-auto">
-            <Link href={`/labs/${lab.id}`}>Open lab</Link>
+            <Link href={`/labs/${lab.id}?group=${lab.group.id}`}>Open lab</Link>
           </Button>
         )}
       </CardContent>

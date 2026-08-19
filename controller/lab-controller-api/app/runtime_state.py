@@ -30,6 +30,7 @@ def _as_dict(lease: RuntimeLease) -> dict:
     return {
         "status": lease.status,
         "session_id": lease.session_id,
+        "group_id": lease.group_id,
         "started_at": _aware(lease.started_at).timestamp(),
         "last_seen": _aware(lease.last_seen_at).timestamp(),
     }
@@ -49,6 +50,7 @@ def update_runtime_state(lab_id: str, student_id: str, status_text: str, **extra
                 started_at=_datetime(extra.get("started_at"), now),
                 last_seen_at=_datetime(extra.get("last_seen"), now),
                 session_id=extra.get("session_id"),
+                group_id=extra.get("group_id"),
                 updated_at=now,
             )
             session.add(lease)
@@ -61,6 +63,8 @@ def update_runtime_state(lab_id: str, student_id: str, status_text: str, **extra
                 lease.last_seen_at = _datetime(extra["last_seen"], now)
             if "session_id" in extra:
                 lease.session_id = extra["session_id"]
+            if "group_id" in extra:
+                lease.group_id = extra["group_id"]
         session.commit()
 
 
