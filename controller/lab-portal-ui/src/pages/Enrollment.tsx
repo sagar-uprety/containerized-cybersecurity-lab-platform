@@ -72,8 +72,8 @@ export default function Enrollment({ user, onLogout }: { user: User; onLogout: (
                   <div className="font-medium text-foreground">{group.name}</div>
                   <div className="flex flex-wrap justify-end gap-1.5">
                     {group.semester && <Badge variant="outline">{group.semester}</Badge>}
-                    {group.is_active === false && (
-                      <Badge className="border-transparent bg-muted text-muted-foreground">Inactive</Badge>
+                    {group.is_archived && (
+                      <Badge className="border-transparent bg-muted text-muted-foreground">Archived</Badge>
                     )}
                   </div>
                 </div>
@@ -87,7 +87,7 @@ export default function Enrollment({ user, onLogout }: { user: User; onLogout: (
                   {group.status === "pending" && (
                     <Badge className="border-transparent bg-warning-bg text-warning">Pending approval</Badge>
                   )}
-                  {group.is_active !== false && !group.status && (
+                  {!group.is_archived && !group.status && (
                     <Button size="sm" disabled={enrollLoading === group.id} onClick={() => handleEnroll(group.id)}>
                       {enrollLoading === group.id ? "Requesting…" : "Request to join"}
                     </Button>

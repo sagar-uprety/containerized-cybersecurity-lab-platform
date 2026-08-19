@@ -55,7 +55,6 @@ def _migrate_columns() -> None:
         ("group_labs", "synthetic", "BOOLEAN NOT NULL DEFAULT 0"),
         ("groups", "synthetic", "BOOLEAN NOT NULL DEFAULT 0"),
         ("groups", "semester", "TEXT"),
-        ("groups", "is_active", "BOOLEAN NOT NULL DEFAULT 1"),
         ("groups", "owner_id", "INTEGER REFERENCES users(id)"),
         ("groups", "is_archived", "BOOLEAN NOT NULL DEFAULT 0"),
         ("groups", "archived_at", "TEXT"),

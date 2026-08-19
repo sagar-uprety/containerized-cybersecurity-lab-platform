@@ -84,8 +84,6 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
   const [renameInput, setRenameInput] = useState("");
   const [renameSemester, setRenameSemester] = useState("");
   const [renaming, setRenaming] = useState(false);
-  const [togglingActive, setTogglingActive] = useState(false);
-  const [activeConfirm, setActiveConfirm] = useState(false);
   const [togglingArchive, setTogglingArchive] = useState(false);
   const [archiveConfirm, setArchiveConfirm] = useState(false);
 
@@ -207,24 +205,12 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
     }
     setRenaming(true);
     try {
-      await renameGroup(groupId, renameInput.trim(), renameSemester.trim(), group?.is_active);
+      await renameGroup(groupId, renameInput.trim(), renameSemester.trim());
       setRenameOpen(false);
       await refresh();
       showToast("Group updated");
     } catch (err: unknown) { setError(err instanceof Error ? err.message : String(err)); }
     finally { setRenaming(false); }
-  }
-
-  async function handleToggleActive(): Promise<void> {
-    if (!group) return;
-    setActiveConfirm(false);
-    setTogglingActive(true);
-    try {
-      await renameGroup(groupId, group.name, group.semester ?? undefined, !group.is_active);
-      await refresh();
-      showToast(group.is_active ? "Group marked inactive" : "Group marked active");
-    } catch (err: unknown) { setError(err instanceof Error ? err.message : String(err)); }
-    finally { setTogglingActive(false); }
   }
 
   async function handleToggleArchive(): Promise<void> {
@@ -338,9 +324,6 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
           group ? (
             <span className="flex items-center gap-2">
               {group.semester && <Badge variant="outline">{group.semester}</Badge>}
-              <Badge className={cn("border-transparent", group.is_active ? "bg-success-bg text-success" : "bg-muted text-muted-foreground")}>
-                {group.is_active ? "Active" : "Inactive"}
-              </Badge>
               {group.is_archived && (
                 <Badge variant="outline" className="gap-1 text-muted-foreground">
                   <Archive className="size-3" /> Archived - student PII removed
@@ -366,9 +349,6 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
               <DropdownMenuContent align="end" className="whitespace-nowrap">
                 <DropdownMenuItem onSelect={() => { setRenameInput(group?.name || ""); setRenameSemester(group?.semester || ""); setRenameOpen(true); }}>
                   <Pencil /> Rename
-                </DropdownMenuItem>
-                <DropdownMenuItem disabled={togglingActive || group?.is_archived} onSelect={() => setActiveConfirm(true)}>
-                  {group?.is_active ? "Mark inactive" : "Mark active"}
                 </DropdownMenuItem>
                 <DropdownMenuItem disabled={togglingArchive} onSelect={() => setArchiveConfirm(true)}>
                   <Archive /> {group?.is_archived ? "Unarchive group" : "Archive group"}
@@ -561,26 +541,12 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
       </div>
 
       <ConfirmModal
-        open={activeConfirm}
-        title={group?.is_active ? "Mark group inactive?" : "Mark group active?"}
-        message={
-          group?.is_active
-            ? "Students will no longer be able to enroll or start, reset, or check assigned labs. Existing runtimes can still be stopped or ended, and historical results remain available."
-            : "Students will be able to enroll in this group and start assigned labs that are still within their deadlines."
-        }
-        confirmLabel={group?.is_active ? "Mark inactive" : "Mark active"}
-        confirmDanger={group?.is_active}
-        onConfirm={handleToggleActive}
-        onCancel={() => setActiveConfirm(false)}
-      />
-
-      <ConfirmModal
         open={archiveConfirm}
         title={group?.is_archived ? "Unarchive group?" : "Archive group?"}
         message={
           group?.is_archived
-            ? "Student email and study program will be visible again in this group's roster and results."
-            : "This marks the group inactive and removes student email/study program from this group's roster, results, and CSV export. Aggregate analytics (completion, timing, pass rates) are unaffected. Reversible at any time."
+            ? "Students will be able to enroll again, and can start, reset, or check assigned labs. Student email and study program will be visible again in this group's roster and results."
+            : "Students will no longer be able to enroll or start, reset, or check assigned labs. Existing runtimes can still be stopped or ended, and historical results remain available. This also removes student email/study program from this group's roster, results, and CSV export. Aggregate analytics (completion, timing, pass rates) are unaffected. Reversible at any time."
         }
         confirmLabel={group?.is_archived ? "Unarchive" : "Archive group"}
         confirmDanger={!group?.is_archived}

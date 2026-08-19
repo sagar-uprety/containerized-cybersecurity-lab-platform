@@ -64,9 +64,12 @@ def main() -> None:
         ws_primary = repo.create_group(session, "System Security", owner_id, semester="WS 2026/27")
         ws_other = repo.create_group(session, "Advanced Security", owner_id, semester="WS 2026/27")
         ss_group = repo.create_group(session, "Security Fundamentals", owner_id, semester="SS 2026")
-        inactive_group = repo.create_group(
-            session, "Archived Security", owner_id, semester="WS 2025/26", is_active=False
+        archived_group = repo.create_group(
+            session, "Archived Security", owner_id, semester="WS 2025/26"
         )
+        # Archiving is the sole lifecycle gate now: this blocks new enrollment
+        # below the same way the old is_active=False flag used to.
+        repo.set_group_archived(session, archived_group.id, True)
 
         # ws_primary and ws_other both assign the same lab -- this is the case
         # that must produce two independent obligations below.
@@ -74,13 +77,13 @@ def main() -> None:
             [
                 GroupLab(group_id=ws_primary.id, lab_id="redis-exposed"),
                 GroupLab(group_id=ws_other.id, lab_id="redis-exposed"),
-                GroupLab(group_id=inactive_group.id, lab_id="ldap-anonymous-bind"),
+                GroupLab(group_id=archived_group.id, lab_id="ldap-anonymous-bind"),
             ]
         )
         session.flush()
 
         repo.add_member(session, ws_primary.id, student.id)
-        repo.add_member(session, inactive_group.id, student.id)
+        repo.add_member(session, archived_group.id, student.id)
 
         # A second approved membership in the SAME semester used to raise;
         # now it must succeed.
@@ -103,7 +106,7 @@ def main() -> None:
             .all()
         )
         approved_group_ids = {m.group_id for m in approved_memberships}
-        assert approved_group_ids == {ws_primary.id, ws_other.id, inactive_group.id}
+        assert approved_group_ids == {ws_primary.id, ws_other.id, archived_group.id}
         # ws_primary and ws_other are both approved and share a semester.
         assert ws_primary.semester == ws_other.semester == "WS 2026/27"
 
@@ -128,14 +131,14 @@ def main() -> None:
         assert len(duplicate_rows) == 1
 
         try:
-            repo.request_membership(session, inactive_group.id, student.id + 1)
+            repo.request_membership(session, archived_group.id, student.id + 1)
         except ValueError as exc:
             assert str(exc) == "group is not open for enrollment"
         else:
-            raise AssertionError("inactive group accepted an enrollment request")
+            raise AssertionError("archived group accepted an enrollment request")
 
-        active_lab_ids = {e["lab_id"] for e in repo.active_labs_detail(session, student)}
-        assert active_lab_ids == {"redis-exposed"}
+        unarchived_lab_ids = {e["lab_id"] for e in repo.unarchived_labs_detail(session, student)}
+        assert unarchived_lab_ids == {"redis-exposed"}
         assigned_labs = repo.assigned_labs_detail(session, student)
         assigned_lab_ids = {e["lab_id"] for e in assigned_labs}
         assert assigned_lab_ids == {"redis-exposed", "ldap-anonymous-bind"}
@@ -153,8 +156,8 @@ def main() -> None:
         else:
             raise AssertionError("group without semester was accepted")
 
-        assert ss_group.is_active is True
-        assert inactive_group.is_active is False
+        assert ss_group.is_archived is False
+        assert archived_group.is_archived is True
 
         session.commit()
 
@@ -187,7 +190,7 @@ def main() -> None:
         '@app.post("/api/instructor/groups/{group_id}/approve")', 1
     )[0]
     assert '"semester": group.semester' in detail_route
-    assert '"is_active": group.is_active' in detail_route
+    assert '"is_archived": group.is_archived' in detail_route
 
     print("OK")
 

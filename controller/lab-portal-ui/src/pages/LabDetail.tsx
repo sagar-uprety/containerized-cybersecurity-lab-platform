@@ -67,12 +67,12 @@ export default function LabDetail({ user, labId, groupId, onLogout }: LabDetailP
   }, [fetchDetail]);
 
   useEffect(() => {
-    if (!data || data.status !== "running" || data.group?.is_active === false || !groupValid) return;
+    if (!data || data.status !== "running" || data.group?.is_archived === true || !groupValid) return;
     const interval = setInterval(() => {
       sendHeartbeat(labId, groupId!).catch(() => {});
     }, 60000);
     return () => clearInterval(interval);
-  }, [data?.group?.is_active, data?.status, labId, groupId, groupValid]);
+  }, [data?.group?.is_archived, data?.status, labId, groupId, groupValid]);
 
   // Split pane drag
   useEffect(() => {
@@ -223,8 +223,8 @@ export default function LabDetail({ user, labId, groupId, onLogout }: LabDetailP
 
   const { scenario, status, endpoints, deadline, group } = data;
   const isRunning = status === "running";
-  const groupInactive = group?.is_active === false;
-  const canStart = !groupInactive && (status === "not_created" || status === "stopped" || status === "error" || status === "ended");
+  const groupArchived = group?.is_archived === true;
+  const canStart = !groupArchived && (status === "not_created" || status === "stopped" || status === "error" || status === "ended");
 
   const deadlineDate = deadline ? new Date(deadline) : null;
   const hoursLeft = deadlineDate ? (deadlineDate.getTime() - Date.now()) / 3600000 : null;
@@ -252,9 +252,9 @@ export default function LabDetail({ user, labId, groupId, onLogout }: LabDetailP
             <StatusBadge status={status} />
           </div>
 
-          {groupInactive && (
+          {groupArchived && (
             <div className="mb-3 rounded-md border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
-              This group is inactive. You can review this lab and stop or end an existing runtime, but cannot start, reset, or run checks.
+              This group is archived. You can review this lab and stop or end an existing runtime, but cannot start, reset, or run checks.
             </div>
           )}
 
@@ -284,7 +284,7 @@ export default function LabDetail({ user, labId, groupId, onLogout }: LabDetailP
             )}
             {isRunning && (
               <>
-                {!groupInactive && (
+                {!groupArchived && (
                   <Button
                     variant="outline"
                     className="border-warning/30 text-warning hover:bg-warning-bg"
@@ -297,7 +297,7 @@ export default function LabDetail({ user, labId, groupId, onLogout }: LabDetailP
                 <Button variant="outline" onClick={() => doAction("stop")} disabled={!!actionLoading}>
                   {actionLoading === "stop" ? "Stopping…" : "Stop"}
                 </Button>
-                {!groupInactive && (
+                {!groupArchived && (
                   <Button variant="outline" onClick={() => doAction("reset")} disabled={!!actionLoading}>
                     {actionLoading === "reset" ? "Resetting…" : "Reset"}
                   </Button>

@@ -554,11 +554,7 @@ def instructor_analytics(owner_group_ids, group_id=None, status="active"):
                 )
             else:
                 status_group_ids = set(
-                    session.scalars(
-                        select(Group.id).where(
-                            Group.is_active.is_(True), Group.is_archived.is_(False)
-                        )
-                    ).all()
+                    session.scalars(select(Group.id).where(Group.is_archived.is_(False))).all()
                 )
             obligations = [item for item in obligations if item.group_id in status_group_ids]
         _prime_evidence_cache(session, obligations)
@@ -715,9 +711,7 @@ def instructor_analytics(owner_group_ids, group_id=None, status="active"):
             ) & set(owner_group_ids)
         else:
             group_candidate_ids = set(
-                session.scalars(
-                    select(Group.id).where(Group.is_active.is_(True), Group.is_archived.is_(False))
-                ).all()
+                session.scalars(select(Group.id).where(Group.is_archived.is_(False))).all()
             ) & set(owner_group_ids)
         groups = []
         for candidate_id in sorted(group_candidate_ids):
@@ -738,7 +732,6 @@ def instructor_analytics(owner_group_ids, group_id=None, status="active"):
                 {
                     "id": candidate_id,
                     "name": group.name,
-                    "is_active": group.is_active,
                     "is_archived": group.is_archived,
                     "completion_rate": round(group_completed / len(group_obligations) * 100)
                     if group_obligations
@@ -760,15 +753,6 @@ def instructor_analytics(owner_group_ids, group_id=None, status="active"):
                 }
             )
         group = session.get(Group, group_id) if group_id is not None else None
-        inactive_groups_count = session.scalar(
-            select(func.count())
-            .select_from(Group)
-            .where(
-                Group.is_active.is_(False),
-                Group.is_archived.is_(False),
-                Group.id.in_(owner_group_ids),
-            )
-        )
         archived_groups_count = session.scalar(
             select(func.count())
             .select_from(Group)
@@ -780,7 +764,6 @@ def instructor_analytics(owner_group_ids, group_id=None, status="active"):
             "timezone": "Europe/Berlin",
             "window_label": "Last 8 weeks; current week to date",
             "status": status,
-            "inactive_groups_count": inactive_groups_count,
             "archived_groups_count": archived_groups_count,
             "total_groups": len(groups),
             "total_labs": len(list_scenarios()),

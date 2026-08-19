@@ -285,8 +285,8 @@ export function getGroups(): Promise<Group[]> {
   return request("/instructor/groups");
 }
 
-export function createGroup(name: string, semester?: string, isActive = true): Promise<unknown> {
-  return instructorPost("/instructor/groups", { name, semester, is_active: isActive });
+export function createGroup(name: string, semester?: string): Promise<unknown> {
+  return instructorPost("/instructor/groups", { name, semester });
 }
 
 export function deleteGroup(groupId: number): Promise<unknown> {
@@ -373,12 +373,10 @@ export function renameGroup(
   groupId: number,
   name: string,
   semester?: string,
-  isActive?: boolean,
 ): Promise<unknown> {
   return instructorPost(`/instructor/groups/${groupId}/rename`, {
     name,
     semester,
-    is_active: isActive,
   });
 }
 

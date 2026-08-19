@@ -383,7 +383,7 @@ def require_lab_visible(user: dict, lab_id: str) -> None:
 
 
 def require_lab_assigned(user: dict, lab_id: str) -> None:
-    """Allow historical access and safe shutdown after a group becomes inactive."""
+    """Allow historical access and safe shutdown after a group becomes archived."""
     if user["role"] != "student":
         return
     if not _assignments_for_lab(get_assigned_labs_detail(user["username"]), lab_id):
@@ -492,7 +492,7 @@ def api_labs(group_id: Optional[int] = None, user: dict = Depends(get_authentica
                     "id": assignment.get("group_id"),
                     "name": assignment.get("group_name"),
                     "semester": assignment.get("semester"),
-                    "is_active": assignment.get("is_active"),
+                    "is_archived": assignment.get("is_archived"),
                 },
             }
         )
@@ -539,7 +539,7 @@ def api_lab_detail(
             "id": assignment.get("group_id"),
             "name": assignment.get("group_name"),
             "semester": assignment.get("semester"),
-            "is_active": assignment.get("is_active"),
+            "is_archived": assignment.get("is_archived"),
         },
     }
 
@@ -569,7 +569,7 @@ def api_lab_feedback(
             "id": assignment.get("group_id"),
             "name": assignment.get("group_name"),
             "semester": assignment.get("semester"),
-            "is_active": assignment.get("is_active"),
+            "is_archived": assignment.get("is_archived"),
         },
     }
 
@@ -1082,14 +1082,14 @@ def api_enrollment_options(user: dict = Depends(get_authenticated_user)):
         result = []
         for g in groups:
             my_membership = next((m for m in g.members if m.user_id == db_user.id), None)
-            if not g.is_active and my_membership is None:
+            if g.is_archived and my_membership is None:
                 continue
             result.append(
                 {
                     "id": g.id,
                     "name": g.name,
                     "semester": g.semester,
-                    "is_active": g.is_active,
+                    "is_archived": g.is_archived,
                     "created_at": g.created_at.isoformat() if g.created_at else None,
                     "member_count": sum(1 for m in g.members if m.status == "approved"),
                     "status": my_membership.status if my_membership else None,
@@ -1817,7 +1817,7 @@ def _group_to_dict(group) -> dict:
         "id": group.id,
         "name": group.name,
         "semester": group.semester,
-        "is_active": group.is_active,
+        "is_archived": group.is_archived,
         "members": [
             {"student_id": m.user.internal_id or m.user.email, "email": m.user.email}
             for m in group.members
@@ -1832,7 +1832,6 @@ def _group_summary(group) -> dict:
         "id": group.id,
         "name": group.name,
         "semester": group.semester,
-        "is_active": group.is_active,
         "is_archived": group.is_archived,
         "archived_at": group.archived_at.isoformat() if group.archived_at else None,
         "created_at": group.created_at.isoformat() if group.created_at else None,
@@ -1861,12 +1860,9 @@ async def api_create_group(request: Request, user: dict = Depends(get_authentica
     if not name:
         raise HTTPException(status_code=400, detail="name is required")
     semester = body.get("semester", "").strip() or None
-    is_active = bool(body.get("is_active", True))
     with SessionLocal() as session:
         try:
-            group = repo.create_group(
-                session, name, user["id"], semester=semester, is_active=is_active
-            )
+            group = repo.create_group(session, name, user["id"], semester=semester)
             session.commit()
             return _group_to_dict(group)
         except ValueError as exc:
@@ -1889,10 +1885,11 @@ def api_delete_group(group_id: int, request: Request, user: dict = Depends(get_a
 async def api_archive_group(
     group_id: int, request: Request, user: dict = Depends(get_authenticated_user)
 ):
-    """Archives a finished group: deactivates it and, going forward, suppresses
-    student email/study_program in this group's own roster and results views.
-    Aggregate analytics stay intact (they key on the non-PII student_id).
-    Reversible via unarchive."""
+    """Archives a finished group: blocks new enrollment and start/reset/check
+    (existing members may still stop/end a running lab) and, going forward,
+    suppresses student email/study_program in this group's own roster and
+    results views. Aggregate analytics stay intact (they key on the non-PII
+    student_id). Reversible via unarchive."""
     require_instructor(user)
     try:
         body = await request.json()
@@ -1939,18 +1936,11 @@ async def api_rename_group(
     if not name:
         raise HTTPException(status_code=400, detail="name is required")
     semester = body.get("semester")
-    is_active = body.get("is_active")
     with SessionLocal() as session:
         if repo.get_owned_group(session, group_id, user["id"]) is None:
             raise HTTPException(status_code=404, detail="Group not found")
         try:
-            group = repo.rename_group(
-                session,
-                group_id,
-                name,
-                semester=semester,
-                is_active=None if is_active is None else bool(is_active),
-            )
+            group = repo.rename_group(session, group_id, name, semester=semester)
             session.commit()
             return _group_summary(group)
         except ValueError as exc:
@@ -2112,7 +2102,6 @@ def api_group_detail(group_id: int, user: dict = Depends(get_authenticated_user)
             "id": group.id,
             "name": group.name,
             "semester": group.semester,
-            "is_active": group.is_active,
             "is_archived": group.is_archived,
             "archived_at": group.archived_at.isoformat() if group.archived_at else None,
             "created_at": group.created_at.isoformat() if group.created_at else None,

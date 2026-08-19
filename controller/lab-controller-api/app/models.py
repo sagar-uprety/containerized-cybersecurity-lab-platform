@@ -72,11 +72,13 @@ class Group(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     semester: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     # Archived groups are historical/finished cohorts. Archiving is reversible and never
     # touches `users` (email is also the login username) -- it only suppresses per-member
     # PII (email, study_program) in this group's own roster/analytics responses. Aggregate
     # analytics stay intact because they key on the non-PII `internal_id`/student_id.
+    # Archiving is also the *only* lifecycle gate on a group: an archived group blocks
+    # new enrollment and blocks start/reset/check, while existing members keep their
+    # historical labs/results and may still stop/end a running lab.
     is_archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     archived_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)

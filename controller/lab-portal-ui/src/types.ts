@@ -26,7 +26,7 @@ export interface Lab {
   status?: string;
   story?: { situation?: string; role?: string };
   deadline?: string;
-  group: { id: number | null; name: string | null; semester?: string | null; is_active?: boolean };
+  group: { id: number | null; name: string | null; semester?: string | null; is_archived?: boolean };
 }
 
 export interface LabDetail {
@@ -35,7 +35,7 @@ export interface LabDetail {
   endpoints?: LabEndpoints;
   csrf_token: string;
   deadline?: string;
-  group: { id: number | null; name: string | null; semester?: string | null; is_active?: boolean };
+  group: { id: number | null; name: string | null; semester?: string | null; is_archived?: boolean };
 }
 
 export interface Scenario {
@@ -73,7 +73,7 @@ export interface EnrollmentOption {
   id: number;
   name: string;
   semester?: string | null;
-  is_active?: boolean;
+  is_archived?: boolean;
   member_count: number;
   status?: "approved" | "pending" | null;
 }
@@ -82,7 +82,6 @@ export interface Group {
   id: number;
   name: string;
   semester?: string | null;
-  is_active?: boolean;
   is_archived?: boolean;
   archived_at?: string | null;
   member_count: number;
@@ -95,7 +94,6 @@ export interface GroupDetail {
   id: number;
   name: string;
   semester?: string | null;
-  is_active?: boolean;
   is_archived?: boolean;
   archived_at?: string | null;
   csrf_token: string;
@@ -372,7 +370,6 @@ export interface AnalyticsLab {
 export interface AnalyticsGroup {
   id: number;
   name: string;
-  is_active?: boolean;
   is_archived?: boolean;
   completion_rate: number;
   active_rate: number;
@@ -393,7 +390,6 @@ export interface InstructorAnalyticsData {
   timezone: string;
   window_label: string;
   status: "active" | "archived" | "all";
-  inactive_groups_count: number;
   archived_groups_count: number;
   total_groups: number;
   total_labs: number;

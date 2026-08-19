@@ -96,7 +96,7 @@ def get_visible_lab_ids(username: str) -> set:
 
 
 def get_assigned_labs_detail(username: str) -> list:
-    """All approved-group assignments, including expired and inactive ones.
+    """All approved-group assignments, including expired and archived ones.
 
     One entry per (group, lab) assignment -- a lab assigned in two of the
     student's groups appears twice, each with its own group/assignment_id.
@@ -108,18 +108,21 @@ def get_assigned_labs_detail(username: str) -> list:
         return repo.assigned_labs_detail(session, user)
 
 
-def get_active_labs_detail(username: str) -> list:
-    """Approved active-group lab assignments, including expired ones. One
-    entry per (group, lab) assignment -- see `get_assigned_labs_detail`."""
+def get_unarchived_labs_detail(username: str) -> list:
+    """Approved non-archived-group lab assignments, including expired ones.
+    One entry per (group, lab) assignment -- see `get_assigned_labs_detail`.
+
+    Formerly `get_active_labs_detail`; renamed alongside repo.active_labs_detail
+    when the separate `is_active` flag was removed in favor of `is_archived`."""
     with SessionLocal() as session:
         user = repo.get_user_by_email(session, username)
         if user is None or user.role != "student":
             return []
-        return repo.active_labs_detail(session, user)
+        return repo.unarchived_labs_detail(session, user)
 
 
 def get_readable_labs_detail(username: str) -> list:
-    """Approved assignments within deadline, including inactive groups. One
+    """Approved assignments within deadline, including archived groups. One
     entry per (group, lab) assignment -- see `get_assigned_labs_detail`."""
     with SessionLocal() as session:
         user = repo.get_user_by_email(session, username)
@@ -130,7 +133,7 @@ def get_readable_labs_detail(username: str) -> list:
 
 def get_visible_labs_detail(username: str) -> list:
     """[{"assignment_id", "lab_id", "deadline", "group_id", "group_name",
-    "semester", "is_active"}]. One entry per (group, lab) assignment -- a lab
+    "semester", "is_archived"}]. One entry per (group, lab) assignment -- a lab
     assigned to two of the student's groups appears twice.
     """
     with SessionLocal() as session:

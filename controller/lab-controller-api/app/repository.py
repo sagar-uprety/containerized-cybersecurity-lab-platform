@@ -285,7 +285,6 @@ def create_group(
     name: str,
     owner_id: int,
     semester: str | None = None,
-    is_active: bool = True,
 ) -> Group:
     name = (name or "").strip()
     semester = (semester or "").strip()
@@ -298,7 +297,7 @@ def create_group(
     existing = session.execute(select(Group).where(Group.name == name)).scalar_one_or_none()
     if existing is not None:
         raise ValueError(f"group {name} already exists")
-    group = Group(name=name, semester=semester, is_active=is_active, owner_id=owner_id)
+    group = Group(name=name, semester=semester, owner_id=owner_id)
     session.add(group)
     session.flush()
     return group
@@ -309,7 +308,6 @@ def rename_group(
     group_id: int,
     new_name: str,
     semester: str | None = None,
-    is_active: bool | None = None,
 ) -> Group | None:
     new_name = (new_name or "").strip()
     if not new_name:
@@ -328,8 +326,6 @@ def rename_group(
         if not semester:
             raise ValueError("group semester is required")
         group.semester = semester
-    if is_active is not None:
-        group.is_active = is_active
     session.flush()
     return group
 
@@ -340,9 +336,10 @@ def set_group_archived(session: Session, group_id: int, archived: bool) -> Group
         return None
     group.is_archived = archived
     group.archived_at = datetime.now(timezone.utc) if archived else None
-    # Archiving deactivates the group; unarchiving is a full reversal, so it
-    # restores is_active rather than leaving the group permanently inactive.
-    group.is_active = not archived
+    # Archiving is the only lifecycle gate now: it alone blocks new enrollment
+    # and blocks start/reset/check (see request_membership and the lifecycle
+    # routes in main.py), while unarchiving is a full reversal that reopens
+    # the group. No separate is_active flag to keep in sync anymore.
     session.flush()
     return group
 
@@ -417,7 +414,7 @@ def request_membership(session: Session, group_id: int, user_id: int) -> GroupMe
     group = session.get(Group, group_id)
     if group is None:
         raise ValueError("group not found")
-    if not group.is_active:
+    if group.is_archived:
         raise ValueError("group is not open for enrollment")
     if session.get(User, user_id) is None:
         raise ValueError("user not found")
@@ -550,40 +547,43 @@ def visible_labs(session: Session, user: User) -> set[str]:
 
 
 def assigned_labs_detail(session: Session, user: User) -> list[dict]:
-    """All approved-group lab assignments, including expired and inactive ones.
+    """All approved-group lab assignments, including expired and archived ones.
 
     One entry per (group, lab) assignment: a lab assigned in two of the
     student's groups appears twice, each tagged with its own group/assignment.
     """
-    return _labs_detail(session, user, include_expired=True, include_inactive=True)
+    return _labs_detail(session, user, include_expired=True, include_archived=True)
 
 
-def active_labs_detail(session: Session, user: User) -> list[dict]:
-    """Approved active-group assignments, including expired ones. One entry
-    per (group, lab) assignment -- see `assigned_labs_detail`."""
-    return _labs_detail(session, user, include_expired=True, include_inactive=False)
+def unarchived_labs_detail(session: Session, user: User) -> list[dict]:
+    """Approved non-archived-group assignments, including expired ones. One
+    entry per (group, lab) assignment -- see `assigned_labs_detail`.
+
+    Formerly `active_labs_detail`; renamed when the separate `is_active` flag
+    was removed in favor of `is_archived` as the sole lifecycle gate."""
+    return _labs_detail(session, user, include_expired=True, include_archived=False)
 
 
 def readable_labs_detail(session: Session, user: User) -> list[dict]:
-    """Approved assignments within deadline, including inactive groups. One
+    """Approved assignments within deadline, including archived groups. One
     entry per (group, lab) assignment -- see `assigned_labs_detail`."""
-    return _labs_detail(session, user, include_expired=False, include_inactive=True)
+    return _labs_detail(session, user, include_expired=False, include_archived=True)
 
 
 def visible_labs_detail(session: Session, user: User) -> list[dict]:
-    """Approved, active, within-deadline assignments: {"assignment_id",
+    """Approved, non-archived, within-deadline assignments: {"assignment_id",
     "lab_id", "deadline": iso|None, "group_id", "group_name", "semester",
-    "is_active"}.
+    "is_archived"}.
 
     One entry per (group, lab) assignment. A lab assigned to two of the
     student's groups produces two entries -- two independent obligations, each
     with its own assignment_id/group -- rather than collapsing to one.
     """
-    return _labs_detail(session, user, include_expired=False, include_inactive=False)
+    return _labs_detail(session, user, include_expired=False, include_archived=False)
 
 
 def _labs_detail(
-    session: Session, user: User, include_expired: bool, include_inactive: bool
+    session: Session, user: User, include_expired: bool, include_archived: bool
 ) -> list[dict]:
     now = datetime.now(timezone.utc)
     query = (
@@ -594,7 +594,7 @@ def _labs_detail(
             Group.id,
             Group.name,
             Group.semester,
-            Group.is_active,
+            Group.is_archived,
         )
         .join(GroupMember, GroupMember.group_id == GroupLab.group_id)
         .join(Group, Group.id == GroupLab.group_id)
@@ -605,11 +605,11 @@ def _labs_detail(
     )
     if not include_expired:
         query = query.where((GroupLab.deadline.is_(None)) | (GroupLab.deadline >= now))
-    if not include_inactive:
-        query = query.where(Group.is_active.is_(True))
+    if not include_archived:
+        query = query.where(Group.is_archived.is_(False))
     rows = session.execute(query).all()
     result: list[dict] = []
-    for group_lab_id, lab_id, deadline, group_id, group_name, semester, is_active in rows:
+    for group_lab_id, lab_id, deadline, group_id, group_name, semester, is_archived in rows:
         result.append(
             {
                 # Must match feedback.sync_assignment_obligations's id for the
@@ -620,7 +620,7 @@ def _labs_detail(
                 "group_id": group_id,
                 "group_name": group_name,
                 "semester": semester,
-                "is_active": is_active,
+                "is_archived": is_archived,
             }
         )
     return result

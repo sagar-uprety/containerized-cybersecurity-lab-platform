@@ -134,9 +134,9 @@ function groupLabel(group: Lab["group"]): string {
 }
 
 function LabCard({ lab, pastDue }: { lab: Lab; pastDue: boolean }) {
-  const groupInactive = lab.group.is_active === false;
+  const groupArchived = lab.group.is_archived === true;
   return (
-    <Card className={cn((pastDue || groupInactive) && "bg-muted/40")}>
+    <Card className={cn((pastDue || groupArchived) && "bg-muted/40")}>
       <CardContent className="flex h-full flex-col items-start gap-3">
         <div className="flex w-full items-start justify-between gap-2">
           <span className="font-medium text-foreground">{lab.title}</span>
@@ -149,9 +149,9 @@ function LabCard({ lab, pastDue }: { lab: Lab; pastDue: boolean }) {
               {groupLabel(lab.group)}
             </Badge>
           )}
-          {groupInactive && (
+          {groupArchived && (
             <Badge className="border-transparent bg-muted text-muted-foreground">
-              Group inactive
+              Group archived
             </Badge>
           )}
           {lab.deadline && <DeadlineBadge deadline={lab.deadline} />}
