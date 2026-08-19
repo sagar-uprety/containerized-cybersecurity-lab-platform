@@ -215,7 +215,7 @@ def run_action(
             action="end" if verb == "destroy" else verb,
             lab_id=lab_id,
             student_id=student_id,
-            actor=user["username"],
+            actor=_actor_id(user),
             actor_type=user.get("role", "student"),
             result="success" if success else "error",
             duration_seconds=duration,
@@ -382,6 +382,22 @@ def require_lab_visible(user: dict, lab_id: str) -> None:
         return
     if lab_id not in get_visible_lab_ids(user["username"]):
         raise HTTPException(status_code=403, detail="Lab not assigned")
+
+
+def _actor_id(user: dict) -> str:
+    """Who to record as the actor on an evidence row.
+
+    Students are identified by their pseudonymous internal id (`studentNN`),
+    never by email: the row already carries `student_id`, and `actor_type`
+    already says whether a student, the system, or the scheduler acted, so an
+    address here is redundant PII sitting in every evidence table.
+
+    Instructors have no internal id, so they are still recorded by email. They
+    act on the platform rather than being the subjects of the data it holds.
+    """
+    if user.get("role") == "student":
+        return user_student_id(user)
+    return user["username"]
 
 
 def require_lab_assigned(user: dict, lab_id: str) -> None:
@@ -776,7 +792,7 @@ async def start_lab(
             "start",
             lab_id,
             student_id,
-            user["username"],
+            _actor_id(user),
             "rejected",
             detail="capacity",
             actor_type="student",
@@ -794,7 +810,7 @@ async def start_lab(
             "start",
             lab_id,
             student_id,
-            user["username"],
+            _actor_id(user),
             "error",
             duration_seconds=_duration,
             detail=stderr,
@@ -809,7 +825,7 @@ async def start_lab(
         "start",
         lab_id,
         student_id,
-        user["username"],
+        _actor_id(user),
         "success",
         duration_seconds=_duration,
         session_id=session_id,
@@ -895,7 +911,7 @@ async def reset_lab(
         "start",
         lab_id,
         student_id,
-        user["username"],
+        _actor_id(user),
         "success",
         session_id=session_id,
         actor_type="student",
@@ -973,7 +989,7 @@ async def check_lab(
             "check",
             lab_id,
             student_id,
-            user["username"],
+            _actor_id(user),
             "error",
             duration_seconds=duration,
             detail=stderr,
@@ -999,7 +1015,7 @@ async def check_lab(
             "check",
             lab_id,
             student_id,
-            user["username"],
+            _actor_id(user),
             "error",
             detail=str(exc),
             session_id=session_id,
@@ -1011,7 +1027,7 @@ async def check_lab(
         "check",
         lab_id,
         student_id,
-        user["username"],
+        _actor_id(user),
         "success",
         duration_seconds=duration,
         session_id=session_id,
@@ -1023,7 +1039,7 @@ async def check_lab(
         check_result,
         duration_seconds=duration,
         session_id=session_id,
-        actor_id=user["username"],
+        actor_id=_actor_id(user),
         actor_type="student",
         phase="student",
         group_id=group_id,
