@@ -95,13 +95,27 @@ def main() -> None:
         assert labs.status_code == 200, labs.text
         expired = next(item for item in labs.json() if item["id"] == lab_id)
         assert expired["deadline"].startswith("2000-01-01")
-        archived = next(item for item in labs.json() if item["id"] == archived_lab_id)
-        assert archived["group"]["is_archived"] is True
+        # An archived group's cohort is finished, so its labs leave the student's
+        # lab list entirely -- results stay readable via /api/results, which is
+        # keyed on obligations rather than this list.
+        assert not [item for item in labs.json() if item["id"] == archived_lab_id], (
+            "archived group's lab is still listed for the student"
+        )
 
         assert client.get(f"/api/labs/{lab_id}").status_code == 404
+        # And its lab page 404s rather than offering actions that are denied.
         archived_detail = client.get(f"/api/labs/{archived_lab_id}")
-        assert archived_detail.status_code == 200, archived_detail.text
-        assert archived_detail.json()["group"]["is_archived"] is True
+        assert archived_detail.status_code == 404, archived_detail.text
+
+        # The other half of the contract: hiding the lab must not hide the
+        # record. The archived group's obligation still surfaces under results.
+        results = client.get("/api/results")
+        assert results.status_code == 200, results.text
+        archived_results = [
+            item for item in results.json()["labs"] if item["lab_id"] == archived_lab_id
+        ]
+        assert archived_results, "archived group's lab vanished from results too"
+        assert archived_results[0]["group_id"] == archived_group_id
 
         enrollment = client.get("/api/enrollment-options")
         assert enrollment.status_code == 200, enrollment.text

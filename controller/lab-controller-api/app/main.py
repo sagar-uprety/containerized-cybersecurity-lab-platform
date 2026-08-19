@@ -30,7 +30,9 @@ from app.auth import (
     get_assigned_labs_detail,
     get_readable_labs_detail,
     get_student_users,
+    get_unarchived_labs_detail,
     get_visible_lab_ids,
+    get_visible_labs_detail,
     lookup_user,
 )
 from app.config import settings
@@ -453,7 +455,10 @@ def api_workstation_access(user: dict = Depends(get_authenticated_user)):
 @app.get("/api/labs")
 def api_labs(group_id: Optional[int] = None, user: dict = Depends(get_authenticated_user)):
     require_student(user)
-    assignments = get_assigned_labs_detail(user["username"])
+    # Archived groups drop out of the student's lab list entirely: the cohort is
+    # finished, so there is nothing left to start. Their results stay readable
+    # under /api/results, which is keyed on obligations rather than this list.
+    assignments = get_unarchived_labs_detail(user["username"])
     if group_id is not None:
         assignments = [item for item in assignments if item["group_id"] == group_id]
     scenarios_by_id = {lab["id"]: lab for lab in list_scenarios()}
@@ -508,7 +513,9 @@ def api_lab_detail(
 ):
     require_student(user)
     validate_lab_id(lab_id)
-    assignments = get_readable_labs_detail(user["username"])
+    # Excludes archived groups, so an archived cohort's lab page 404s rather
+    # than offering actions the student can no longer take.
+    assignments = get_visible_labs_detail(user["username"])
     assignment = _resolve_lab_assignment(assignments, lab_id, group_id)
     scenario = load_scenario_metadata(lab_id)
     if not scenario:
