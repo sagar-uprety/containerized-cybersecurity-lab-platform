@@ -1819,7 +1819,12 @@ def _group_to_dict(group) -> dict:
         "semester": group.semester,
         "is_archived": group.is_archived,
         "members": [
-            {"student_id": m.user.internal_id or m.user.email, "email": m.user.email}
+            {
+                "student_id": m.user.internal_id or m.user.email,
+                # Archiving suppresses member PII in this group's own responses,
+                # the same way the roster and activity feed do.
+                "email": None if group.is_archived else m.user.email,
+            }
             for m in group.members
             if m.status == "approved"
         ],
@@ -2096,7 +2101,9 @@ def api_group_detail(group_id: int, user: dict = Depends(get_authenticated_user)
         member_ids = {
             m.user.internal_id or m.user.email for m in group.members if m.status == "approved"
         }
-        recent_activity = analytics_service.recent_activity(member_ids)
+        recent_activity = analytics_service.recent_activity(
+            member_ids, redact_email=group.is_archived
+        )
 
         return {
             "id": group.id,

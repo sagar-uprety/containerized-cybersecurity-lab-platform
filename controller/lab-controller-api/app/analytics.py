@@ -788,7 +788,13 @@ def instructor_analytics(owner_group_ids, group_id=None, status="active"):
         }
 
 
-def recent_activity(student_ids: set[str], limit: int = 10):
+def recent_activity(student_ids: set[str], limit: int = 10, redact_email: bool = False):
+    """Lifecycle events for a set of students, newest first.
+
+    `redact_email` drops the per-event email the same way an archived group's
+    roster drops it. The pseudonymous `student_id` stays either way -- it is
+    what the instructor needs to open a session, and it is not PII.
+    """
     if not student_ids:
         return []
     with SessionLocal() as session:
@@ -798,10 +804,16 @@ def recent_activity(student_ids: set[str], limit: int = 10):
             .order_by(LifecycleEvidence.occurred_at.desc())
             .limit(limit)
         ).all()
-        emails = {
-            user.internal_id: user.email
-            for user in session.scalars(select(User).where(User.internal_id.in_(student_ids))).all()
-        }
+        emails = (
+            {}
+            if redact_email
+            else {
+                user.internal_id: user.email
+                for user in session.scalars(
+                    select(User).where(User.internal_id.in_(student_ids))
+                ).all()
+            }
+        )
         return [
             {
                 "timestamp": _iso(event.occurred_at),
