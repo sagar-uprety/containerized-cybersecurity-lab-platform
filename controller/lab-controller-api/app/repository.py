@@ -330,16 +330,21 @@ def rename_group(
     return group
 
 
-def set_group_archived(session: Session, group_id: int, archived: bool) -> Group | None:
+def archive_group(session: Session, group_id: int) -> Group | None:
+    """Archiving is a one-way door: it alone blocks new enrollment and
+    start/reset/check (see request_membership and the lifecycle routes in
+    main.py) and permanently suppresses student PII in this group's own
+    roster/results views. There is no restore path -- once archived, a
+    group stays archived for good, which is the whole point (the instructor
+    needs a hard guarantee that a finished cohort can never be reopened).
+    A no-op on an already-archived group just returns it unchanged."""
     group = session.get(Group, group_id)
     if group is None:
         return None
-    group.is_archived = archived
-    group.archived_at = datetime.now(timezone.utc) if archived else None
-    # Archiving is the only lifecycle gate now: it alone blocks new enrollment
-    # and blocks start/reset/check (see request_membership and the lifecycle
-    # routes in main.py), while unarchiving is a full reversal that reopens
-    # the group. No separate is_active flag to keep in sync anymore.
+    if group.is_archived:
+        return group
+    group.is_archived = True
+    group.archived_at = datetime.now(timezone.utc)
     session.flush()
     return group
 
@@ -373,8 +378,11 @@ def get_owned_group(session: Session, group_id: int, owner_id: int) -> Group | N
     return group
 
 
-def owned_group_ids(session: Session, owner_id: int) -> set[int]:
-    return set(session.execute(select(Group.id).where(Group.owner_id == owner_id)).scalars())
+def owned_group_ids(session: Session, owner_id: int, include_archived: bool = True) -> set[int]:
+    stmt = select(Group.id).where(Group.owner_id == owner_id)
+    if not include_archived:
+        stmt = stmt.where(Group.is_archived.is_(False))
+    return set(session.execute(stmt).scalars())
 
 
 def list_students_for_owner(session: Session, owner_id: int) -> list[User]:
@@ -395,7 +403,8 @@ def list_students_for_owner(session: Session, owner_id: int) -> list[User]:
 # Membership
 # --------------------------------------------------------------------------- #
 def add_member(session: Session, group_id: int, user_id: int) -> GroupMember:
-    if session.get(Group, group_id) is None:
+    group = session.get(Group, group_id)
+    if group is None:
         raise ValueError("group not found")
     if session.get(User, user_id) is None:
         raise ValueError("user not found")
@@ -404,6 +413,11 @@ def add_member(session: Session, group_id: int, user_id: int) -> GroupMember:
     ).scalar_one_or_none()
     if existing is not None:
         return existing
+    # Archiving is permanent and promises that nobody joins the cohort again.
+    # request_membership already refuses; the instructor-driven path has to
+    # refuse too, or the guarantee only holds against students.
+    if group.is_archived:
+        raise ValueError("group is not open for enrollment")
     member = GroupMember(group_id=group_id, user_id=user_id, status="approved")
     session.add(member)
     session.flush()

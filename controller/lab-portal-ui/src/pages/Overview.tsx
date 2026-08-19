@@ -159,11 +159,9 @@ function LabCard({ lab, pastDue }: { lab: Lab; pastDue: boolean }) {
         <p className="line-clamp-3 text-sm text-muted-foreground">
           {lab.story?.situation}
         </p>
-        {!pastDue && (
-          <Button asChild size="sm" className="mt-auto">
-            <Link href={`/labs/${lab.id}?group=${lab.group.id}`}>Open lab</Link>
-          </Button>
-        )}
+        <Button asChild size="sm" variant={pastDue ? "outline" : "default"} className="mt-auto">
+          <Link href={`/labs/${lab.id}?group=${lab.group.id}`}>Open lab</Link>
+        </Button>
       </CardContent>
     </Card>
   );

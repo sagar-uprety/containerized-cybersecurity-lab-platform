@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Maximize2 } from "lucide-react";
+import { Maximize2, Clock } from "lucide-react";
 import type { User, LabDetail as LabDetailData, CheckResultData } from "../types";
 import StudentLayout from "../components/StudentLayout";
 import StatusBadge from "../components/StatusBadge";
@@ -67,12 +67,12 @@ export default function LabDetail({ user, labId, groupId, onLogout }: LabDetailP
   }, [fetchDetail]);
 
   useEffect(() => {
-    if (!data || data.status !== "running" || data.group?.is_archived === true || !groupValid) return;
+    if (!data || data.status !== "running" || data.group?.is_archived === true || data.expired === true || !groupValid) return;
     const interval = setInterval(() => {
       sendHeartbeat(labId, groupId!).catch(() => {});
     }, 60000);
     return () => clearInterval(interval);
-  }, [data?.group?.is_archived, data?.status, labId, groupId, groupValid]);
+  }, [data?.group?.is_archived, data?.expired, data?.status, labId, groupId, groupValid]);
 
   // Split pane drag
   useEffect(() => {
@@ -224,7 +224,9 @@ export default function LabDetail({ user, labId, groupId, onLogout }: LabDetailP
   const { scenario, status, endpoints, deadline, group } = data;
   const isRunning = status === "running";
   const groupArchived = group?.is_archived === true;
-  const canStart = !groupArchived && (status === "not_created" || status === "stopped" || status === "error" || status === "ended");
+  // Server-authoritative - see the `expired` field comment in types.ts.
+  const expired = data.expired === true;
+  const canStart = !groupArchived && !expired && (status === "not_created" || status === "stopped" || status === "error" || status === "ended");
 
   const deadlineDate = deadline ? new Date(deadline) : null;
   const hoursLeft = deadlineDate ? (deadlineDate.getTime() - Date.now()) / 3600000 : null;
@@ -258,6 +260,13 @@ export default function LabDetail({ user, labId, groupId, onLogout }: LabDetailP
             </div>
           )}
 
+          {expired && (
+            <div className="mb-3 flex items-center gap-2 rounded-md border border-border bg-muted px-3 py-2 text-sm text-muted-foreground">
+              <Clock className="size-4 shrink-0" />
+              This lab's deadline has passed. You can review the scenario, story, and guides, but cannot start, reset, or run checks.
+            </div>
+          )}
+
           {deadlineDate && (
             <div
               className={cn(
@@ -284,7 +293,7 @@ export default function LabDetail({ user, labId, groupId, onLogout }: LabDetailP
             )}
             {isRunning && (
               <>
-                {!groupArchived && (
+                {!groupArchived && !expired && (
                   <Button
                     variant="outline"
                     className="border-warning/30 text-warning hover:bg-warning-bg"
@@ -297,7 +306,7 @@ export default function LabDetail({ user, labId, groupId, onLogout }: LabDetailP
                 <Button variant="outline" onClick={() => doAction("stop")} disabled={!!actionLoading}>
                   {actionLoading === "stop" ? "Stopping…" : "Stop"}
                 </Button>
-                {!groupArchived && (
+                {!groupArchived && !expired && (
                   <Button variant="outline" onClick={() => doAction("reset")} disabled={!!actionLoading}>
                     {actionLoading === "reset" ? "Resetting…" : "Reset"}
                   </Button>

@@ -293,12 +293,9 @@ export function deleteGroup(groupId: number): Promise<unknown> {
   return instructorDelete(`/instructor/groups/${groupId}`);
 }
 
+// Archiving is a one-way action - the backend exposes no reverse route.
 export function archiveGroup(groupId: number): Promise<unknown> {
   return instructorPost(`/instructor/groups/${groupId}/archive`, {});
-}
-
-export function unarchiveGroup(groupId: number): Promise<unknown> {
-  return instructorPost(`/instructor/groups/${groupId}/unarchive`, {});
 }
 
 export function addGroupMember(groupId: number, studentId: string): Promise<unknown> {

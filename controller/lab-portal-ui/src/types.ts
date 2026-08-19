@@ -35,6 +35,10 @@ export interface LabDetail {
   endpoints?: LabEndpoints;
   csrf_token: string;
   deadline?: string;
+  // Server-authoritative: true once the deadline has passed. Never derive this
+  // from `deadline` client-side - clock skew would let the UI offer actions
+  // the server refuses.
+  expired?: boolean;
   group: { id: number | null; name: string | null; semester?: string | null; is_archived?: boolean };
 }
 

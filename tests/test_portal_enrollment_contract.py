@@ -67,10 +67,6 @@ def main() -> None:
         archived_group = repo.create_group(
             session, "Archived Security", owner_id, semester="WS 2025/26"
         )
-        # Archiving is the sole lifecycle gate now: this blocks new enrollment
-        # below the same way the old is_active=False flag used to.
-        repo.set_group_archived(session, archived_group.id, True)
-
         # ws_primary and ws_other both assign the same lab -- this is the case
         # that must produce two independent obligations below.
         session.add_all(
@@ -83,7 +79,11 @@ def main() -> None:
         session.flush()
 
         repo.add_member(session, ws_primary.id, student.id)
+        # Join first, then archive -- the real sequence. Archiving is the sole
+        # lifecycle gate now and it is permanent, so neither a student request
+        # nor an instructor-driven add can put anyone in after this point.
         repo.add_member(session, archived_group.id, student.id)
+        repo.archive_group(session, archived_group.id)
 
         # A second approved membership in the SAME semester used to raise;
         # now it must succeed.
@@ -136,6 +136,19 @@ def main() -> None:
             assert str(exc) == "group is not open for enrollment"
         else:
             raise AssertionError("archived group accepted an enrollment request")
+
+        # The instructor-driven path has to refuse too. Archiving is permanent
+        # and promises nobody joins again -- a guarantee that only held against
+        # students would not be a guarantee at all. Uses an existing user id
+        # that is not yet a member: add_member checks the user exists before it
+        # looks at the group's state, so a fabricated id would raise "user not
+        # found" and prove nothing.
+        try:
+            repo.add_member(session, archived_group.id, instructor.id)
+        except ValueError as exc:
+            assert str(exc) == "group is not open for enrollment"
+        else:
+            raise AssertionError("archived group accepted an instructor-added member")
 
         unarchived_lab_ids = {e["lab_id"] for e in repo.unarchived_labs_detail(session, student)}
         assert unarchived_lab_ids == {"redis-exposed"}
