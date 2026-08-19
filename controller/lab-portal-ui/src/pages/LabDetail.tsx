@@ -275,10 +275,20 @@ export default function LabDetail({ user, labId, groupId, onLogout }: LabDetailP
               )}
             >
               Deadline: {deadlineDate.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric" })} at {deadlineDate.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" })}
-              {hoursLeft !== null && hoursLeft < 48 && (
-                <span className="ml-2 font-semibold">
-                  ({hoursLeft < 1 ? "< 1 hour left" : `${Math.ceil(hoursLeft)} hours left`})
-                </span>
+              {/* hoursLeft goes negative once the deadline passes, so the
+                  remaining-time branch has to require a positive value -- a
+                  bare `< 48` also matches every past deadline and would render
+                  a long-expired lab as "< 1 hour left". */}
+              {expired ? (
+                <span className="ml-2 font-semibold">(passed)</span>
+              ) : (
+                hoursLeft !== null &&
+                hoursLeft > 0 &&
+                hoursLeft < 48 && (
+                  <span className="ml-2 font-semibold">
+                    ({hoursLeft < 1 ? "< 1 hour left" : `${Math.ceil(hoursLeft)} hours left`})
+                  </span>
+                )
               )}
             </div>
           )}
