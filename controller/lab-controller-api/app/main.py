@@ -28,11 +28,9 @@ from app.auth import (
     authenticate_credentials,
     change_password,
     get_assigned_labs_detail,
-    get_readable_labs_detail,
     get_student_users,
     get_unarchived_labs_detail,
     get_visible_lab_ids,
-    get_visible_labs_detail,
     lookup_user,
 )
 from app.config import settings
@@ -529,9 +527,13 @@ def api_lab_detail(
 ):
     require_student(user)
     validate_lab_id(lab_id)
-    # Excludes archived groups, so an archived cohort's lab page 404s rather
-    # than offering actions the student can no longer take.
-    assignments = get_visible_labs_detail(user["username"])
+    # Excludes archived groups (that 404 stays -- shipped deliberately and
+    # must not regress), but now ALLOWS expired assignments: a student may
+    # reopen a past-deadline lab read-only, to reread the scenario/guides/
+    # story. The response's "expired" field (below) is what keeps the client
+    # from rendering Start/Reset/Check -- those routes still 403 via
+    # require_lab_visible/get_visible_lab_ids, which excludes expired.
+    assignments = get_unarchived_labs_detail(user["username"])
     assignment = _resolve_lab_assignment(assignments, lab_id, group_id)
     scenario = load_scenario_metadata(lab_id)
     if not scenario:
@@ -551,13 +553,23 @@ def api_lab_detail(
     check_result = check_results[-1].get("check_result") if check_results else None
     endpoints = _build_endpoints(scenario, student_id, user)
 
+    deadline = assignment.get("deadline")
+    # Computed server-side, never left for the client to infer from the raw
+    # deadline timestamp -- clock skew between browser and server could
+    # otherwise make the UI render Start on a lab the server will still
+    # refuse (start/reset/check gate on get_visible_lab_ids, independently).
+    expired = bool(deadline) and _aware_utc(datetime.fromisoformat(deadline)) < datetime.now(
+        timezone.utc
+    )
+
     return {
         "scenario": scenario,
         "status": status_text,
         "check_result": check_result,
         "endpoints": endpoints,
         "csrf_token": generate_token(user),
-        "deadline": assignment.get("deadline"),
+        "deadline": deadline,
+        "expired": expired,
         "group": {
             "id": assignment.get("group_id"),
             "name": assignment.get("group_name"),
@@ -576,8 +588,13 @@ def api_lab_feedback(
     require_student(user)
     require_lab_assigned(user, lab_id)
     validate_lab_id(lab_id)
+    # Expired-but-unarchived assignments must resolve here too: POST feedback
+    # (below) already accepts them via require_lab_assigned, so the GET that
+    # backs the feedback form/status needs the same reach, or a student could
+    # submit feedback for an expired lab they can no longer even load the
+    # form for. Archived groups still 404, unchanged.
     assignment = _resolve_lab_assignment(
-        get_readable_labs_detail(user["username"]), lab_id, group_id
+        get_unarchived_labs_detail(user["username"]), lab_id, group_id
     )
     student_id = user_student_id(user)
     runtime_state = runtime_state_for(lab_id, student_id)
@@ -1226,6 +1243,16 @@ def _owner_group_ids(session, owner_id: int) -> set:
     return repo.owned_group_ids(session, owner_id)
 
 
+def _owner_unarchived_group_ids(session, owner_id: int) -> set:
+    """Like _owner_group_ids but drops archived groups -- used for the
+    CROSS-group student aggregates (no group_id in the URL) so a finished,
+    archived cohort's obligations/PII don't surface on the all-groups student
+    pages. Group-SCOPED routes (an explicit group_id, or /groups/{id} itself)
+    must keep using _owner_group_ids so an instructor can still open an
+    archived group directly."""
+    return repo.owned_group_ids(session, owner_id, include_archived=False)
+
+
 def _owner_student_ids(session, owner_id: int) -> set:
     """student_id (internal_id/email) values visible to this instructor -
     the roster of any student who is a member of one of their own groups."""
@@ -1535,10 +1562,17 @@ def api_instructor_students(user: dict = Depends(get_authenticated_user)):
         students = repo.list_students_for_owner(session, user["id"])
         result = []
         for s in students:
+            # All the instructor's groups this student belongs to (including
+            # archived ones) -- needed to decide PII suppression: a student
+            # whose ONLY tie to this instructor is an archived cohort must
+            # still show up here (so the account can still be deleted), but
+            # with no archived-group detail and no PII, same as the group's
+            # own roster view would show.
             member_groups = [
                 m.group for m in s.memberships if m.status == "approved" and m.group_id in owner_ids
             ]
             all_archived = bool(member_groups) and all(g.is_archived for g in member_groups)
+            visible_groups = [g for g in member_groups if not g.is_archived]
             result.append(
                 {
                     # student_id/username kept for backward compatibility with the UI
@@ -1550,7 +1584,7 @@ def api_instructor_students(user: dict = Depends(get_authenticated_user)):
                     "active": bool(s.active),
                     "groups": [
                         {"id": g.id, "name": g.name, "is_archived": g.is_archived}
-                        for g in member_groups
+                        for g in visible_groups
                     ],
                 }
             )
@@ -1570,7 +1604,15 @@ def api_instructor_student_detail(
             raise HTTPException(status_code=404, detail="Student not found")
         if group_id is not None and group_id not in owner_ids:
             raise HTTPException(status_code=404, detail="Group not found")
-    return analytics_service.student_detail(student_id, group_id=group_id, group_ids=owner_ids)
+        # Scoped to one group (already ownership-checked above, archived or
+        # not): pass the full owner set so that group's obligations stay
+        # visible. Unscoped (cross-group): narrow to unarchived groups only,
+        # so an archived cohort's obligations don't leak into the all-groups
+        # student page.
+        scope_ids = (
+            owner_ids if group_id is not None else _owner_unarchived_group_ids(session, user["id"])
+        )
+    return analytics_service.student_detail(student_id, group_id=group_id, group_ids=scope_ids)
 
 
 def _aware_utc(dt: Optional[datetime]) -> Optional[datetime]:
@@ -1917,7 +1959,8 @@ async def api_archive_group(
     (existing members may still stop/end a running lab) and, going forward,
     suppresses student email/study_program in this group's own roster and
     results views. Aggregate analytics stay intact (they key on the non-PII
-    student_id). Reversible via unarchive."""
+    student_id). Permanent -- there is no unarchive route; the instructor
+    wanted a hard guarantee that a finished cohort can never be reopened."""
     require_instructor(user)
     try:
         body = await request.json()
@@ -1927,25 +1970,7 @@ async def api_archive_group(
     with SessionLocal() as session:
         if repo.get_owned_group(session, group_id, user["id"]) is None:
             raise HTTPException(status_code=404, detail="Group not found")
-        group = repo.set_group_archived(session, group_id, True)
-        session.commit()
-        return _group_summary(group)
-
-
-@app.post("/api/instructor/groups/{group_id}/unarchive")
-async def api_unarchive_group(
-    group_id: int, request: Request, user: dict = Depends(get_authenticated_user)
-):
-    require_instructor(user)
-    try:
-        body = await request.json()
-    except Exception:
-        body = None
-    _require_instructor_csrf(request, user, body)
-    with SessionLocal() as session:
-        if repo.get_owned_group(session, group_id, user["id"]) is None:
-            raise HTTPException(status_code=404, detail="Group not found")
-        group = repo.set_group_archived(session, group_id, False)
+        group = repo.archive_group(session, group_id)
         session.commit()
         return _group_summary(group)
 
@@ -2264,7 +2289,9 @@ def api_group_export_csv(group_id: int, user: dict = Depends(get_authenticated_u
 def api_instructor_students_progress(user: dict = Depends(get_authenticated_user)):
     require_instructor(user)
     with SessionLocal() as session:
-        owner_ids = _owner_group_ids(session, user["id"])
+        # Cross-group aggregate (no group_id in this route at all) -- archived
+        # cohorts are excluded entirely, same as the other all-groups views.
+        owner_ids = _owner_unarchived_group_ids(session, user["id"])
     return analytics_service.students_progress(group_ids=owner_ids)
 
 

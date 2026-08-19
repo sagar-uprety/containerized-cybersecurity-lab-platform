@@ -16,6 +16,8 @@ interface ConfirmModalProps {
   message?: string;
   confirmLabel?: string;
   confirmDanger?: boolean;
+  // Disables the confirm action, e.g. while a typed confirmation hasn't matched yet.
+  confirmDisabled?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
   children?: ReactNode;
@@ -27,6 +29,7 @@ export default function ConfirmModal({
   message,
   confirmLabel,
   confirmDanger,
+  confirmDisabled,
   onConfirm,
   onCancel,
   children,
@@ -43,6 +46,7 @@ export default function ConfirmModal({
           <AlertDialogCancel onClick={onCancel}>Cancel</AlertDialogCancel>
           <AlertDialogAction
             onClick={onConfirm}
+            disabled={confirmDisabled}
             className={confirmDanger ? "bg-destructive text-white hover:bg-destructive/90" : ""}
           >
             {confirmLabel || "Confirm"}

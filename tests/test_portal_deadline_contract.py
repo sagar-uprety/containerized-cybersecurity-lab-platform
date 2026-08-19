@@ -102,7 +102,13 @@ def main() -> None:
             "archived group's lab is still listed for the student"
         )
 
-        assert client.get(f"/api/labs/{lab_id}").status_code == 404
+        # An expired-but-unarchived lab is now readable (read-only): the
+        # student can reopen it to reread the scenario/guides/story, but the
+        # response must say so explicitly via "expired" so the client never
+        # has to infer it from the deadline timestamp (clock skew).
+        expired_detail = client.get(f"/api/labs/{lab_id}")
+        assert expired_detail.status_code == 200, expired_detail.text
+        assert expired_detail.json()["expired"] is True
         # And its lab page 404s rather than offering actions that are denied.
         archived_detail = client.get(f"/api/labs/{archived_lab_id}")
         assert archived_detail.status_code == 404, archived_detail.text
@@ -129,6 +135,15 @@ def main() -> None:
         assert denied_start.status_code == 403, denied_start.text
         denied_archived_start = client.post(f"/api/labs/{archived_lab_id}/start")
         assert denied_archived_start.status_code == 403, denied_archived_start.text
+
+        # Readable != startable: the expired lab's detail page is now 200,
+        # but its full lifecycle (start/reset/check) must still be denied --
+        # require_lab_visible/get_visible_lab_ids excludes expired labs
+        # independently of the detail-route change above.
+        denied_reset = client.post(f"/api/labs/{lab_id}/reset")
+        assert denied_reset.status_code == 403, denied_reset.text
+        denied_check = client.post(f"/api/labs/{lab_id}/check")
+        assert denied_check.status_code == 403, denied_check.text
 
         client.post("/api/logout")
         instructor_login = client.post(

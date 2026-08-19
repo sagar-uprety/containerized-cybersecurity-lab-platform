@@ -27,13 +27,13 @@ import {
   deleteGroup,
   renameGroup,
   archiveGroup,
-  unarchiveGroup,
 } from "../api";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SEMESTERS } from "../utils/semesters";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -84,8 +84,9 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
   const [renameInput, setRenameInput] = useState("");
   const [renameSemester, setRenameSemester] = useState("");
   const [renaming, setRenaming] = useState(false);
-  const [togglingArchive, setTogglingArchive] = useState(false);
+  const [archiving, setArchiving] = useState(false);
   const [archiveConfirm, setArchiveConfirm] = useState(false);
+  const [archiveNameInput, setArchiveNameInput] = useState("");
 
   useDocumentTitle(group?.name ?? "Group");
 
@@ -213,21 +214,16 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
     finally { setRenaming(false); }
   }
 
-  async function handleToggleArchive(): Promise<void> {
-    if (!group) return;
+  async function handleArchive(): Promise<void> {
+    if (!group || archiveNameInput.trim() !== group.name.trim()) return;
     setArchiveConfirm(false);
-    setTogglingArchive(true);
+    setArchiving(true);
     try {
-      if (group.is_archived) {
-        await unarchiveGroup(groupId);
-        showToast("Group unarchived");
-      } else {
-        await archiveGroup(groupId);
-        showToast("Group archived - student PII removed from this group's roster");
-      }
+      await archiveGroup(groupId);
+      showToast("Group archived - student PII removed from this group's roster");
       await refresh();
     } catch (err: unknown) { setError(err instanceof Error ? err.message : String(err)); }
-    finally { setTogglingArchive(false); }
+    finally { setArchiving(false); setArchiveNameInput(""); }
   }
 
   const progressByLab = useMemo(() => {
@@ -350,9 +346,11 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
                 <DropdownMenuItem onSelect={() => { setRenameInput(group?.name || ""); setRenameSemester(group?.semester || ""); setRenameOpen(true); }}>
                   <Pencil /> Rename
                 </DropdownMenuItem>
-                <DropdownMenuItem disabled={togglingArchive} onSelect={() => setArchiveConfirm(true)}>
-                  <Archive /> {group?.is_archived ? "Unarchive group" : "Archive group"}
-                </DropdownMenuItem>
+                {!group?.is_archived && (
+                  <DropdownMenuItem disabled={archiving} onSelect={() => setArchiveConfirm(true)}>
+                    <Archive /> Archive group
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem variant="destructive" onSelect={() => setDeleteConfirm(true)}>
                   <Trash2 /> Delete group
@@ -542,17 +540,32 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
 
       <ConfirmModal
         open={archiveConfirm}
-        title={group?.is_archived ? "Unarchive group?" : "Archive group?"}
-        message={
-          group?.is_archived
-            ? "Students will be able to enroll again, and can start, reset, or check assigned labs. Student email and study program will be visible again in this group's roster and results."
-            : "Students will no longer be able to enroll or start, reset, or check assigned labs. Existing runtimes can still be stopped or ended, and historical results remain available. This also removes student email/study program from this group's roster, results, and CSV export. Aggregate analytics (completion, timing, pass rates) are unaffected. Reversible at any time."
-        }
-        confirmLabel={group?.is_archived ? "Unarchive" : "Archive group"}
-        confirmDanger={!group?.is_archived}
-        onConfirm={handleToggleArchive}
-        onCancel={() => setArchiveConfirm(false)}
-      />
+        title="Archive group permanently?"
+        message="This cannot be undone. Nobody will be able to join the group or start labs in it afterward. Member email and study program will be permanently suppressed from this group's roster and results."
+        confirmLabel={archiving ? "Archiving…" : "Archive group"}
+        confirmDanger
+        confirmDisabled={archiving || !group || archiveNameInput.trim() !== group.name.trim()}
+        onConfirm={handleArchive}
+        onCancel={() => { setArchiveConfirm(false); setArchiveNameInput(""); }}
+      >
+        <Label htmlFor="archive-confirm-input" className="mb-1.5 block text-xs font-medium text-muted-foreground">
+          Type <span className="font-semibold text-foreground">{group?.name}</span> to confirm
+        </Label>
+        <Input
+          id="archive-confirm-input"
+          value={archiveNameInput}
+          onChange={(e) => setArchiveNameInput(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && group && archiveNameInput.trim() === group.name.trim()) {
+              e.preventDefault();
+              handleArchive();
+            }
+          }}
+          autoFocus
+          autoComplete="off"
+          placeholder={group?.name}
+        />
+      </ConfirmModal>
 
       <ConfirmModal
         open={!!removeConfirm}

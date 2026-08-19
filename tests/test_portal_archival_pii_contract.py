@@ -1,6 +1,6 @@
 """Contract check: archiving a group must suppress per-member PII (email,
-study_program) in that group's OWN instructor-facing responses, and
-unarchiving must reversibly restore it.
+study_program) in that group's OWN instructor-facing responses, and the
+archive is permanent -- there is no route that can undo it.
 
 Guards against two leaks found in the group-detail response
 (GET /api/instructor/groups/{group_id}) and in main.py::_group_to_dict:
@@ -19,8 +19,9 @@ The pseudonymous `student_id` (e.g. `student01`, from `User.internal_id`) is
 NOT PII and must stay present in both the roster and the activity feed even
 when archived -- the instructor needs it to open a session. Email is never
 scrubbed from the `users` table itself (it also doubles as the login
-username); archival only suppresses it in that group's own responses, and is
-fully reversible via unarchive.
+username); archival only suppresses it in that group's own responses. There
+is no unarchive route -- once a group is archived it stays archived, and the
+suppression above is permanent for that group.
 """
 
 from __future__ import annotations
@@ -180,28 +181,27 @@ def main() -> None:
         assert members[0]["email"] is None
         assert student_email not in json.dumps(add_member_payload)
 
-        # --- 6. Reversible: unarchiving restores the email in both roster
-        # and activity feed. ---
+        # --- 6. Permanent: there is no unarchive route any more, and the
+        # archived state persists across requests -- nothing can undo it. ---
         unarchive_resp = client.post(
             f"/api/instructor/groups/{group_id}/unarchive",
             json={"csrf_token": csrf_token},
         )
-        assert unarchive_resp.status_code == 200, unarchive_resp.text
-        assert unarchive_resp.json()["is_archived"] is False
+        assert unarchive_resp.status_code == 404, unarchive_resp.text
 
         detail = client.get(f"/api/instructor/groups/{group_id}")
         assert detail.status_code == 200, detail.text
         payload = detail.json()
-        assert payload["is_archived"] is False
+        assert payload["is_archived"] is True
 
         approved = payload["approved_members"]
         assert len(approved) == 1
-        assert approved[0]["email"] == student_email
-        assert approved[0]["study_program"] == "Informatik"
+        assert approved[0]["email"] is None
+        assert approved[0]["study_program"] is None
 
         activity = payload["recent_activity"]
         assert len(activity) == 1
-        assert activity[0]["student_email"] == student_email
+        assert activity[0]["student_email"] is None
 
     print("OK")
 
