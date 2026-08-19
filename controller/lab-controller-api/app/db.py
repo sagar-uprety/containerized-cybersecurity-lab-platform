@@ -59,6 +59,8 @@ def _migrate_columns() -> None:
         ("groups", "owner_id", "INTEGER REFERENCES users(id)"),
         ("groups", "is_archived", "BOOLEAN NOT NULL DEFAULT 0"),
         ("groups", "archived_at", "TEXT"),
+        ("lab_sessions", "group_id", "INTEGER REFERENCES groups(id)"),
+        ("runtime_leases", "group_id", "INTEGER REFERENCES groups(id)"),
     ]
     with engine.connect() as conn:
         for table, column, col_type in migrations:

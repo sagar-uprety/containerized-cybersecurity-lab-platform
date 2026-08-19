@@ -12,13 +12,14 @@ import { getLabDetail, startLab, stopLab, resetLab, endLab, runCheck, sendHeartb
 import { navigate } from "../utils/navigate";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 type LabAction = "start" | "stop" | "reset" | "end" | "check";
 
-const ACTION_FNS: Record<string, (labId: string, csrf: string) => Promise<unknown>> = {
+const ACTION_FNS: Record<string, (labId: string, csrf: string, groupId: number) => Promise<unknown>> = {
   start: startLab,
   stop: stopLab,
   reset: resetLab,
@@ -28,10 +29,11 @@ const ACTION_FNS: Record<string, (labId: string, csrf: string) => Promise<unknow
 interface LabDetailProps {
   user: User;
   labId: string;
+  groupId?: number;
   onLogout: () => void;
 }
 
-export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
+export default function LabDetail({ user, labId, groupId, onLogout }: LabDetailProps) {
   const [data, setData] = useState<LabDetailData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<LabAction | null>(null);
@@ -42,19 +44,22 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
 
   useDocumentTitle(data?.scenario?.title ?? "Lab");
 
+  const groupValid = groupId != null && !Number.isNaN(groupId);
+
   const labIdRef = useRef(labId);
   useEffect(() => { labIdRef.current = labId; }, [labId]);
 
   const fetchDetail = useCallback(() => {
+    if (!groupValid) return;
     const requestedLabId = labId;
-    getLabDetail(labId)
+    getLabDetail(labId, groupId)
       .then((d: LabDetailData) => {
         if (requestedLabId === labIdRef.current) setData(d);
       })
       .catch((err: Error) => {
         if (requestedLabId === labIdRef.current) setError(err.message);
       });
-  }, [labId]);
+  }, [labId, groupId, groupValid]);
 
   useEffect(() => {
     setData(null);
@@ -62,12 +67,12 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
   }, [fetchDetail]);
 
   useEffect(() => {
-    if (!data || data.status !== "running" || data.group?.is_active === false) return;
+    if (!data || data.status !== "running" || data.group?.is_active === false || !groupValid) return;
     const interval = setInterval(() => {
-      sendHeartbeat(labId).catch(() => {});
+      sendHeartbeat(labId, groupId!).catch(() => {});
     }, 60000);
     return () => clearInterval(interval);
-  }, [data?.group?.is_active, data?.status, labId]);
+  }, [data?.group?.is_active, data?.status, labId, groupId, groupValid]);
 
   // Split pane drag
   useEffect(() => {
@@ -144,12 +149,13 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
   }, [data?.status]);
 
   async function doAction(verb: LabAction) {
+    if (!groupValid) return;
     setActionLoading(verb);
     try {
       const fn = ACTION_FNS[verb];
-      await fn(labId, data!.csrf_token);
+      await fn(labId, data!.csrf_token, groupId!);
       if (verb === "end") {
-        navigate(`/labs/${labId}/feedback`);
+        navigate(`/labs/${labId}/feedback?group=${groupId}`);
         return;
       }
       fetchDetail();
@@ -161,9 +167,10 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
   }
 
   async function doCheck() {
+    if (!groupValid) return;
     setActionLoading("check");
     try {
-      const result: CheckResultData = await runCheck(labId, data!.csrf_token);
+      const result: CheckResultData = await runCheck(labId, data!.csrf_token, groupId!);
       setCheckResult(result);
       setHasChecked(true);
     } catch (err: unknown) {
@@ -185,6 +192,15 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
     } else {
       document.exitFullscreen();
     }
+  }
+
+  if (!groupValid) {
+    return (
+      <StudentLayout user={user} onLogout={onLogout}>
+        <PageHeader title="Error" breadcrumbs={[{ label: "Labs", href: "/" }, { label: "Error" }]} />
+        <AlertError message="No group specified for this lab. Open this page from Assigned Labs." />
+      </StudentLayout>
+    );
   }
 
   if (error && !data) {
@@ -214,9 +230,15 @@ export default function LabDetail({ user, labId, onLogout }: LabDetailProps) {
   const hoursLeft = deadlineDate ? (deadlineDate.getTime() - Date.now()) / 3600000 : null;
   const deadlineUrgent = hoursLeft !== null && hoursLeft < 24 && hoursLeft > 0;
 
+  const groupLabel = group.name && group.semester ? `${group.name} · ${group.semester}` : group.name ?? group.semester;
+
   return (
     <StudentLayout user={user} onLogout={onLogout} fullWidth>
-      <PageHeader title={scenario.title} breadcrumbs={[{ label: "Labs", href: "/" }, { label: scenario.title }]} />
+      <PageHeader
+        title={scenario.title}
+        breadcrumbs={[{ label: "Labs", href: "/" }, { label: scenario.title }]}
+        actions={groupLabel ? <Badge className="border-transparent bg-muted text-muted-foreground">{groupLabel}</Badge> : undefined}
+      />
 
       <div
         id="lab-shell"

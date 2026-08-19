@@ -19,13 +19,14 @@ export interface WorkstationAccess {
 }
 
 export interface Lab {
+  assignment_id: string;
   id: string;
   title: string;
   difficulty?: string;
   status?: string;
   story?: { situation?: string; role?: string };
   deadline?: string;
-  group?: { id: number | null; name: string | null; semester?: string | null; is_active?: boolean };
+  group: { id: number | null; name: string | null; semester?: string | null; is_active?: boolean };
 }
 
 export interface LabDetail {
@@ -34,7 +35,7 @@ export interface LabDetail {
   endpoints?: LabEndpoints;
   csrf_token: string;
   deadline?: string;
-  group?: { id: number | null; name: string | null; semester?: string | null; is_active?: boolean };
+  group: { id: number | null; name: string | null; semester?: string | null; is_active?: boolean };
 }
 
 export interface Scenario {
@@ -242,6 +243,9 @@ export interface FeedbackInfo {
   csrf_token: string;
   session_id?: string;
   already_submitted?: boolean;
+  // Not explicitly documented on GET /api/labs/{lab_id}/feedback; inferred so the page can
+  // show which group the feedback prompt belongs to. Rendered only when present.
+  group?: { id: number | null; name: string | null; semester?: string | null };
 }
 
 export interface SystemStatus {
@@ -296,6 +300,7 @@ export interface Route {
 }
 
 export interface StudentLabResult {
+  assignment_id: string;
   lab_id: string;
   lab_title: string;
   difficulty?: string;
@@ -303,6 +308,9 @@ export interface StudentLabResult {
   sessions_attempted: number;
   total_time_seconds: number;
   last_active: string | null;
+  group_id: number;
+  group_name: string;
+  semester: string | null;
 }
 
 export interface StudentResultsData {
@@ -317,6 +325,12 @@ export interface StudentLabResultsData extends StudentLabDetail {
   difficulty?: string;
   result: "passed" | "failed" | "not_attempted";
   total_time_seconds: number;
+  // Contract doesn't explicitly document group fields on GET /api/results/{lab_id};
+  // inferred from the group-scoped nature of the endpoint (group_id is required in the
+  // request). Rendered only when present.
+  group_id?: number;
+  group_name?: string;
+  semester?: string | null;
 }
 
 export interface AnalyticsPoint {

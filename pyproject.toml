@@ -69,6 +69,7 @@ ignore = [
 "controller/lab-controller-api/app/*.py" = ["B008"]  # B008: FastAPI Depends() in defaults is idiomatic
 "controller/labctl_core/cli.py" = ["T201"]            # T201: CLI usage text intentionally prints to stderr
 "controller/labctl_core/lifecycle.py" = ["T201"]      # T201: labctl status/check output is stdout contract
+"tests/*.py" = ["T201"]                               # T201: contract tests are standalone scripts; print("OK") is their pass signal
 "labs/*/checks/*.py" = ["ERA001", "T201"]             # ERA001: checker comments document tuple result contracts
 "labs/*/demo-app/*.py" = ["INP001", "TRY400"]         # INP001: demo apps are standalone container files
 "labs/*/*.py" = ["INP001"]                             # lab-root helpers are standalone container scripts

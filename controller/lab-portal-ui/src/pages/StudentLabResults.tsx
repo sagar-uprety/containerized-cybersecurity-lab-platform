@@ -18,17 +18,36 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 interface Props {
   user: User;
   labId: string;
+  groupId?: number;
   onLogout: () => void;
 }
 
-export default function StudentLabResults({ user, labId, onLogout }: Props) {
+export default function StudentLabResults({ user, labId, groupId, onLogout }: Props) {
   const [data, setData] = useState<StudentLabResultsData | null>(null);
   const [error, setError] = useState<string | null>(null);
   useDocumentTitle(data ? `${data.lab_title} Results` : "Lab Results");
 
+  const groupValid = groupId != null && !Number.isNaN(groupId);
+
   useEffect(() => {
-    getStudentLabResults(labId).then(setData).catch((err: Error) => setError(err.message));
-  }, [labId]);
+    if (!groupValid) return;
+    getStudentLabResults(labId, groupId!).then(setData).catch((err: Error) => setError(err.message));
+  }, [labId, groupId, groupValid]);
+
+  if (!groupValid) {
+    return (
+      <StudentLayout user={user} onLogout={onLogout}>
+        <PageHeader title="Lab results" breadcrumbs={[{ label: "My Results", href: "/results" }, { label: "Lab" }]} />
+        <AlertError message="No group specified for this lab's results. Open this page from My Results." />
+      </StudentLayout>
+    );
+  }
+
+  const groupLabel = data?.group_name
+    ? data.semester
+      ? `${data.group_name} · ${data.semester}`
+      : data.group_name
+    : undefined;
 
   return (
     <StudentLayout user={user} onLogout={onLogout}>
@@ -36,7 +55,12 @@ export default function StudentLabResults({ user, labId, onLogout }: Props) {
         title={data?.lab_title || "Lab results"}
         description="Your outcome and session history for this lab."
         breadcrumbs={[{ label: "My Results", href: "/results" }, { label: data?.lab_title || "Lab" }]}
-        actions={data?.difficulty ? <Badge variant="outline" className="capitalize">{data.difficulty}</Badge> : undefined}
+        actions={
+          <>
+            {groupLabel && <Badge className="border-transparent bg-muted text-muted-foreground">{groupLabel}</Badge>}
+            {data?.difficulty && <Badge variant="outline" className="capitalize">{data.difficulty}</Badge>}
+          </>
+        }
       />
       <AlertError message={error} className="mb-6" />
       {!data && !error && <Skeleton className="h-96 w-full" />}

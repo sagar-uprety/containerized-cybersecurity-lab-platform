@@ -19,6 +19,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.models import Group, GroupLab, GroupMember, User
+from app.obligations import obligation_id
 
 # Password hashing uses stdlib PBKDF2-HMAC-SHA256 (no native deps) so it builds
 # on the constrained x02 deploy target (ppc64le, Python 3.9, no Rust toolchain).
@@ -323,7 +324,10 @@ def rename_group(
         raise ValueError(f"group {new_name} already exists")
     group.name = new_name
     if semester is not None:
-        group.semester = semester.strip() or None
+        semester = semester.strip()
+        if not semester:
+            raise ValueError("group semester is required")
+        group.semester = semester
     if is_active is not None:
         group.is_active = is_active
     session.flush()
@@ -393,29 +397,6 @@ def list_students_for_owner(session: Session, owner_id: int) -> list[User]:
 # --------------------------------------------------------------------------- #
 # Membership
 # --------------------------------------------------------------------------- #
-def _semester_membership_conflict(session: Session, user_id: int, group_id: int) -> str | None:
-    """Reject a second pending/approved membership in the same semester."""
-    target = session.get(Group, group_id)
-    if target is None:
-        return None
-    semester = (target.semester or "").strip()
-    if not semester:
-        return "group semester is required before enrollment"
-    conflict = session.execute(
-        select(GroupMember)
-        .join(Group, Group.id == GroupMember.group_id)
-        .where(
-            GroupMember.user_id == user_id,
-            GroupMember.group_id != group_id,
-            GroupMember.status.in_(("pending", "approved")),
-            Group.semester == semester,
-        )
-    ).scalar_one_or_none()
-    if conflict is not None:
-        return f"already enrolled or pending in another group for {semester}"
-    return None
-
-
 def add_member(session: Session, group_id: int, user_id: int) -> GroupMember:
     if session.get(Group, group_id) is None:
         raise ValueError("group not found")
@@ -426,9 +407,6 @@ def add_member(session: Session, group_id: int, user_id: int) -> GroupMember:
     ).scalar_one_or_none()
     if existing is not None:
         return existing
-    conflict = _semester_membership_conflict(session, user_id, group_id)
-    if conflict is not None:
-        raise ValueError(conflict)
     member = GroupMember(group_id=group_id, user_id=user_id, status="approved")
     session.add(member)
     session.flush()
@@ -448,9 +426,6 @@ def request_membership(session: Session, group_id: int, user_id: int) -> GroupMe
     ).scalar_one_or_none()
     if existing is not None:
         return existing
-    conflict = _semester_membership_conflict(session, user_id, group_id)
-    if conflict is not None:
-        raise ValueError(conflict)
     member = GroupMember(group_id=group_id, user_id=user_id, status="pending")
     session.add(member)
     session.flush()
@@ -560,44 +535,60 @@ def unassign_lab(session: Session, group_id: int, lab_id: str) -> bool:
     return True
 
 
-def visible_labs(session: Session, user: User) -> set[str]:
+def visible_lab_ids(session: Session, user: User) -> set[str]:
     """Lab ids a student may see/run = union of assignments across their
-    approved groups, excluding labs past their deadline.
+    approved groups, excluding labs past their deadline. A lab assigned in two
+    groups is still just one id here; use `visible_labs_detail` for the
+    per-group breakdown.
     """
-    return set(visible_labs_detail(session, user).keys())
+    return {entry["lab_id"] for entry in visible_labs_detail(session, user)}
 
 
-def assigned_labs_detail(session: Session, user: User) -> dict[str, dict]:
-    """All approved-group lab assignments, including expired and inactive ones."""
+def visible_labs(session: Session, user: User) -> set[str]:
+    """Alias of `visible_lab_ids` kept for existing callers."""
+    return visible_lab_ids(session, user)
+
+
+def assigned_labs_detail(session: Session, user: User) -> list[dict]:
+    """All approved-group lab assignments, including expired and inactive ones.
+
+    One entry per (group, lab) assignment: a lab assigned in two of the
+    student's groups appears twice, each tagged with its own group/assignment.
+    """
     return _labs_detail(session, user, include_expired=True, include_inactive=True)
 
 
-def active_labs_detail(session: Session, user: User) -> dict[str, dict]:
-    """Approved active-group assignments, including expired ones."""
+def active_labs_detail(session: Session, user: User) -> list[dict]:
+    """Approved active-group assignments, including expired ones. One entry
+    per (group, lab) assignment -- see `assigned_labs_detail`."""
     return _labs_detail(session, user, include_expired=True, include_inactive=False)
 
 
-def readable_labs_detail(session: Session, user: User) -> dict[str, dict]:
-    """Approved assignments within deadline, including inactive groups."""
+def readable_labs_detail(session: Session, user: User) -> list[dict]:
+    """Approved assignments within deadline, including inactive groups. One
+    entry per (group, lab) assignment -- see `assigned_labs_detail`."""
     return _labs_detail(session, user, include_expired=False, include_inactive=True)
 
 
-def visible_labs_detail(session: Session, user: User) -> dict[str, dict]:
-    """Lab id → {"deadline": iso|None, "group_id", "group_name", "semester"}.
+def visible_labs_detail(session: Session, user: User) -> list[dict]:
+    """Approved, active, within-deadline assignments: {"assignment_id",
+    "lab_id", "deadline": iso|None, "group_id", "group_name", "semester",
+    "is_active"}.
 
-    When a lab is assigned to multiple groups, the assignment with the
-    latest deadline wins (gives the student the most time and attributes
-    the lab to that group).
+    One entry per (group, lab) assignment. A lab assigned to two of the
+    student's groups produces two entries -- two independent obligations, each
+    with its own assignment_id/group -- rather than collapsing to one.
     """
     return _labs_detail(session, user, include_expired=False, include_inactive=False)
 
 
 def _labs_detail(
     session: Session, user: User, include_expired: bool, include_inactive: bool
-) -> dict[str, dict]:
+) -> list[dict]:
     now = datetime.now(timezone.utc)
     query = (
         select(
+            GroupLab.id,
             GroupLab.lab_id,
             GroupLab.deadline,
             Group.id,
@@ -617,30 +608,19 @@ def _labs_detail(
     if not include_inactive:
         query = query.where(Group.is_active.is_(True))
     rows = session.execute(query).all()
-    result: dict[str, dict] = {}
-    for lab_id, deadline, group_id, group_name, semester, is_active in rows:
-        candidate = {
-            "deadline": deadline.isoformat() if deadline else None,
-            "group_id": group_id,
-            "group_name": group_name,
-            "semester": semester,
-            "is_active": is_active,
-        }
-        current = result.get(lab_id)
-        replaces_current = (
-            current is None
-            or (candidate["is_active"] and not current["is_active"])
-            or (
-                candidate["is_active"] == current["is_active"]
-                and (
-                    candidate["deadline"] is None
-                    or (
-                        current["deadline"] is not None
-                        and candidate["deadline"] > current["deadline"]
-                    )
-                )
-            )
+    result: list[dict] = []
+    for group_lab_id, lab_id, deadline, group_id, group_name, semester, is_active in rows:
+        result.append(
+            {
+                # Must match feedback.sync_assignment_obligations's id for the
+                # same (group_lab, user) pair -- see app/obligations.py.
+                "assignment_id": obligation_id(group_lab_id, user.id),
+                "lab_id": lab_id,
+                "deadline": deadline.isoformat() if deadline else None,
+                "group_id": group_id,
+                "group_name": group_name,
+                "semester": semester,
+                "is_active": is_active,
+            }
         )
-        if replaces_current:
-            result[lab_id] = candidate
     return result

@@ -39,6 +39,8 @@ const AdminAccountPassword = lazy(() => import("./pages/AdminAccountPassword"));
 
 function parseRoute(): Route {
   const path = window.location.pathname;
+  const searchGroup = new URLSearchParams(window.location.search).get("group");
+  const searchGroupId = searchGroup != null && searchGroup !== "" ? Number(searchGroup) : undefined;
 
   const groupSessionMatch = path.match(/^\/instructor\/groups\/(\d+)\/students\/([^/]+)\/labs\/([^/]+)\/?$/);
   if (groupSessionMatch) {
@@ -99,13 +101,13 @@ function parseRoute(): Route {
   if (/^\/privacy-policy\/?$/.test(path)) return { page: "privacy-policy" };
 
   const feedbackMatch = path.match(/^\/labs\/([^/]+)\/feedback\/?$/);
-  if (feedbackMatch) return { page: "feedback", labId: feedbackMatch[1] };
+  if (feedbackMatch) return { page: "feedback", labId: feedbackMatch[1], groupId: searchGroupId };
 
   const detailMatch = path.match(/^\/labs\/([^/]+)\/?$/);
-  if (detailMatch) return { page: "detail", labId: detailMatch[1] };
+  if (detailMatch) return { page: "detail", labId: detailMatch[1], groupId: searchGroupId };
 
   const studentLabResultsMatch = path.match(/^\/results\/([^/]+)\/?$/);
-  if (studentLabResultsMatch) return { page: "student-lab-results", labId: studentLabResultsMatch[1] };
+  if (studentLabResultsMatch) return { page: "student-lab-results", labId: studentLabResultsMatch[1], groupId: searchGroupId };
 
   if (/^\/results\/?$/.test(path)) return { page: "results" };
   if (/^\/enrollment\/?$/.test(path)) return { page: "enrollment" };
@@ -307,10 +309,10 @@ function AppContent() {
       );
       break;
     case "feedback":
-      page = <Feedback user={user} labId={route.labId!} onLogout={handleLogout} />;
+      page = <Feedback user={user} labId={route.labId!} groupId={route.groupId} onLogout={handleLogout} />;
       break;
     case "detail":
-      page = <LabDetail user={user} labId={route.labId!} onLogout={handleLogout} />;
+      page = <LabDetail user={user} labId={route.labId!} groupId={route.groupId} onLogout={handleLogout} />;
       break;
     case "results":
       page = <StudentResults user={user} onLogout={handleLogout} />;
@@ -319,7 +321,7 @@ function AppContent() {
       page = <Enrollment user={user} onLogout={handleLogout} />;
       break;
     case "student-lab-results":
-      page = <StudentLabResults user={user} labId={route.labId!} onLogout={handleLogout} />;
+      page = <StudentLabResults user={user} labId={route.labId!} groupId={route.groupId} onLogout={handleLogout} />;
       break;
     case "student-account-password":
       page = (

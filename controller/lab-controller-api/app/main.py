@@ -224,7 +224,9 @@ def run_action(
     return success, stdout, stderr, duration
 
 
-def _run_system_check(lab_id: str, user: dict, session_id: str, phase: str):
+def _run_system_check(
+    lab_id: str, user: dict, session_id: str, phase: str, group_id: Optional[int]
+):
     student_id = user_student_id(user)
     success, stdout, stderr, duration = run_action(
         "check", lab_id, user, session_id=session_id, record_action=False
@@ -281,6 +283,7 @@ def _run_system_check(lab_id: str, user: dict, session_id: str, phase: str):
         actor_id="system",
         actor_type="system",
         phase=phase,
+        group_id=group_id,
     )
     update_runtime_state(
         lab_id,
@@ -288,6 +291,7 @@ def _run_system_check(lab_id: str, user: dict, session_id: str, phase: str):
         "running",
         last_seen=time.time(),
         last_check=check_result,
+        group_id=group_id,
     )
     return check_result
 
@@ -315,6 +319,61 @@ def require_student(user: dict) -> None:
         raise HTTPException(status_code=403, detail="password_change_required")
 
 
+def _assignments_for_lab(assignments: list[dict], lab_id: str) -> list[dict]:
+    """Filter an assignment-detail list (as returned by the get_*_labs_detail
+    helpers in app.auth) down to the entries for one lab_id. A lab assigned in
+    two of a student's groups appears as two entries with different group_id."""
+    return [item for item in assignments if item["lab_id"] == lab_id]
+
+
+def _resolve_lab_assignment(assignments: list[dict], lab_id: str, group_id: Optional[int]) -> dict:
+    """Resolve exactly one assignment entry for (lab_id, group_id) out of a
+    student's assignment-detail list. Shared by the read routes (lab detail,
+    feedback, results) that must disambiguate when the same lab is assigned
+    in more than one of the student's groups:
+      - no candidates                           -> 404
+      - exactly one candidate, no group_id given -> use it (keeps single-group
+                                                     students working with no
+                                                     client change)
+      - >1 candidate, no group_id given          -> 400 naming the candidates
+      - group_id given but not among candidates  -> 404
+    """
+    candidates = _assignments_for_lab(assignments, lab_id)
+    if not candidates:
+        raise HTTPException(status_code=404, detail="Lab not found")
+    if group_id is not None:
+        match = next((item for item in candidates if item["group_id"] == group_id), None)
+        if match is None:
+            raise HTTPException(status_code=404, detail="Lab not found")
+        return match
+    if len(candidates) == 1:
+        return candidates[0]
+    names = ", ".join(
+        sorted({item.get("group_name") or str(item["group_id"]) for item in candidates})
+    )
+    raise HTTPException(
+        status_code=400,
+        detail=f"This lab is assigned in multiple groups ({names}); specify group_id.",
+    )
+
+
+def _resolve_start_group(assignments: list[dict], lab_id: str, group_id: Optional[int]) -> dict:
+    """Validate the group_id the start-lab client sends against the student's
+    approved assignments. Unlike _resolve_lab_assignment (used by the read
+    routes, where an unknown group is a 404/400 "not found"), a bad group here
+    is an authorization failure (403): the client is expected to always name
+    the group it wants to start the lab for."""
+    candidates = _assignments_for_lab(assignments, lab_id)
+    if group_id is not None:
+        match = next((item for item in candidates if item["group_id"] == group_id), None)
+        if match is None:
+            raise HTTPException(status_code=403, detail="Lab not assigned in that group")
+        return match
+    if len(candidates) == 1:
+        return candidates[0]
+    raise HTTPException(status_code=403, detail="group_id is required to start this lab")
+
+
 def require_lab_visible(user: dict, lab_id: str) -> None:
     """Reject (403) a student acting on a lab not assigned to one of their
     if user["role"] != "student":
@@ -327,7 +386,7 @@ def require_lab_assigned(user: dict, lab_id: str) -> None:
     """Allow historical access and safe shutdown after a group becomes inactive."""
     if user["role"] != "student":
         return
-    if lab_id not in get_assigned_labs_detail(user["username"]):
+    if not _assignments_for_lab(get_assigned_labs_detail(user["username"]), lab_id):
         raise HTTPException(status_code=403, detail="Lab not assigned")
 
 
@@ -392,31 +451,48 @@ def api_workstation_access(user: dict = Depends(get_authenticated_user)):
 
 
 @app.get("/api/labs")
-def api_labs(user: dict = Depends(get_authenticated_user)):
+def api_labs(group_id: Optional[int] = None, user: dict = Depends(get_authenticated_user)):
     require_student(user)
     assignments = get_assigned_labs_detail(user["username"])
-    labs = [lab for lab in list_scenarios() if lab["id"] in assignments]
+    if group_id is not None:
+        assignments = [item for item in assignments if item["group_id"] == group_id]
+    scenarios_by_id = {lab["id"]: lab for lab in list_scenarios()}
     student_id = user_student_id(user)
     runtime_states = dict(tracked_runtime_items())
     result = []
-    for lab in labs:
-        lab_status = runtime_states.get(state_key(lab["id"], student_id), {}).get(
-            "status", "not_created"
-        )
-        detail = assignments.get(lab["id"], {})
+    # One row per ASSIGNMENT, not per lab: the same lab_id can appear twice
+    # with a different group.
+    for assignment in assignments:
+        lab = scenarios_by_id.get(assignment["lab_id"])
+        if lab is None:
+            continue
+        runtime_state = runtime_states.get(state_key(assignment["lab_id"], student_id), {})
+        lease_group_id = runtime_state.get("group_id")
+        # The container is shared across a student's groups for the same lab
+        # (labctl names it from student number + lab id alone), so only the
+        # group whose id matches the lease's stored group_id may show the
+        # live status -- every sibling group's row must read "not_created",
+        # or both cards would light up as running from a single container.
+        # A lease with no stored group_id is a legacy pre-migration row; fall
+        # back to showing it on every row rather than hiding it entirely.
+        if lease_group_id is None or lease_group_id == assignment["group_id"]:
+            lab_status = runtime_state.get("status") or "not_created"
+        else:
+            lab_status = "not_created"
         result.append(
             {
+                "assignment_id": assignment["assignment_id"],
                 "id": lab["id"],
                 "title": lab["title"],
                 "difficulty": lab.get("difficulty"),
                 "story": lab.get("story"),
                 "status": lab_status,
-                "deadline": detail.get("deadline"),
+                "deadline": assignment.get("deadline"),
                 "group": {
-                    "id": detail.get("group_id"),
-                    "name": detail.get("group_name"),
-                    "semester": detail.get("semester"),
-                    "is_active": detail.get("is_active"),
+                    "id": assignment.get("group_id"),
+                    "name": assignment.get("group_name"),
+                    "semester": assignment.get("semester"),
+                    "is_active": assignment.get("is_active"),
                 },
             }
         )
@@ -424,18 +500,29 @@ def api_labs(user: dict = Depends(get_authenticated_user)):
 
 
 @app.get("/api/labs/{lab_id}")
-def api_lab_detail(lab_id: str, _request: Request, user: dict = Depends(get_authenticated_user)):
+def api_lab_detail(
+    lab_id: str,
+    _request: Request,
+    group_id: Optional[int] = None,
+    user: dict = Depends(get_authenticated_user),
+):
     require_student(user)
     validate_lab_id(lab_id)
     assignments = get_readable_labs_detail(user["username"])
-    if lab_id not in assignments:
-        raise HTTPException(status_code=404, detail="Lab not found")
+    assignment = _resolve_lab_assignment(assignments, lab_id, group_id)
     scenario = load_scenario_metadata(lab_id)
     if not scenario:
         raise HTTPException(status_code=404, detail="Lab not found")
 
     student_id = user_student_id(user)
-    status_text = _fast_lab_status(lab_id, student_id)
+    runtime_state = runtime_state_for(lab_id, student_id)
+    lease_group_id = runtime_state.get("group_id")
+    # Same reasoning as /api/labs: don't report "running" on this group's page
+    # when the live container actually belongs to a sibling group's lease.
+    if lease_group_id is None or lease_group_id == assignment["group_id"]:
+        status_text = runtime_state.get("status") or "not_created"
+    else:
+        status_text = "not_created"
 
     check_results = get_check_results_for_student(lab_id, student_id)
     check_result = check_results[-1].get("check_result") if check_results else None
@@ -447,21 +534,28 @@ def api_lab_detail(lab_id: str, _request: Request, user: dict = Depends(get_auth
         "check_result": check_result,
         "endpoints": endpoints,
         "csrf_token": generate_token(user),
-        "deadline": assignments.get(lab_id, {}).get("deadline"),
+        "deadline": assignment.get("deadline"),
         "group": {
-            "id": assignments.get(lab_id, {}).get("group_id"),
-            "name": assignments.get(lab_id, {}).get("group_name"),
-            "semester": assignments.get(lab_id, {}).get("semester"),
-            "is_active": assignments.get(lab_id, {}).get("is_active"),
+            "id": assignment.get("group_id"),
+            "name": assignment.get("group_name"),
+            "semester": assignment.get("semester"),
+            "is_active": assignment.get("is_active"),
         },
     }
 
 
 @app.get("/api/labs/{lab_id}/feedback")
-def api_lab_feedback(lab_id: str, user: dict = Depends(get_authenticated_user)):
+def api_lab_feedback(
+    lab_id: str,
+    group_id: Optional[int] = None,
+    user: dict = Depends(get_authenticated_user),
+):
     require_student(user)
     require_lab_assigned(user, lab_id)
     validate_lab_id(lab_id)
+    assignment = _resolve_lab_assignment(
+        get_readable_labs_detail(user["username"]), lab_id, group_id
+    )
     student_id = user_student_id(user)
     runtime_state = runtime_state_for(lab_id, student_id)
     session_id = runtime_state.get("session_id", "")
@@ -471,6 +565,12 @@ def api_lab_feedback(lab_id: str, user: dict = Depends(get_authenticated_user)):
         "session_id": session_id,
         "already_submitted": already_submitted,
         "csrf_token": generate_token(user),
+        "group": {
+            "id": assignment.get("group_id"),
+            "name": assignment.get("group_name"),
+            "semester": assignment.get("semester"),
+            "is_active": assignment.get("is_active"),
+        },
     }
 
 
@@ -611,8 +711,48 @@ async def start_lab(
     if not scenario:
         raise HTTPException(status_code=404, detail="Lab not found")
 
+    raw_group_id = body.get("group_id")
+    if raw_group_id in (None, ""):
+        group_id: Optional[int] = None
+    else:
+        try:
+            group_id = int(raw_group_id)
+        except (TypeError, ValueError):
+            raise HTTPException(status_code=400, detail="Invalid group_id") from None
+    assignment = _resolve_start_group(get_assigned_labs_detail(user["username"]), lab_id, group_id)
+    group_id = assignment["group_id"]
+    group_name = assignment.get("group_name") or str(group_id)
+
     student_id = user_student_id(user)
     current_key = state_key(lab_id, student_id)
+
+    # One container per (student, lab): labctl derives its name from student
+    # number + lab id alone, with no group in it. If a different group's
+    # lease is still live, starting here would silently rebind that same
+    # container to this group and corrupt the other group's session record.
+    existing_lease = runtime_state_for(lab_id, student_id)
+    existing_group_id = existing_lease.get("group_id")
+    if (
+        existing_group_id is not None
+        and existing_group_id != group_id
+        and existing_lease.get("status") in ("running", "stopped")
+    ):
+        other_assignment = next(
+            (
+                item
+                for item in _assignments_for_lab(get_assigned_labs_detail(user["username"]), lab_id)
+                if item["group_id"] == existing_group_id
+            ),
+            None,
+        )
+        other_name = (other_assignment.get("group_name") if other_assignment else None) or str(
+            existing_group_id
+        )
+        raise HTTPException(
+            status_code=409,
+            detail=f"You have this lab running for {other_name}. "
+            f"End it before starting it for {group_name}.",
+        )
 
     for scenario in list_scenarios():
         if scenario["id"] == lab_id:
@@ -654,10 +794,10 @@ async def start_lab(
             actor_type="student",
         )
         logger.error("Lab start failed for %s/%s: %s", lab_id, student_id, stderr)
-        update_runtime_state(lab_id, student_id, "error")
+        update_runtime_state(lab_id, student_id, "error", group_id=group_id)
         raise HTTPException(status_code=502, detail="Failed to start lab")
 
-    create_lab_session(session_id, lab_id, student_id)
+    create_lab_session(session_id, lab_id, student_id, group_id=group_id)
     record_event(
         "start",
         lab_id,
@@ -675,13 +815,14 @@ async def start_lab(
         started_at=time.time(),
         last_seen=time.time(),
         session_id=session_id,
+        group_id=group_id,
     )
-    _run_system_check(lab_id, user, session_id, "baseline")
+    _run_system_check(lab_id, user, session_id, "baseline", group_id=group_id)
 
     if _is_fetch(request):
         endpoints = _build_endpoints(scenario, student_id, user)
-        return {"status": "running", "endpoints": endpoints}
-    return RedirectResponse(url=f"/labs/{lab_id}", status_code=303)
+        return {"status": "running", "endpoints": endpoints, "group_id": group_id}
+    return RedirectResponse(url=f"/labs/{lab_id}?group={group_id}", status_code=303)
 
 
 @app.post("/api/labs/{lab_id}/stop")
@@ -695,7 +836,11 @@ async def stop_lab(
     body = await _parse_action_body(request)
     validate_token(body["csrf_token"], user)
     student_id = user_student_id(user)
-    session_id = runtime_state_for(lab_id, student_id).get("session_id")
+    # The group comes from the lease, never the request body: mid-session the
+    # client must not be able to re-attribute a run to a different group.
+    lease = runtime_state_for(lab_id, student_id)
+    session_id = lease.get("session_id")
+    group_id = lease.get("group_id")
     success, _stdout, stderr, _duration = run_action("stop", lab_id, user, session_id=session_id)
     update_runtime_state(
         lab_id,
@@ -709,7 +854,8 @@ async def stop_lab(
     close_lab_session(session_id, "stop", "student_stop")
     if _is_fetch(request):
         return {"status": "stopped"}
-    return RedirectResponse(url=f"/labs/{lab_id}", status_code=303)
+    redirect_url = f"/labs/{lab_id}" + (f"?group={group_id}" if group_id is not None else "")
+    return RedirectResponse(url=redirect_url, status_code=303)
 
 
 @app.post("/api/labs/{lab_id}/reset")
@@ -723,7 +869,11 @@ async def reset_lab(
     body = await _parse_action_body(request)
     validate_token(body["csrf_token"], user)
     student_id = user_student_id(user)
-    previous_session_id = runtime_state_for(lab_id, student_id).get("session_id")
+    # Reset keeps the SAME group as the lease it is resetting -- it is not a
+    # place to re-attribute a run, only to restart it.
+    previous_lease = runtime_state_for(lab_id, student_id)
+    previous_session_id = previous_lease.get("session_id")
+    group_id = previous_lease.get("group_id")
     success, _stdout, stderr, _duration = run_action(
         "reset", lab_id, user, session_id=previous_session_id
     )
@@ -733,7 +883,7 @@ async def reset_lab(
         raise HTTPException(status_code=502, detail="Failed to reset lab")
     close_lab_session(previous_session_id, "reset", "student_reset")
     session_id = str(uuid.uuid4())
-    create_lab_session(session_id, lab_id, student_id)
+    create_lab_session(session_id, lab_id, student_id, group_id=group_id)
     record_event(
         "start",
         lab_id,
@@ -752,11 +902,13 @@ async def reset_lab(
         last_seen=time.time(),
         last_check=None,
         session_id=session_id,
+        group_id=group_id,
     )
-    _run_system_check(lab_id, user, session_id, "baseline")
+    _run_system_check(lab_id, user, session_id, "baseline", group_id=group_id)
     if _is_fetch(request):
         return {"status": "running"}
-    return RedirectResponse(url=f"/labs/{lab_id}", status_code=303)
+    redirect_url = f"/labs/{lab_id}" + (f"?group={group_id}" if group_id is not None else "")
+    return RedirectResponse(url=redirect_url, status_code=303)
 
 
 @app.post("/api/labs/{lab_id}/end")
@@ -770,9 +922,12 @@ async def end_lab(
     body = await _parse_action_body(request)
     validate_token(body["csrf_token"], user)
     student_id = user_student_id(user)
-    session_id = runtime_state_for(lab_id, student_id).get("session_id")
+    # The group comes from the lease, never the request body -- see stop_lab.
+    lease = runtime_state_for(lab_id, student_id)
+    session_id = lease.get("session_id")
+    group_id = lease.get("group_id")
     if session_id:
-        _run_system_check(lab_id, user, session_id, "final")
+        _run_system_check(lab_id, user, session_id, "final", group_id=group_id)
     success, _stdout, stderr, _duration = run_action("destroy", lab_id, user, session_id=session_id)
     if not success:
         update_runtime_state(lab_id, student_id, "error")
@@ -780,9 +935,12 @@ async def end_lab(
         raise HTTPException(status_code=502, detail="Failed to end lab")
     close_lab_session(session_id, "end", "student_end")
     update_runtime_state(lab_id, student_id, "ended")
+    redirect_path = f"/labs/{lab_id}/feedback" + (
+        f"?group={group_id}" if group_id is not None else ""
+    )
     if _is_fetch(request):
-        return {"status": "ended", "redirect": f"/labs/{lab_id}/feedback"}
-    return RedirectResponse(url=f"/labs/{lab_id}/feedback", status_code=303)
+        return {"status": "ended", "redirect": redirect_path}
+    return RedirectResponse(url=redirect_path, status_code=303)
 
 
 @app.post("/api/labs/{lab_id}/check")
@@ -796,7 +954,10 @@ async def check_lab(
     body = await _parse_action_body(request)
     validate_token(body["csrf_token"], user)
     student_id = user_student_id(user)
-    session_id = runtime_state_for(lab_id, student_id).get("session_id")
+    # The group comes from the lease, never the request body -- see stop_lab.
+    lease = runtime_state_for(lab_id, student_id)
+    session_id = lease.get("session_id")
+    group_id = lease.get("group_id")
     success, stdout, stderr, duration = run_action(
         "check", lab_id, user, session_id=session_id, record_action=False
     )
@@ -858,6 +1019,7 @@ async def check_lab(
         actor_id=user["username"],
         actor_type="student",
         phase="student",
+        group_id=group_id,
     )
     update_runtime_state(
         lab_id,
@@ -868,7 +1030,8 @@ async def check_lab(
     )
     if _is_fetch(request):
         return JSONResponse(check_result)
-    return RedirectResponse(url=f"/labs/{lab_id}", status_code=303)
+    redirect_url = f"/labs/{lab_id}" + (f"?group={group_id}" if group_id is not None else "")
+    return RedirectResponse(url=redirect_url, status_code=303)
 
 
 @app.post("/api/labs/{lab_id}/feedback")
@@ -952,11 +1115,22 @@ def api_enroll(group_id: int, user: dict = Depends(get_authenticated_user)):
 
 
 @app.post("/api/heartbeat/{lab_id}")
-def heartbeat(lab_id: str, user: dict = Depends(get_authenticated_user)):
+def heartbeat(
+    lab_id: str,
+    group_id: Optional[int] = None,
+    user: dict = Depends(get_authenticated_user),
+):
     require_student(user)
     require_lab_visible(user, lab_id)
     validate_lab_id(lab_id)
     student_id = user_student_id(user)
+    if group_id is not None:
+        # A liveness touch only -- validate the caller's group against the
+        # lease, but never use it to mutate attribution (that stays owned by
+        # start/stop/end, sourced from the lease itself).
+        lease_group_id = runtime_state_for(lab_id, student_id).get("group_id")
+        if lease_group_id is not None and lease_group_id != group_id:
+            raise HTTPException(status_code=409, detail="This lab is running for a different group")
     touch_runtime_state(lab_id, student_id)
     return {"status": "ok", "lab_id": lab_id, "student": student_id}
 
@@ -1481,20 +1655,45 @@ def api_instructor_analytics(
 
 
 @app.get("/api/results")
-def api_student_results(user: dict = Depends(get_authenticated_user)):
+def api_student_results(
+    group_id: Optional[int] = None, user: dict = Depends(get_authenticated_user)
+):
     require_student(user)
-    return analytics_service.student_results(user_student_id(user))
+    return analytics_service.student_results(user_student_id(user), group_id=group_id)
 
 
 @app.get("/api/results/{lab_id}")
-def api_student_lab_results(lab_id: str, user: dict = Depends(get_authenticated_user)):
+def api_student_lab_results(
+    lab_id: str,
+    group_id: Optional[int] = None,
+    user: dict = Depends(get_authenticated_user),
+):
     require_student(user)
     require_lab_assigned(user, lab_id)
-    result = analytics_service.student_results(user_student_id(user))
-    lab = next((item for item in result["labs"] if item["lab_id"] == lab_id), None)
-    detail = analytics_service.student_detail(user_student_id(user))
-    lab_detail = next((item for item in detail["labs"] if item["lab_id"] == lab_id), None)
-    if lab is None or lab_detail is None:
+    student_id = user_student_id(user)
+    result = analytics_service.student_results(student_id, group_id=group_id)
+    candidates = [item for item in result["labs"] if item["lab_id"] == lab_id]
+    if not candidates:
+        raise HTTPException(status_code=404, detail="Result not found")
+    if group_id is None and len(candidates) > 1:
+        names = ", ".join(
+            sorted({item.get("group_name") or str(item.get("group_id")) for item in candidates})
+        )
+        raise HTTPException(
+            status_code=400,
+            detail=f"This lab has results in multiple groups ({names}); specify group_id.",
+        )
+    lab = candidates[0]
+    detail = analytics_service.student_detail(student_id, group_id=group_id)
+    lab_detail = next(
+        (
+            item
+            for item in detail["labs"]
+            if item["lab_id"] == lab_id and item["group_id"] == lab["group_id"]
+        ),
+        None,
+    )
+    if lab_detail is None:
         raise HTTPException(status_code=404, detail="Result not found")
     return {**lab, **lab_detail}
 

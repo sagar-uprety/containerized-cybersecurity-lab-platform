@@ -283,6 +283,19 @@ def student_detail(student_id: str, group_id=None, group_ids=None):
             session, group_id=group_id, group_ids=group_ids, student_id=student_id
         )
         _prime_evidence_cache(session, obligations)
+        # Batch the Group lookup rather than querying once per obligation --
+        # obligations for the same student commonly repeat a handful of groups.
+        obligation_group_ids = {item.group_id for item in obligations}
+        groups_by_id = (
+            {
+                group.id: group
+                for group in session.scalars(
+                    select(Group).where(Group.id.in_(obligation_group_ids))
+                ).all()
+            }
+            if obligation_group_ids
+            else {}
+        )
         labs = []
         for obligation in obligations:
             sessions = _linked_sessions(session, obligation.id)
@@ -295,11 +308,15 @@ def student_detail(student_id: str, group_id=None, group_ids=None):
             ]
             latest_current = current_checks[-1] if current_checks else None
             first_pass = next((check for check in checks if check.passed), None)
+            group = groups_by_id.get(obligation.group_id)
             labs.append(
                 {
                     "lab_id": obligation.lab_id,
                     "lab_title": _title(obligation.lab_id),
                     "assignment_id": obligation.id,
+                    "group_id": obligation.group_id,
+                    "group_name": group.name if group else None,
+                    "semester": group.semester if group else None,
                     "ever_passed": _achieved(session, obligation),
                     "first_pass_at": _iso(first_pass.occurred_at) if first_pass else None,
                     "latest_check": (
@@ -818,8 +835,8 @@ def recent_activity(student_ids: set[str], limit: int = 10):
         ]
 
 
-def student_results(student_id: str):
-    detail = student_detail(student_id)
+def student_results(student_id: str, group_id=None):
+    detail = student_detail(student_id, group_id=group_id)
     labs = []
     for lab in detail["labs"]:
         runtime = sum(item.get("duration_seconds") or 0 for item in lab["sessions"])
@@ -831,6 +848,10 @@ def student_results(student_id: str):
             {
                 "lab_id": lab["lab_id"],
                 "lab_title": lab["lab_title"],
+                "assignment_id": lab["assignment_id"],
+                "group_id": lab["group_id"],
+                "group_name": lab["group_name"],
+                "semester": lab["semester"],
                 "result": "passed"
                 if lab["ever_passed"]
                 else "failed"

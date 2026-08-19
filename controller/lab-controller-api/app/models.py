@@ -3,8 +3,14 @@ Identity model:
 - A student logs in with `email`; the system also holds an internal `studentNN`
   id and a stable unique `number` used for deterministic port allocation and
   container naming (labctl expects `student([0-9]{2,4})`).
-- Labs are assigned to groups only. A student's visible labs are the union of
-  lab assignments across every group they belong to.
+- Labs are assigned to groups only, and a student may belong to several groups
+  at once (including several in the same semester). The same lab assigned to two
+  of a student's groups produces two independent obligations: the student sees
+  it twice and must run it once per group, and each run's evidence counts for
+  exactly one group. `lab_sessions.group_id` records which group a run was for.
+- The runtime is still one container per (student, lab) because labctl derives
+  container names from the student number and lab id, so only one group's run of
+  a given lab can be live at a time.
 - The portal-login password (PBKDF2-HMAC-SHA256 hash) is distinct from the lab/SSH
   password used inside workstation containers on x01.
 """
@@ -155,6 +161,13 @@ class LabSession(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     student_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
     lab_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    # Which group this run counts for. A student enrolled in two groups that both
+    # assign this lab runs it once per group and each run credits only its own
+    # group. NULL means a pre-multi-group row: those keep the historical
+    # fan-out (credited to every obligation) so old results stay intact.
+    group_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("groups.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     started_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, index=True)
     ended_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     outcome: Mapped[str] = mapped_column(String, nullable=False, default="running")
@@ -168,6 +181,14 @@ class RuntimeLease(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     student_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
     lab_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    # The lease id stays `{lab_id}:{student_id}` because the container name is
+    # derived from the student number and lab id -- one physical instance per
+    # (student, lab) regardless of how many groups assign it. group_id records
+    # which group the live instance is currently bound to, so starting the same
+    # lab for a second group while one is running can be rejected.
+    group_id: Mapped[Optional[int]] = mapped_column(
+        ForeignKey("groups.id", ondelete="SET NULL"), nullable=True, index=True
+    )
     status: Mapped[str] = mapped_column(String, nullable=False, index=True)
     session_id: Mapped[Optional[str]] = mapped_column(
         ForeignKey("lab_sessions.id", ondelete="SET NULL"), nullable=True, index=True
