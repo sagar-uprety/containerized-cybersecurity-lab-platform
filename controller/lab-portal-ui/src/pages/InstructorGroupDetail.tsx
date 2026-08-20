@@ -294,18 +294,15 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
           </div>
 
           <div className="mt-auto">
-            {overdue ? (
-              <Badge className="border-transparent bg-warning-bg text-warning">
-                Ended {deadline ? new Date(deadline).toLocaleDateString() : ""}
-              </Badge>
-            ) : (
-              <DeadlinePicker
-                deadline={deadline}
-                busy={!!busy}
-                saving={busy === `deadline-${labId}`}
-                onSave={(iso) => handleUpdateDeadline(labId, iso)}
-              />
-            )}
+            {/* Always the picker, even when overdue: an already-past deadline
+                must stay editable to a future value, not dead-end in a badge. */}
+            <DeadlinePicker
+              deadline={deadline}
+              labTitle={meta?.title || labId}
+              busy={!!busy}
+              saving={busy === `deadline-${labId}`}
+              onSave={(iso) => handleUpdateDeadline(labId, iso)}
+            />
           </div>
         </CardContent>
       </Card>

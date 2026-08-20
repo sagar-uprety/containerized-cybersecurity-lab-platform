@@ -37,6 +37,75 @@ def student_number(student_id: str, user: Optional[dict] = None) -> int:
     return int(match.group(1))
 
 
+_DESCRIPTION_SUSPICIOUS_PREFIXES = (
+    "```",
+    "![",
+    ">",
+    "|",
+    "- ",
+    "* ",
+    "+ ",
+    "<!--",
+    "<",
+    "1. ",
+)
+
+
+def _clean_markdown_inline(text: str) -> str:
+    """Strip common inline markdown (emphasis, inline code, links) so the
+    extracted paragraph reads as plain prose on a catalogue card instead of
+    carrying literal asterisks/backticks through."""
+    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+    text = re.sub(r"\*(.+?)\*", r"\1", text)
+    text = re.sub(r"`(.+?)`", r"\1", text)
+    return re.sub(r"\[(.+?)\]\([^)]+\)", r"\1", text)
+
+
+def _extract_first_paragraph(markdown: str) -> Optional[str]:
+    """Pull the first prose paragraph out of a student guide: the text between
+    the `# H1` title and the next blank line/heading. Wrapped lines are joined
+    with spaces. Returns None rather than a mangled string when the guide
+    doesn't match the expected shape (no H1 on the first line, nothing after
+    it, or the first block is itself structural -- a code fence, image,
+    blockquote/admonition, list, or HTML comment) so callers can fall back
+    cleanly instead of showing garbage on a card."""
+    lines = markdown.splitlines()
+    if not lines or not lines[0].startswith("# "):
+        return None
+    i = 1
+    while i < len(lines) and lines[i].strip() == "":
+        i += 1
+    para_lines = []
+    while i < len(lines):
+        stripped = lines[i].strip()
+        if stripped == "" or stripped.startswith("#"):
+            break
+        para_lines.append(stripped)
+        i += 1
+    if not para_lines:
+        return None
+    paragraph = " ".join(para_lines)
+    if paragraph.startswith(_DESCRIPTION_SUSPICIOUS_PREFIXES):
+        return None
+    return _clean_markdown_inline(paragraph)
+
+
+@cache
+def load_lab_description(lab_id: str) -> Optional[str]:
+    """Short instructor-catalogue description for a lab, sourced from the
+    student guide's opening paragraph rather than scenario.yaml -- the guide
+    is the copy that's actually kept current, and a second copy in YAML would
+    drift out of sync with it. Cached per lab_id for the life of the process
+    (mirrors load_scenario_metadata below): the catalogue lists every lab on
+    each request, so this must not re-read and re-parse markdown in a loop.
+    """
+    validate_lab_id(lab_id)
+    path = Path(settings.LABS_DIR) / lab_id / "docs" / "student-guide.md"
+    if not path.exists():
+        return None
+    return _extract_first_paragraph(path.read_text(encoding="utf-8"))
+
+
 @cache
 def load_scenario_metadata(lab_id: str):
     validate_lab_id(lab_id)

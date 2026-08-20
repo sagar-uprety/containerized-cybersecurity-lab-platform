@@ -116,7 +116,7 @@ export default function AdminSystemUsage({ user, onLogout }: Props) {
     <AdminLayout user={user} onLogout={onLogout}>
       <PageHeader
         title="System Usage"
-        description="Live CPU, memory, storage, and running-lab count across the lab worker (x01) and management host (x02)."
+        description="Live CPU, memory, and running-lab count on the lab worker (x01), plus storage on both hosts."
         actions={
           <Button variant="outline" size="sm" onClick={refresh} disabled={refreshing}>
             <RefreshCw className={cn(refreshing && "animate-spin")} /> Refresh
@@ -143,13 +143,17 @@ export default function AdminSystemUsage({ user, onLogout }: Props) {
             />
             <StatCard
               icon={Cpu}
-              label="CPU usage"
+              label="Worker CPU"
               value={`${status.cpu_percent}%`}
+              // Averaged across all of the worker's cores, so a single busy
+              // lab moves this very little -- read it as headroom, not as
+              // whether anything is happening.
+              description="Averaged across all worker cores"
               tone={usageTone(status.cpu_percent) === "danger" ? "danger" : "default"}
             />
             <StatCard
               icon={MemoryStick}
-              label="Memory usage"
+              label="Worker memory"
               value={`${status.memory_percent}%`}
               description={`${status.memory_used_mb.toLocaleString()} / ${status.memory_total_mb.toLocaleString()} MB`}
               tone={usageTone(status.memory_percent) === "danger" ? "danger" : "default"}

@@ -24,7 +24,6 @@ const InstructorOverview = lazy(() => import("./pages/InstructorOverview"));
 const InstructorGroups = lazy(() => import("./pages/InstructorGroups"));
 const InstructorLabDetail = lazy(() => import("./pages/InstructorLabDetail"));
 const InstructorFeedback = lazy(() => import("./pages/InstructorFeedback"));
-const InstructorLabGuides = lazy(() => import("./pages/InstructorLabGuides"));
 const InstructorLabCatalogue = lazy(() => import("./pages/InstructorLabCatalogue"));
 const InstructorGroupDetail = lazy(() => import("./pages/InstructorGroupDetail"));
 const InstructorGroupStudentDetail = lazy(() => import("./pages/InstructorGroupStudentDetail"));
@@ -60,19 +59,13 @@ function parseRoute(): Route {
   const groupAnalyticsMatch = path.match(/^\/instructor\/groups\/(\d+)\/analytics\/?$/);
   if (groupAnalyticsMatch) return { page: "instructor-analytics", groupId: parseInt(groupAnalyticsMatch[1], 10) };
 
-  // These literal-suffix routes must be checked BEFORE the generic two-segment
-  // session-detail match below, which would otherwise swallow them (its
-  // `([^/]+)` happily matches the literal "feedback"/"guides" segment as if it
-  // were a student id). This was already true for /feedback before this change
-  // added /guides - the ordering here is what makes both resolve correctly.
+  // This literal-suffix route must be checked BEFORE the generic two-segment
+  // session-detail match below, which would otherwise swallow it (its
+  // `([^/]+)` happily matches the literal "feedback" segment as if it were a
+  // student id).
   const instructorLabFeedbackMatch = path.match(/^\/instructor\/labs\/([^/]+)\/feedback\/?$/);
   if (instructorLabFeedbackMatch) {
     return { page: "instructor-lab-feedback", labId: instructorLabFeedbackMatch[1] };
-  }
-
-  const instructorLabGuidesMatch = path.match(/^\/instructor\/labs\/([^/]+)\/guides\/?$/);
-  if (instructorLabGuidesMatch) {
-    return { page: "instructor-lab-guides", labId: instructorLabGuidesMatch[1] };
   }
 
   const instructorSessionMatch = path.match(/^\/instructor\/labs\/([^/]+)\/([^/]+)\/?$/);
@@ -302,9 +295,6 @@ function AppContent() {
       break;
     case "instructor-lab-feedback":
       page = <InstructorFeedback user={user} labId={route.labId!} onLogout={handleLogout} />;
-      break;
-    case "instructor-lab-guides":
-      page = <InstructorLabGuides user={user} labId={route.labId!} onLogout={handleLogout} />;
       break;
     case "instructor-lab-catalogue":
       page = <InstructorLabCatalogue user={user} onLogout={handleLogout} />;

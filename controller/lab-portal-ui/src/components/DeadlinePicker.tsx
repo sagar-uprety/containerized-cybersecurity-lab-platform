@@ -1,15 +1,19 @@
 import { useState, useEffect } from "react";
-import { CalendarIcon, X } from "lucide-react";
+import { Pencil, X } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import IconButton from "./IconButton";
 import ConfirmModal from "./ConfirmModal";
 import { cn } from "@/lib/utils";
 
 interface DeadlinePickerProps {
   deadline: string | null;
+  /** Used only to build accessible labels for the edit/remove icon buttons
+   *  (e.g. "Edit deadline for Buffer Overflow Basics"). */
+  labTitle: string;
   busy?: boolean;
   saving?: boolean;
   onSave: (iso: string | null) => void;
@@ -20,7 +24,20 @@ function fmtTrigger(d: Date): string {
     ", " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" });
 }
 
-export default function DeadlinePicker({ deadline, busy, saving, onSave }: DeadlinePickerProps) {
+function withTime(date: Date, time: string): Date {
+  const [h, m] = time.split(":").map(Number);
+  const combined = new Date(date);
+  combined.setHours(h || 0, m || 0, 0, 0);
+  return combined;
+}
+
+const startOfToday = () => {
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  return d;
+};
+
+export default function DeadlinePicker({ deadline, labTitle, busy, saving, onSave }: DeadlinePickerProps) {
   const origDate = deadline ? new Date(deadline) : null;
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState<Date | undefined>(origDate && !isNaN(origDate.getTime()) ? origDate : undefined);
@@ -32,69 +49,75 @@ export default function DeadlinePicker({ deadline, busy, saving, onSave }: Deadl
     setTime(next ? next.toTimeString().slice(0, 5) : "23:59");
   }, [deadline]);
 
+  // isOverdue reflects the SAVED deadline (origDate), so the trigger can flag
+  // an already-past deadline. combinedIsPast reflects the date/time currently
+  // being EDITED in the popover - it must stay editable to a future value
+  // even when origDate itself is in the past, so the two are judged separately.
   const isOverdue = !!(origDate && origDate < new Date());
   const [pendingSave, setPendingSave] = useState<string | null>(null);
   const [pendingClear, setPendingClear] = useState(false);
 
+  const combined = date ? withTime(date, time) : undefined;
+  const combinedIsPast = !!combined && combined.getTime() <= Date.now();
+  const isSelectedToday = date ? date.toDateString() === new Date().toDateString() : false;
+
   function commit(nextDate: Date | undefined, nextTime: string) {
-    setOpen(false);
     if (!nextDate) {
+      setOpen(false);
       setPendingClear(true);
       return;
     }
-    const [h, m] = nextTime.split(":").map(Number);
-    const combined = new Date(nextDate);
-    combined.setHours(h || 0, m || 0, 0, 0);
-    setPendingSave(combined.toISOString());
+    const combinedDate = withTime(nextDate, nextTime);
+    // Belt-and-suspenders: the Save button is already disabled while the
+    // picked value is in the past, but don't let a stale click through.
+    if (combinedDate.getTime() <= Date.now()) return;
+    setOpen(false);
+    setPendingSave(combinedDate.toISOString());
   }
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          disabled={busy}
-          className={cn(
-            "gap-1.5 font-normal",
-            isOverdue && "border-destructive/40 bg-destructive-bg text-destructive",
-            origDate && !isOverdue && "border-primary/30 bg-accent text-primary"
-          )}
-        >
-          <CalendarIcon className="size-3.5" />
-          {saving ? "Saving…" : origDate ? fmtTrigger(origDate) : "Set deadline"}
-        </Button>
-      </PopoverTrigger>
-      {origDate && !saving && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          disabled={busy}
-          aria-label="Remove deadline"
-          onClick={() => setPendingClear(true)}
-        >
-          <X />
-        </Button>
-      )}
-      <PopoverContent align="end" className="w-auto">
-        <Calendar mode="single" selected={date} onSelect={setDate} autoFocus />
-        <div className="flex items-center gap-2 border-t border-border pt-2.5">
-          <Label htmlFor="deadline-time" className="text-xs text-muted-foreground">Time</Label>
-          <Input
-            id="deadline-time"
-            type="time"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
-            className="h-8 w-auto"
+    <div className="flex items-center gap-1">
+      <span className={cn("text-sm", isOverdue ? "font-medium text-warning" : origDate ? "text-foreground" : "text-muted-foreground")}>
+        {saving ? "Saving…" : origDate ? fmtTrigger(origDate) : "No deadline set"}
+        {isOverdue && !saving && " · passed"}
+      </span>
+
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <IconButton icon={Pencil} label={`Edit deadline for ${labTitle}`} disabled={busy} />
+        </PopoverTrigger>
+        <PopoverContent align="start" className="w-auto">
+          <Calendar
+            mode="single"
+            selected={date}
+            onSelect={setDate}
+            disabled={{ before: startOfToday() }}
+            autoFocus
           />
-        </div>
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
-          <Button type="button" size="sm" disabled={!date} onClick={() => commit(date, time)}>Save</Button>
-        </div>
-      </PopoverContent>
+          <div className="flex items-center gap-2 border-t border-border pt-2.5">
+            <Label htmlFor="deadline-time" className="text-xs text-muted-foreground">Time</Label>
+            <Input
+              id="deadline-time"
+              type="time"
+              value={time}
+              min={isSelectedToday ? new Date().toTimeString().slice(0, 5) : undefined}
+              onChange={(e) => setTime(e.target.value)}
+              className="h-8 w-auto"
+            />
+          </div>
+          {combinedIsPast && (
+            <p className="text-xs text-destructive">Pick a date and time in the future.</p>
+          )}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" size="sm" onClick={() => setOpen(false)}>Cancel</Button>
+            <Button type="button" size="sm" disabled={!date || combinedIsPast} onClick={() => commit(date, time)}>Save</Button>
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {origDate && !saving && (
+        <IconButton icon={X} label={`Remove deadline for ${labTitle}`} onClick={() => setPendingClear(true)} disabled={busy} />
+      )}
 
       <ConfirmModal
         open={pendingSave != null}
@@ -114,6 +137,6 @@ export default function DeadlinePicker({ deadline, busy, saving, onSave }: Deadl
         onConfirm={() => { onSave(null); setPendingClear(false); }}
         onCancel={() => setPendingClear(false)}
       />
-    </Popover>
+    </div>
   );
 }

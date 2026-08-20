@@ -5,7 +5,7 @@ from __future__ import annotations
 import os
 import sys
 import tempfile
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -77,6 +77,7 @@ def main() -> None:
             ]
         )
         archived_group_id = archived_group.id
+        instructor_id = instructor.id
         session.commit()
 
     with TestClient(app) as client:
@@ -152,6 +153,95 @@ def main() -> None:
         )
         assert instructor_login.status_code == 200, instructor_login.text
         assert client.get("/api/workstation-access").status_code == 403
+
+        # --- Task 2 contract: POST /api/instructor/groups/{id}/labs rejects
+        # a new deadline that is strictly in the past, accepts a future one,
+        # keeps clearing the deadline working, and never blocks moving an
+        # already-lapsed STORED deadline forward. ---
+        from sqlalchemy import select  # noqa: PLC0415
+
+        with SessionLocal() as session:
+            api_group = Group(
+                name="Deadline API contract group", semester="SS 2026", owner_id=instructor_id
+            )
+            session.add(api_group)
+            session.flush()
+            # Pre-existing assignment whose deadline has already lapsed --
+            # editing it forward (below) must still succeed even though it
+            # started out in the past.
+            session.add(
+                GroupLab(
+                    group_id=api_group.id,
+                    lab_id=archived_lab_id,
+                    deadline=datetime(2000, 1, 1, tzinfo=timezone.utc),
+                )
+            )
+            api_group_id = api_group.id
+            session.commit()
+
+        csrf = client.get("/api/instructor/csrf").json()["csrf_token"]
+
+        def group_lab_deadline(target_lab_id: str):
+            with SessionLocal() as query_session:
+                row = query_session.execute(
+                    select(GroupLab).where(
+                        GroupLab.group_id == api_group_id, GroupLab.lab_id == target_lab_id
+                    )
+                ).scalar_one_or_none()
+                return row.deadline if row else None
+
+        # A deadline strictly in the past is rejected with a clear 400, and
+        # nothing is written.
+        past = (datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+        rejected = client.post(
+            f"/api/instructor/groups/{api_group_id}/labs",
+            json={"lab_id": lab_id, "deadline": past, "csrf_token": csrf},
+        )
+        assert rejected.status_code == 400, rejected.text
+        assert "past" in rejected.json()["detail"].lower()
+        assert group_lab_deadline(lab_id) is None, "rejected deadline was written anyway"
+
+        # Ordinary clock skew (a few seconds behind the server) must not be
+        # rejected -- the tolerance is a 1-minute grace.
+        near_now = (datetime.now(timezone.utc) - timedelta(seconds=5)).isoformat()
+        skew_ok = client.post(
+            f"/api/instructor/groups/{api_group_id}/labs",
+            json={"lab_id": lab_id, "deadline": near_now, "csrf_token": csrf},
+        )
+        assert skew_ok.status_code == 200, skew_ok.text
+
+        # A future deadline is accepted and stored.
+        future = (datetime.now(timezone.utc) + timedelta(days=7)).isoformat()
+        accepted = client.post(
+            f"/api/instructor/groups/{api_group_id}/labs",
+            json={"lab_id": lab_id, "deadline": future, "csrf_token": csrf},
+        )
+        assert accepted.status_code == 200, accepted.text
+        stored = group_lab_deadline(lab_id)
+        assert stored is not None
+        assert stored.replace(tzinfo=timezone.utc) > datetime.now(timezone.utc)
+
+        # Clearing a deadline (None) keeps working.
+        cleared = client.post(
+            f"/api/instructor/groups/{api_group_id}/labs",
+            json={"lab_id": lab_id, "deadline": None, "csrf_token": csrf},
+        )
+        assert cleared.status_code == 200, cleared.text
+        assert group_lab_deadline(lab_id) is None
+
+        # Editing an assignment whose STORED deadline is already in the past
+        # must not become impossible -- moving it forward is exactly how an
+        # instructor fixes a bad deadline. Validation must judge only the
+        # incoming value, never the value already on record.
+        assert group_lab_deadline(archived_lab_id) is not None  # sanity: still year 2000
+        fixed = client.post(
+            f"/api/instructor/groups/{api_group_id}/labs",
+            json={"lab_id": archived_lab_id, "deadline": future, "csrf_token": csrf},
+        )
+        assert fixed.status_code == 200, fixed.text
+        fixed_deadline = group_lab_deadline(archived_lab_id)
+        assert fixed_deadline is not None
+        assert fixed_deadline.replace(tzinfo=timezone.utc) > datetime.now(timezone.utc)
 
 
 if __name__ == "__main__":
