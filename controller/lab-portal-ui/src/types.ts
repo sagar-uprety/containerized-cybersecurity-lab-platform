@@ -268,17 +268,27 @@ export interface DiskUsage {
   percent: number;
 }
 
-export interface SystemStatus {
+export interface HostUsage {
+  /** Null when the host cannot report it (e.g. /proc unavailable). */
+  cpu_percent?: number | null;
+  /** What cpu_percent is averaged over. One busy core on a 64-core host is
+   *  ~1.6%, so the percentage is meaningless without this. */
+  cores?: number | null;
+  memory_percent?: number;
+  memory_used_mb?: number;
+  memory_total_mb?: number;
+  disks?: DiskUsage[];
+}
+
+/** Worker (x01) figures sit at the top level for backward compatibility; the
+ *  management host (x02) is nested under `portal`. */
+export interface SystemStatus extends HostUsage {
   running_labs: number;
   cpu_percent: number;
   memory_percent: number;
   memory_used_mb: number;
   memory_total_mb: number;
-  /** Worker (x01) filesystems. Absent until the worker runs a labctl build
-   *  that reports them. */
-  disks?: DiskUsage[];
-  /** Management host (x02) filesystems, read locally by the portal. */
-  portal_disks?: DiskUsage[];
+  portal?: HostUsage;
 }
 
 export interface InstructorLabInfo {

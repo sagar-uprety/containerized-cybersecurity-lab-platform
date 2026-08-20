@@ -5,6 +5,7 @@ import hmac
 import io
 import json
 import logging
+import os
 import re
 import shutil
 import threading
@@ -1383,6 +1384,62 @@ async def api_reset_instructor_password(
 _PORTAL_DISK_PATHS = ("/", str(Path(settings.PORTAL_DB_PATH).parent))
 
 
+def _read_proc_stat_totals() -> Optional[tuple[int, int]]:
+    """(idle, total) jiffies from /proc/stat, or None off Linux."""
+    try:
+        with Path("/proc/stat").open(encoding="utf-8") as handle:
+            line = handle.readline()
+    except OSError:
+        return None
+    values = [int(v) for v in line.split()[1:]]
+    if len(values) < 4:
+        return None
+    idle = values[3] + (values[4] if len(values) > 4 else 0)  # idle + iowait
+    return idle, sum(values)
+
+
+def _portal_cpu_percent(sample_seconds: float = 0.2) -> Optional[float]:
+    """Busy percentage for the management host, averaged over its cores.
+
+    Deliberately a local reimplementation rather than importing
+    labctl_core.system_status: the portal is not allowed to depend on the lab
+    runtime package (tools/pre_commit/validate_architecture_imports.py).
+    """
+    first = _read_proc_stat_totals()
+    if first is None:
+        return None
+    time.sleep(sample_seconds)
+    second = _read_proc_stat_totals()
+    if second is None:
+        return None
+    total_delta = second[1] - first[1]
+    if total_delta <= 0:
+        return 0.0
+    return round((1 - (second[0] - first[0]) / total_delta) * 100, 1)
+
+
+def _portal_memory_status() -> dict:
+    """Memory for the management host, or an empty dict off Linux."""
+    values: dict[str, int] = {}
+    try:
+        with Path("/proc/meminfo").open(encoding="utf-8") as handle:
+            for line in handle:
+                key, _, rest = line.partition(":")
+                fields = rest.strip().split()
+                if fields:
+                    values[key] = int(fields[0])  # kB
+    except OSError:
+        return {}
+    total_kb = values.get("MemTotal", 0)
+    available_kb = values.get("MemAvailable", values.get("MemFree", 0))
+    used_kb = max(total_kb - available_kb, 0)
+    return {
+        "memory_total_mb": round(total_kb / 1024),
+        "memory_used_mb": round(used_kb / 1024),
+        "memory_percent": round((used_kb / total_kb) * 100, 1) if total_kb else 0.0,
+    }
+
+
 def _portal_disk_status() -> list[dict]:
     """Disk usage for the management host, one entry per distinct filesystem."""
     by_device: dict[int, dict] = {}
@@ -1417,7 +1474,12 @@ def api_admin_system_status(user: dict = Depends(get_authenticated_user)):
     the admin able to see whether x02 is filling up.
     """
     require_admin(user)
-    portal_disks = _portal_disk_status()
+    portal = {
+        "cpu_percent": _portal_cpu_percent(),
+        "cores": os.cpu_count(),
+        "disks": _portal_disk_status(),
+        **_portal_memory_status(),
+    }
     ok, stdout, stderr = run_labctl_system_status()
     if not ok:
         raise HTTPException(status_code=502, detail=stderr or "worker unreachable")
@@ -1425,7 +1487,7 @@ def api_admin_system_status(user: dict = Depends(get_authenticated_user)):
         status = json.loads(stdout)
     except json.JSONDecodeError:
         raise HTTPException(status_code=502, detail="worker returned malformed status") from None
-    status["portal_disks"] = portal_disks
+    status["portal"] = portal
     return status
 
 

@@ -6,6 +6,7 @@ container labels every lab container already carries (see manifest.py).
 """
 
 import json
+import os
 import shutil
 import subprocess
 import time
@@ -120,6 +121,10 @@ def system_status() -> dict:
     return {
         "running_labs": running_lab_instances(),
         "cpu_percent": cpu_percent(),
+        # cpu_percent is averaged across every core, so on a large host a
+        # single busy lab barely registers. Report the core count so the
+        # dashboard can say what the percentage is a percentage of.
+        "cores": os.cpu_count(),
         **memory_status(),
         "disks": disk_status(),
     }
