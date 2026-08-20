@@ -17,7 +17,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
-import { ArrowRight, ChevronRight, Info } from "lucide-react";
+import { AlertTriangle, ArrowRight, ChevronRight, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface InstructorGroupStudentDetailProps {
@@ -56,6 +56,21 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
   const passedLabs = student?.labs?.filter((lab) => lab.ever_passed).length || 0;
   const checksSubmitted = student?.labs?.reduce((total, lab) => total + (lab.checks_submitted || 0), 0) || 0;
 
+  // The student-detail endpoint doesn't carry deadlines or review_reasons per lab
+  // (see StudentLabDetail) - only the group's own lab list does. Join on lab_id
+  // and apply the same rule the server uses for overdue_incomplete (analytics.py
+  // _review_reasons): deadline passed and never achieved.
+  const deadlineByLab = new Map((group?.labs || []).map((gl) => [gl.lab_id, gl.deadline]));
+  const now = Date.now();
+  function labDeadline(lab: StudentDetail["labs"][number]): string | undefined {
+    return deadlineByLab.get(lab.lab_id);
+  }
+  function isOverdue(lab: StudentDetail["labs"][number]): boolean {
+    const deadline = labDeadline(lab);
+    return !!deadline && new Date(deadline).getTime() < now && !lab.ever_passed;
+  }
+  const overdueCount = student?.labs?.filter(isOverdue).length || 0;
+
   return (
     <InstructorLayout user={user} onLogout={onLogout} groupContext={{ id: groupId, name: group?.name, hasPending: !!group?.pending_members.length }}>
       <PageHeader
@@ -74,9 +89,16 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
         }
       />
 
-      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard value={student?.labs?.length || 0} label="Labs assigned" />
         <StatCard value={passedLabs} label="Passed before" description="Historical passes remain after reset" tone="success" />
+        <StatCard
+          icon={overdueCount > 0 ? AlertTriangle : undefined}
+          value={overdueCount}
+          label="Overdue labs"
+          description={overdueCount > 0 ? "Deadline passed, not yet passed" : "None past deadline"}
+          tone={overdueCount > 0 ? "danger" : "default"}
+        />
         <StatCard value={checksSubmitted} label="Student checks" />
         <StatCard value={totalSessions} label="Recorded sessions" />
       </div>
@@ -107,6 +129,8 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
         const orderedSessions = [...sessions].reverse();
         const currentPassed = lab.latest_check?.passed === true || lab.latest_check?.status === "fixed";
         const isOpen = expandedLabs.has(lab.lab_id);
+        const deadline = labDeadline(lab);
+        const overdue = isOverdue(lab);
 
         return (
           <section key={lab.lab_id} className="mb-8">
@@ -134,6 +158,11 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
                       Latest result: {currentPassed ? "passes" : lab.latest_check.status || "fails"}
                     </Badge>
                   ) : <Badge variant="outline">Latest result: not checked</Badge>}
+                  {overdue && (
+                    <Badge className="gap-1 border-transparent bg-destructive-bg text-destructive">
+                      <AlertTriangle className="size-3" /> Overdue - due {fmtTimestamp(deadline)}
+                    </Badge>
+                  )}
                 </div>
               </CollapsibleTrigger>
 

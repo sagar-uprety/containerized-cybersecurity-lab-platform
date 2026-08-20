@@ -6,7 +6,7 @@ import PageHeader from "../components/PageHeader";
 import Link from "../components/Link";
 import { getInstructorLabs } from "../api";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
-import { BookOpenCheck, ChevronRight, FlaskConical } from "lucide-react";
+import { ChevronRight, FlaskConical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,7 +35,7 @@ export default function InstructorLabCatalogue({ user, onLogout }: Props) {
     <InstructorLayout user={user} onLogout={onLogout}>
       <PageHeader
         title="Lab Catalogue"
-        description="Every lab scenario on the platform, with links to its guides - browse without assigning anything."
+        description="Every lab scenario on the platform, with links to its full details - browse without assigning anything."
         breadcrumbs={[{ label: "Dashboard", href: "/instructor" }, { label: "Lab Catalogue" }]}
       />
 
@@ -100,14 +100,11 @@ function LabCatalogueCard({ lab, sample }: { lab: InstructorLabInfo; sample?: bo
             </Badge>
           )}
         </div>
-        <div className="mt-auto space-y-1.5">
-          <Link
-            href={`/instructor/labs/${lab.id}/guides`}
-            className="flex items-center gap-2 text-sm text-primary hover:underline"
-          >
-            <BookOpenCheck className="size-3.5 shrink-0" /> View guides
-          </Link>
-          <Link href={`/instructor/labs/${lab.id}`} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+        {lab.description && (
+          <p className="line-clamp-3 text-sm text-muted-foreground">{lab.description}</p>
+        )}
+        <div className="mt-auto">
+          <Link href={`/instructor/labs/${lab.id}`} className="flex items-center gap-1 text-sm text-primary hover:underline">
             Full lab detail <ChevronRight className="size-3.5" />
           </Link>
         </div>

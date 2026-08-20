@@ -10,7 +10,7 @@ import shutil
 import threading
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -70,6 +70,7 @@ from app.scenarios import (
     instructor_guide_url,
     is_sample_lab,
     list_scenarios,
+    load_lab_description,
     load_scenario_metadata,
     solution_notes_url,
     student_guide_url,
@@ -1453,6 +1454,10 @@ def api_instructor_labs(user: dict = Depends(get_authenticated_user)):
                 "id": lab_id,
                 "title": scenario["title"],
                 "difficulty": scenario.get("difficulty"),
+                # Sourced from the student guide's opening paragraph, not
+                # scenario.yaml -- see load_lab_description. None when the
+                # guide doesn't parse cleanly; the UI falls back for that lab.
+                "description": load_lab_description(lab_id),
                 "active_sessions": active_count,
                 "total_students": total_students,
                 "student_guide_url": student_guide_url(scenario),
@@ -2128,6 +2133,14 @@ async def api_assign_lab(
                 deadline = deadline.replace(tzinfo=timezone.utc)
         except (ValueError, TypeError):
             raise HTTPException(status_code=400, detail="Invalid deadline format") from None
+        # Reject only a deadline meaningfully in the past -- this is always the
+        # NEW value being set (assign_lab upserts, so editing an assignment
+        # whose stored deadline already lapsed must still work; only the
+        # incoming value is checked). A 1-minute grace absorbs ordinary clock
+        # skew between browser and server so a deadline set for "now" doesn't
+        # bounce.
+        if _aware_utc(deadline) < datetime.now(timezone.utc) - timedelta(minutes=1):
+            raise HTTPException(status_code=400, detail="Deadline cannot be in the past")
     with SessionLocal() as session:
         if repo.get_owned_group(session, group_id, user["id"]) is None:
             raise HTTPException(status_code=404, detail="Group not found")
@@ -2519,17 +2532,11 @@ def instructor_lab_spa(lab_id: str):
     return _serve_spa()
 
 
+# Must stay registered before /instructor/labs/{lab_id}/{student_id} below:
+# routes match in registration order, and that catch-all would otherwise
+# swallow "feedback" as a student_id.
 @app.get("/instructor/labs/{lab_id}/feedback", response_class=HTMLResponse)
 def instructor_lab_feedback_spa(lab_id: str):
-    _ = lab_id
-    return _serve_spa()
-
-
-# Must be registered before /instructor/labs/{lab_id}/{student_id} below --
-# routes match in registration order, and that catch-all would otherwise
-# swallow "guides" as a student_id.
-@app.get("/instructor/labs/{lab_id}/guides", response_class=HTMLResponse)
-def instructor_lab_guides_spa(lab_id: str):
     _ = lab_id
     return _serve_spa()
 

@@ -291,6 +291,9 @@ export interface InstructorLabInfo {
   solution_notes_url?: string;
   instructor_guide_url?: string;
   is_sample?: boolean;
+  // Extracted server-side from the lab's student-guide markdown; not every
+  // lab has one yet, so treat as optional and render nothing when absent.
+  description?: string | null;
 }
 
 export interface InstructorFeedbackResponse {
