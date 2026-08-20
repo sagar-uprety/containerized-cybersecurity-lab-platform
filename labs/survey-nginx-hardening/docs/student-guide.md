@@ -1,12 +1,13 @@
-# Survey: Securing an Nginx Web Server
+# Securing an Nginx Web Server
 
 A colleague set up a small internal web server (nginx) in a hurry and asked you
 to tidy up **settings that are leaking more than they should**. You will look
 at the problem, change two lines, reload the server, and confirm it is fixed.
 
-> This lab is deliberately a step-by-step walkthrough. The real labs ask you
-> to investigate and figure out the fix yourself - here we just want you to try
-> the platform's features, and integrated terminal.
+> **Study-lab notice:** This is a real, deliberately short beginner lab. For the
+> study, the guide supplies the exact commands so every participant evaluates
+> the same platform workflow. Standard labs on this platform use guiding
+> questions and optional hints instead of providing the complete solution.
 
 ## Why This Matters
 
@@ -28,7 +29,7 @@ By the end of this lab you should be able to:
 
 ## Prerequisites
 
--   Basic linux terminal usage
+-   Basic Linux terminal usage
 -   The idea that a web server has a configuration file you can edit
 
 If you want a little background, these are optional:
@@ -39,17 +40,21 @@ If you want a little background, these are optional:
 
 ## Your Lab Environment
 
-One you "Start Lab", your browser terminal opens on the **workstation**. The **web server**
-(`nginx-host`) runs on the same small lab network.
+When you select **Start Lab**, the browser terminal opens on the
+**workstation**. The **web server** (`nginx-host`) runs on the same isolated lab
+network.
 
 What you will use:
 
--   `/lab/nginx/site.conf` - the web server's configuration file. You can open and edit it right here on the workstation (with `nano` or `vim`).
--   **Web-server login** - to reload nginx after editing, you log in to the server over SSH as `nginxadmin`. Its password is **your own lab password** (the one shown on the portal's Workstation Access page).
+-   `/lab/nginx/site.conf` - the web server's configuration file. You can open
+    and edit it on the workstation with `nano` or `vim`.
+-   **Web-server login** - to reload nginx after editing, log in to the server
+    over SSH as `nginxadmin`. Its password is **your own lab password**, shown
+    on the portal's **Workstation Access** page.
 
-Buttons you will use in the portal: **Start Lab**, **Run Check**, **Reset**, and
-**End Lab**. **Reset** puts everything back to the broken starting state, so use
-it only if you want to start over - not to apply your fix.
+The main portal controls are **Start Lab**, **Run Check**, **Reset**, and
+**End Lab**. **Reset** puts everything back to the vulnerable starting state, so
+use it only if you need to start over; it does not apply your fix.
 
 If the browser terminal does not open, use the SSH fallback endpoint shown on the
 portal's Workstation Access page.
@@ -87,19 +92,19 @@ You need to change **two lines** in `/lab/nginx/site.conf`, then reload nginx.
 **What to change:** in that file, `server_tokens on;` should become
 `server_tokens off;`, and `autoindex on;` should become `autoindex off;`.
 
-**Edit the config** Open the file with `nano /lab/nginx/site.conf`,
+**Edit the config.** Open the file with `nano /lab/nginx/site.conf`,
 change those two words from `on` to `off`, and save (`Ctrl-O`, `Enter`,
 `Ctrl-X`).
 
-You can also use vim or sed command if you are comfortable toe edit files.
+You may use `vim` or `sed` instead if you are comfortable with those tools.
 
 **Now reload nginx** so the change takes effect.
 
-For this, you need to log in (ssh) to the web server from the workstation and run
+For this, log in over SSH to the web server from the workstation and run
 its reload helper:
 
 ```bash
-# Use YOUR lab password when prompted (You can find this in the Workstation Access page from the left sidebar of the portal. This is going to say same for all lab that needs).
+# Use your lab password when prompted. Find it on Workstation Access in the portal.
 ssh nginxadmin@nginx-host 'sudo /usr/local/sbin/reload-nginx'
 ```
 
@@ -132,7 +137,7 @@ curl -s http://nginx-host:8080/
 ```
 
 When those look right, click **Run Check** in the portal. All checks should turn
-green (`fixed`). That's it - you've completed the warm-up.
+green (`fixed`). You have completed the lab.
 
 ## Real-World Context
 
@@ -146,9 +151,11 @@ attackers happily index (CWE-548). Turning both off is a one-line change each, a
 it is exactly the kind of quick win a real administrator applies during a
 hardening pass.
 
-The real labs on this platform go further - you investigate and figure out the
-fix yourself, across services like SSH, LDAP, firewalls, and databases. This
-warm-up was just to get you moving.
+Standard labs on this platform go further: you investigate the problem using
+guiding questions and optional hints, then work out the remediation across
+services such as SSH, LDAP, firewalls, and databases. Exact commands were
+provided here only to standardize the platform experience evaluated in the
+study.
 
 **Sources:**
 
@@ -158,6 +165,5 @@ warm-up was just to get you moving.
 
 ---
 
-_When you're done, end the lab through the portal (End Lab) and complete the short feedback
-form. Tell us how the platform itself felt to use - that is what this warm-up is
-for._
+_When you are done, select **End Lab** in the portal and complete the short
+feedback form. Please answer about the platform and guide you actually used._

@@ -161,7 +161,7 @@ export function submitFeedback(
     issueCategory?: string;
     groupId: number;
   }
-): Promise<unknown> {
+): Promise<{ ok: boolean; redirect?: string }> {
   return request(`/labs/${labId}/feedback`, {
     method: "POST",
     body: JSON.stringify({

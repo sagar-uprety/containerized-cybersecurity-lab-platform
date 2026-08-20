@@ -6,7 +6,7 @@ import PageHeader from "../components/PageHeader";
 import Link from "../components/Link";
 import { getInstructorLabs } from "../api";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
-import { BookOpen, FileText, GraduationCap, ChevronRight, FlaskConical } from "lucide-react";
+import { BookOpenCheck, ChevronRight, FlaskConical } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -35,7 +35,7 @@ export default function InstructorLabCatalogue({ user, onLogout }: Props) {
     <InstructorLayout user={user} onLogout={onLogout}>
       <PageHeader
         title="Lab Catalogue"
-        description="Every lab scenario on the platform, with its student guide, solution notes, and instructor guide - browse without assigning anything."
+        description="Every lab scenario on the platform, with links to its guides - browse without assigning anything."
         breadcrumbs={[{ label: "Dashboard", href: "/instructor" }, { label: "Lab Catalogue" }]}
       />
 
@@ -81,12 +81,6 @@ export default function InstructorLabCatalogue({ user, onLogout }: Props) {
 }
 
 function LabCatalogueCard({ lab, sample }: { lab: InstructorLabInfo; sample?: boolean }) {
-  const docLinks = [
-    { url: lab.student_guide_url, icon: BookOpen, title: "Student guide" },
-    { url: lab.solution_notes_url, icon: FileText, title: "Solution notes" },
-    { url: lab.instructor_guide_url, icon: GraduationCap, title: "Instructor guide" },
-  ];
-
   return (
     <Card>
       <CardContent className="flex h-full flex-col gap-3">
@@ -107,17 +101,12 @@ function LabCatalogueCard({ lab, sample }: { lab: InstructorLabInfo; sample?: bo
           )}
         </div>
         <div className="mt-auto space-y-1.5">
-          {docLinks.map(({ url, icon: Icon, title }) => url && (
-            <a
-              key={title}
-              href={url}
-              target="_blank"
-              rel="noreferrer"
-              className="flex items-center gap-2 text-sm text-primary hover:underline"
-            >
-              <Icon className="size-3.5 shrink-0" /> {title}
-            </a>
-          ))}
+          <Link
+            href={`/instructor/labs/${lab.id}/guides`}
+            className="flex items-center gap-2 text-sm text-primary hover:underline"
+          >
+            <BookOpenCheck className="size-3.5 shrink-0" /> View guides
+          </Link>
           <Link href={`/instructor/labs/${lab.id}`} className="flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
             Full lab detail <ChevronRight className="size-3.5" />
           </Link>

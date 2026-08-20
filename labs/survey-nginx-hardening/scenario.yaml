@@ -1,24 +1,26 @@
-# SURVEY / FAMILIARIZATION LAB - Securing an Nginx Web Server (Pattern A)
+# STUDY LAB - Securing an Nginx Web Server (Pattern A)
 #
-# Intentionally simple: a first-time student flips two real, documented nginx
+# Intentionally short and beginner-level: a first-time student flips two real,
+# documented nginx
 # information-disclosure weaknesses (server_tokens, autoindex) from on to off,
-# reloads, and re-checks. The point is to let survey participants exercise the
-# platform (Start / browser terminal / edit / reload / Run Check / Reset), not
-# to test deep skill. The student guide for this lab is a deliberate, explicit
-# walkthrough (the one exception to the reveal boundary), gated by the "survey-"
-# id prefix.
+# reloads, and re-checks. This lets study participants evaluate the complete
+# platform workflow without requiring advanced security knowledge. Exact
+# commands are supplied to standardize the evaluated experience; this is the
+# one exception to the production-lab reveal boundary, gated by the `survey-`
+# ID prefix.
 
 id: survey-nginx-hardening
-title: "Survey: Securing an Nginx Web Server"
+title: "Securing an Nginx Web Server"
 difficulty: beginner
 
 story:
   role: New IT support hire
   situation: >
-    Welcome. This short warm-up lab lets you try the platform end to end on a
-    small web server before the real exercises. A colleague set up an internal
-    nginx site quickly and asked you to tidy up two settings that are leaking
-    more than they should. Everything you need is spelled out in the guide.
+    A colleague set up an internal nginx site quickly and asked you to secure
+    two settings that reveal more information than they should. Investigate
+    both exposures, harden the configuration, reload the service, and verify
+    the result. The study guide supplies the exact commands so every participant
+    evaluates the same platform workflow.
 
 documentation:
   student_guide_url: /docs/labs/survey-nginx-hardening/

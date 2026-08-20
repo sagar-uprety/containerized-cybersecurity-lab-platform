@@ -788,6 +788,19 @@ def instructor_analytics(owner_group_ids, group_id=None, status="active"):
         }
 
 
+def students_assigned_lab(lab_id: str, group_ids=None) -> int:
+    """How many distinct students currently have this lab assigned.
+
+    Lets the feedback view distinguish "nobody has this lab" from "they have it
+    and have not responded" -- two states that otherwise render identically as
+    an empty page.
+    """
+    sync_assignment_obligations()
+    with SessionLocal() as session:
+        obligations = _obligations(session, group_ids=group_ids, lab_id=lab_id)
+        return len({item.student_id for item in obligations})
+
+
 def recent_activity(student_ids: set[str], limit: int = 10, redact_email: bool = False):
     """Lifecycle events for a set of students, newest first.
 

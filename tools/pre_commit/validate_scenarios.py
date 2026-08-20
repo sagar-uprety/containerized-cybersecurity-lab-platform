@@ -396,9 +396,9 @@ def validate_lab_docs(
         if not solution_bash:
             errors.append(f"{solution_notes}: must contain student-executable bash blocks")
 
-        # Survey/familiarization labs are the deliberate exception to the reveal
-        # boundary: they are explicit guided walkthroughs so a first-time student
-        # can tour the platform, so their student guide MAY show the exact fix.
+        # Study labs with a `survey-` ID are the deliberate exception to the
+        # reveal boundary: exact commands standardize the platform workflow that
+        # first-time participants evaluate, without requiring scenario knowledge.
         # Skip the remediation-duplication anti-spoiler check for them.
         is_survey_lab = lab_id.startswith("survey-")
 

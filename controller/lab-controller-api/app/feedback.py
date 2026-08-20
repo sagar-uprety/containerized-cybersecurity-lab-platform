@@ -253,6 +253,18 @@ def save_feedback(
     return response_id
 
 
+def session_group_id(session_id: str) -> Optional[int]:
+    # A student can run the same lab under more than one group, so the group
+    # has to come from the session the feedback is actually attached to (not
+    # e.g. the runtime lease, which only reflects the most recent run) --
+    # lets the post-feedback redirect land on the right group's results.
+    if not session_id:
+        return None
+    with SessionLocal() as session:
+        lab_session = session.get(LabSession, session_id)
+        return lab_session.group_id if lab_session else None
+
+
 def feedback_exists(lab_id: str, student_id: str, session_id: str) -> bool:
     if not session_id:
         return False

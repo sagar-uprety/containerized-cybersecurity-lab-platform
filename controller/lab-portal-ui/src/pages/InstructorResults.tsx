@@ -11,12 +11,14 @@ import { fmtTime } from "../utils/time";
 import { navigate } from "../utils/navigate";
 import { AlertTriangle, ArrowRight, Search } from "lucide-react";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
+import { badgeVariants } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 interface Props {
   user: User;
@@ -31,7 +33,12 @@ export default function InstructorResults({ user, groupId, onLogout }: Props) {
   const [group, setGroup] = useState<GroupDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState("all");
+  // Seeded from ?status= so the "Overdue incomplete" stat card on the group
+  // detail page can deep-link straight into the filtered view.
+  const [status, setStatus] = useState(() => {
+    const s = new URLSearchParams(window.location.search).get("status");
+    return s && ["needs-review", "overdue", "in-progress", "passed"].includes(s) ? s : "all";
+  });
 
   useDocumentTitle(group ? `Results - ${group.name}` : "Student Results");
 
@@ -95,24 +102,61 @@ export default function InstructorResults({ user, groupId, onLogout }: Props) {
         <Card className="gap-0 divide-y divide-border py-0">
           {filtered.map((row) => {
             const pct = row.labs_assigned > 0 ? Math.round((row.labs_passed / row.labs_assigned) * 100) : 0;
+            const overdueLabs = (row.review_reasons || []).filter((r) => r.code === "overdue_incomplete");
             return (
-              <button key={row.student_id} type="button" onClick={() => openStudent(row)} className="flex w-full items-center gap-3 p-3 text-left transition-colors hover:bg-accent/40 focus-visible:bg-accent/40 focus-visible:outline-none">
-                <Avatar size="sm"><AvatarFallback className="bg-accent text-primary">{(row.email || row.student_id).charAt(0).toUpperCase()}</AvatarFallback></Avatar>
+              // The row used to BE the <button>. It can't stay one now that it also hosts
+              // an interactive Popover trigger (a <button> can't contain a <button>). Instead
+              // the row is a plain positioned container with a full-bleed invisible button
+              // ("stretched link" pattern) for the row-level navigation, and the Overdue
+              // trigger sits on top of it via z-index so it intercepts its own clicks/keyboard
+              // focus independently - the two controls are siblings, never nested.
+              <div key={row.student_id} className="relative flex w-full items-center gap-3 p-3 transition-colors hover:bg-accent/40 has-[:focus-visible]:bg-accent/40">
+                <button
+                  type="button"
+                  onClick={() => openStudent(row)}
+                  aria-label={`View history for ${row.email || row.student_id}`}
+                  className="absolute inset-0 rounded-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset"
+                />
+                <Avatar size="sm" className="pointer-events-none"><AvatarFallback className="bg-accent text-primary">{(row.email || row.student_id).charAt(0).toUpperCase()}</AvatarFallback></Avatar>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-2">
-                    <span className="truncate text-sm font-medium">{row.email || row.student_id}</span>
-                    {row.at_risk && <Badge className="border-transparent bg-destructive-bg text-destructive"><AlertTriangle /> Overdue</Badge>}
+                    <span className="pointer-events-none truncate text-sm font-medium">{row.email || row.student_id}</span>
+                    {row.at_risk && (
+                      <Popover>
+                        <PopoverTrigger
+                          onClick={(e) => e.stopPropagation()}
+                          className={cn(
+                            badgeVariants(),
+                            "relative z-10 cursor-pointer border-transparent bg-destructive-bg text-destructive",
+                          )}
+                        >
+                          <AlertTriangle /> Overdue
+                        </PopoverTrigger>
+                        <PopoverContent align="start" className="w-72" onClick={(e) => e.stopPropagation()}>
+                          <p className="text-sm font-medium text-foreground">Overdue labs</p>
+                          {overdueLabs.length > 0 ? (
+                            <ul className="space-y-1 text-sm text-muted-foreground">
+                              {overdueLabs.map((reason) => (
+                                <li key={reason.lab_id || reason.lab_title}>{reason.lab_title || reason.label}</li>
+                              ))}
+                            </ul>
+                          ) : (
+                            <p className="text-sm text-muted-foreground">No specific lab details available.</p>
+                          )}
+                        </PopoverContent>
+                      </Popover>
+                    )}
                   </div>
-                  <div className="truncate text-xs text-muted-foreground">{group?.name || row.groups?.map((item) => item.name).join(", ") || row.student_id}</div>
+                  <div className="pointer-events-none truncate text-xs text-muted-foreground">{group?.name || row.groups?.map((item) => item.name).join(", ") || row.student_id}</div>
                 </div>
-                <div className="grid shrink-0 grid-cols-3 items-center gap-6 text-right text-xs text-muted-foreground">
+                <div className="pointer-events-none grid shrink-0 grid-cols-3 items-center gap-6 text-right text-xs text-muted-foreground">
                   <div><strong className="block text-sm text-foreground">{row.labs_started || 0}/{row.labs_assigned}</strong>Started</div>
                   <div><strong className="block text-sm text-foreground">{fmtTime(row.total_time_seconds)}</strong>Runtime</div>
                   <div><LastActiveBadge ts={row.last_active} /><span className="block">Active</span></div>
                 </div>
                 <ProgressRing pct={pct} size={44} strokeWidth={4} label={`${row.labs_passed}/${row.labs_assigned}`} />
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-primary">View history <ArrowRight className="size-3.5" /></span>
-              </button>
+                <span className="pointer-events-none inline-flex items-center gap-1 text-xs font-medium text-primary">View history <ArrowRight className="size-3.5" /></span>
+              </div>
             );
           })}
         </Card>

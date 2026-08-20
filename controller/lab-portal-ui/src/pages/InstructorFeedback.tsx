@@ -83,7 +83,21 @@ export default function InstructorFeedback({ user, labId, onLogout }: Props) {
 
       {summary.feedback_count === 0 && (
         <div className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
-          No feedback submitted for this lab yet.
+          {/* An empty page has two very different causes, and saying only "no
+              feedback" reads as a fault when the real answer is that nobody
+              has been given the lab yet. */}
+          {summary.assigned_students === 0 ? (
+            <>
+              None of your students have this lab assigned yet, so there is no
+              feedback to collect. Assign it to a group to start gathering responses.
+            </>
+          ) : (
+            <>
+              {summary.assigned_students} student{summary.assigned_students === 1 ? " has" : "s have"} this
+              lab assigned, but none have submitted feedback yet. Students are asked for
+              feedback after they end a lab.
+            </>
+          )}
         </div>
       )}
 
