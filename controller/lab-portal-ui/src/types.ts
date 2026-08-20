@@ -256,12 +256,29 @@ export interface FeedbackInfo {
   group?: { id: number | null; name: string | null; semester?: string | null };
 }
 
+export interface DiskUsage {
+  /** Paths that resolved to this filesystem. Several of the interesting paths
+   *  usually share one, so entries are deduplicated by device. Absent on the
+   *  portal's own entry, which reports a single path. */
+  labels?: string[];
+  path: string;
+  total_gb: number;
+  used_gb: number;
+  free_gb: number;
+  percent: number;
+}
+
 export interface SystemStatus {
   running_labs: number;
   cpu_percent: number;
   memory_percent: number;
   memory_used_mb: number;
   memory_total_mb: number;
+  /** Worker (x01) filesystems. Absent until the worker runs a labctl build
+   *  that reports them. */
+  disks?: DiskUsage[];
+  /** Management host (x02) filesystems, read locally by the portal. */
+  portal_disks?: DiskUsage[];
 }
 
 export interface InstructorLabInfo {
@@ -291,6 +308,9 @@ export interface InstructorFeedbackSummary {
   rating_distribution: Record<string, number> | null;
   issue_categories: Record<string, number> | null;
   responses: InstructorFeedbackResponse[];
+  /** Distinct students of this instructor who currently have the lab assigned.
+   *  Distinguishes "nobody has this lab" from "nobody has responded yet". */
+  assigned_students: number;
 }
 
 export interface InstructorLabDetailData {

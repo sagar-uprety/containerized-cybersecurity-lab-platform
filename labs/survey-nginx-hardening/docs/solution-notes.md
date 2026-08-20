@@ -1,6 +1,6 @@
-# Survey: Securing an Nginx Web Server - Solution Notes
+# Securing an Nginx Web Server - Solution Notes
 
-Answer key for the survey/familiarization lab. Not served to students.
+Answer key for the standardized study lab. Not served to students.
 
 ## Root Cause
 

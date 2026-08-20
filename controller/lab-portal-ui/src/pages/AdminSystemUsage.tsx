@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import type { User, SystemStatus } from "../types";
+import type { User, SystemStatus, DiskUsage } from "../types";
 import AdminLayout from "../components/AdminLayout";
 import AlertError from "../components/AlertError";
 import PageHeader from "../components/PageHeader";
 import StatCard from "../components/StatCard";
 import { getAdminSystemStatus } from "../api";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
-import { Cpu, MemoryStick, FlaskConical, RefreshCw } from "lucide-react";
+import { Cpu, MemoryStick, FlaskConical, RefreshCw, HardDrive } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -46,6 +46,44 @@ function UsageBar({ label, pct, detail }: { label: string; pct: number; detail?:
   );
 }
 
+function DiskGroup({
+  title,
+  caption,
+  disks,
+  missingNote,
+}: {
+  title: string;
+  caption: string;
+  disks?: DiskUsage[];
+  missingNote: string;
+}) {
+  return (
+    <div>
+      <div className="mb-2">
+        <div className="text-sm font-semibold text-foreground">{title}</div>
+        <div className="text-xs text-muted-foreground">{caption}</div>
+      </div>
+      {!disks || disks.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{missingNote}</p>
+      ) : (
+        <div className="space-y-4">
+          {disks.map((disk) => (
+            <UsageBar
+              key={disk.path}
+              // Every interesting path on these hosts currently sits on one
+              // filesystem, so show which paths a bar actually covers rather
+              // than implying each has its own capacity.
+              label={disk.labels?.length ? `${disk.path} (${disk.labels.join(", ")})` : disk.path}
+              pct={disk.percent}
+              detail={`${disk.used_gb} GB / ${disk.total_gb} GB - ${disk.free_gb} GB free`}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminSystemUsage({ user, onLogout }: Props) {
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -78,7 +116,7 @@ export default function AdminSystemUsage({ user, onLogout }: Props) {
     <AdminLayout user={user} onLogout={onLogout}>
       <PageHeader
         title="System Usage"
-        description="Live CPU, memory, and running-lab count on the lab worker (x01)."
+        description="Live CPU, memory, storage, and running-lab count across the lab worker (x01) and management host (x02)."
         actions={
           <Button variant="outline" size="sm" onClick={refresh} disabled={refreshing}>
             <RefreshCw className={cn(refreshing && "animate-spin")} /> Refresh
@@ -125,6 +163,26 @@ export default function AdminSystemUsage({ user, onLogout }: Props) {
                 label="Memory"
                 pct={status.memory_percent}
                 detail={`${status.memory_used_mb.toLocaleString()} MB / ${status.memory_total_mb.toLocaleString()} MB`}
+              />
+            </CardContent>
+          </Card>
+
+          <h2 className="mt-6 mb-3 flex items-center gap-2 text-lg font-semibold text-foreground">
+            <HardDrive className="size-4 text-muted-foreground" /> Storage
+          </h2>
+          <Card>
+            <CardContent className="space-y-5">
+              <DiskGroup
+                title="Lab worker (x01)"
+                caption="Lab images and container layers grow here."
+                disks={status.disks}
+                missingNote="The worker has not reported storage yet."
+              />
+              <DiskGroup
+                title="Management host (x02)"
+                caption="Portal database, backups, and evidence exports."
+                disks={status.portal_disks}
+                missingNote="No storage reported for the portal host."
               />
             </CardContent>
           </Card>

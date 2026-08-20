@@ -384,8 +384,9 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
                 icon={progress.total_at_risk > 0 ? AlertTriangle : undefined}
                 label="Overdue incomplete"
                 value={progress.total_at_risk}
-                description="Overdue assignment, never passed"
+                description={progress.total_at_risk > 0 ? "Overdue assignment, never passed - see who" : "Overdue assignment, never passed"}
                 tone={progress.total_at_risk > 0 ? "danger" : "default"}
+                href={progress.total_at_risk > 0 ? `/instructor/groups/${groupId}/results?status=overdue` : undefined}
               />
               <StatCard
                 label="Check submission coverage"

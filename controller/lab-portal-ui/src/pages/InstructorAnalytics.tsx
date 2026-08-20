@@ -1,18 +1,48 @@
 import { useEffect, useState } from "react";
-import type { GroupDetail, InstructorAnalyticsData, User } from "../types";
+import type { GroupDetail, InstructorAnalyticsData, StudentProgress, User } from "../types";
 import InstructorLayout from "../components/InstructorLayout";
 import AlertError from "../components/AlertError";
 import PageHeader from "../components/PageHeader";
 import StatCard from "../components/StatCard";
 import { ActiveStudentsTrendChart, CompletionTrendChart, LabBottleneckChart, LabComparisonChart, SessionTrendChart } from "../components/AnalyticsCharts";
-import { getGroupDetail, getInstructorAnalytics } from "../api";
+import { getGroupDetail, getGroupProgress, getInstructorAnalytics } from "../api";
 import { navigate } from "../utils/navigate";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
 import { Activity, AlertTriangle, CheckCircle2, Clock3, Radio } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+// Shared by both drill-down popovers below (the scoped group's KPI card, and
+// each row of the cross-group table). Progress is fetched lazily per group id
+// - only when a popover is actually opened - and never eagerly for the whole
+// table, since that could mean one fetch per group on every page load.
+function OverdueStudentsList({ loading, error, students }: { loading: boolean; error?: string; students?: StudentProgress[] }) {
+  if (loading) return <p className="text-sm text-muted-foreground">Loading…</p>;
+  if (error) return <p className="text-sm text-destructive">{error}</p>;
+  if (!students || students.length === 0) {
+    return <p className="text-sm text-muted-foreground">No overdue students.</p>;
+  }
+  return (
+    <ul className="max-h-64 space-y-2 overflow-y-auto">
+      {students.map((s) => {
+        const overdueLabs = (s.review_reasons || []).filter((r) => r.code === "overdue_incomplete");
+        return (
+          <li key={s.student_id} className="text-sm">
+            <div className="font-medium text-foreground">{s.email || s.student_id}</div>
+            {overdueLabs.length > 0 && (
+              <div className="text-xs text-muted-foreground">
+                {overdueLabs.map((r) => r.lab_title || r.label).join(", ")}
+              </div>
+            )}
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
 
 interface Props {
   user: User;
@@ -26,6 +56,17 @@ export default function InstructorAnalytics({ user, groupId, onLogout }: Props) 
   const [error, setError] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<"active" | "archived" | "all">("active");
 
+  // Scoped-group overdue drill-down (top KPI card, only meaningful when groupId is set).
+  const [scopedOverdue, setScopedOverdue] = useState<StudentProgress[] | undefined>(undefined);
+  const [scopedOverdueLoading, setScopedOverdueLoading] = useState(false);
+  const [scopedOverdueError, setScopedOverdueError] = useState<string | undefined>(undefined);
+
+  // Per-group overdue drill-down for the cross-group table, keyed by group id.
+  // Each entry is fetched at most once, the first time its popover opens.
+  const [groupOverdue, setGroupOverdue] = useState<Record<number, StudentProgress[]>>({});
+  const [groupOverdueLoading, setGroupOverdueLoading] = useState<Record<number, boolean>>({});
+  const [groupOverdueError, setGroupOverdueError] = useState<Record<number, string>>({});
+
   useDocumentTitle(data?.scope_name ? `Analytics - ${data.scope_name}` : "Analytics");
 
   useEffect(() => {
@@ -33,6 +74,33 @@ export default function InstructorAnalytics({ user, groupId, onLogout }: Props) 
     if (groupId != null) requests.push(getGroupDetail(groupId).then(setGroup));
     Promise.all(requests).catch((err: Error) => setError(err.message));
   }, [groupId, statusFilter]);
+
+  // Reset the scoped drill-down when navigating between different groups'
+  // analytics pages - this component instance is reused, not remounted.
+  useEffect(() => {
+    setScopedOverdue(undefined);
+    setScopedOverdueError(undefined);
+  }, [groupId]);
+
+  function loadScopedOverdue() {
+    if (groupId == null || scopedOverdue != null || scopedOverdueLoading) return;
+    setScopedOverdueLoading(true);
+    setScopedOverdueError(undefined);
+    getGroupProgress(groupId)
+      .then((progress) => setScopedOverdue(progress.students.filter((s) => s.at_risk)))
+      .catch((err: Error) => setScopedOverdueError(err.message))
+      .finally(() => setScopedOverdueLoading(false));
+  }
+
+  function loadGroupOverdue(id: number) {
+    if (groupOverdue[id] || groupOverdueLoading[id]) return;
+    setGroupOverdueLoading((prev) => ({ ...prev, [id]: true }));
+    setGroupOverdueError((prev) => ({ ...prev, [id]: "" }));
+    getGroupProgress(id)
+      .then((progress) => setGroupOverdue((prev) => ({ ...prev, [id]: progress.students.filter((s) => s.at_risk) })))
+      .catch((err: Error) => setGroupOverdueError((prev) => ({ ...prev, [id]: err.message })))
+      .finally(() => setGroupOverdueLoading((prev) => ({ ...prev, [id]: false })));
+  }
 
   const groupContext = groupId != null ? { id: groupId, name: group?.name || data?.scope_name, hasPending: !!group?.pending_members.length } : undefined;
 
@@ -71,7 +139,34 @@ export default function InstructorAnalytics({ user, groupId, onLogout }: Props) 
             <StatCard label="Achievement" value={`${data.completed_assignments} / ${data.eligible_assignments}`} description={`${data.completion_rate}% ever passed; current state tracked separately`} />
             <StatCard icon={Radio} label="Active now" value={`${data.active_now_students} / ${data.total_students}`} description={`${data.active_now_sessions} lab session${data.active_now_sessions === 1 ? "" : "s"} running right now`} tone={data.active_now_students > 0 ? "success" : "default"} />
             <StatCard icon={Activity} label="Active this week" value={`${data.active_this_week} / ${data.total_students}`} description="Distinct students with a session in the last 7 days" />
-            <StatCard icon={data.overdue_incomplete > 0 ? AlertTriangle : CheckCircle2} label="Overdue incomplete" value={data.overdue_incomplete} description={`${data.overdue_eligible} assignment${data.overdue_eligible === 1 ? "" : "s"} currently due`} tone={data.overdue_incomplete > 0 ? "danger" : "success"} />
+            {groupId != null && data.overdue_incomplete > 0 ? (
+              // A plain StatCard can only navigate (href) or do nothing - it has no slot for
+              // a popover trigger. Rebuild the same shell by hand so the number itself can
+              // open the drill-down, fetched on demand via loadScopedOverdue().
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-1.5 text-sm font-normal text-destructive">
+                    <AlertTriangle className="size-3.5" /> Overdue incomplete
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <Popover onOpenChange={(open) => open && loadScopedOverdue()}>
+                    <PopoverTrigger className="rounded-sm text-3xl font-semibold tracking-tight text-destructive underline decoration-dotted underline-offset-4 hover:decoration-solid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+                      {data.overdue_incomplete}
+                    </PopoverTrigger>
+                    <PopoverContent align="start" className="w-80">
+                      <p className="mb-1 text-sm font-medium text-foreground">Overdue students</p>
+                      <OverdueStudentsList loading={scopedOverdueLoading} error={scopedOverdueError} students={scopedOverdue} />
+                    </PopoverContent>
+                  </Popover>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {data.overdue_eligible} assignment{data.overdue_eligible === 1 ? "" : "s"} currently due
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <StatCard icon={data.overdue_incomplete > 0 ? AlertTriangle : CheckCircle2} label="Overdue incomplete" value={data.overdue_incomplete} description={`${data.overdue_eligible} assignment${data.overdue_eligible === 1 ? "" : "s"} currently due`} tone={data.overdue_incomplete > 0 ? "danger" : "success"} />
+            )}
             <StatCard icon={Clock3} label="Median recorded runtime" value={`${data.median_session_minutes} min`} description={`${data.median_runtime_samples} closed sessions; ${data.open_sessions} open`} />
           </div>
 
@@ -173,7 +268,31 @@ export default function InstructorAnalytics({ user, groupId, onLogout }: Props) 
                         <TableCell>{group.completed_assignments}/{group.eligible_assignments} <span className="text-muted-foreground">({group.completion_rate}%)</span></TableCell>
                         <TableCell>{group.active_now_students}/{group.total_students}</TableCell>
                         <TableCell>{group.active_students}/{group.total_students} <span className="text-muted-foreground">({group.active_rate}%)</span></TableCell>
-                        <TableCell>{group.overdue_incomplete}</TableCell>
+                        <TableCell>
+                          {group.overdue_incomplete > 0 ? (
+                            <Popover onOpenChange={(open) => open && loadGroupOverdue(group.id)}>
+                              {/* stopPropagation: this cell sits inside a <tr> whose onClick
+                                  navigates to the group. Without it, opening the popover
+                                  would also fire the row navigation underneath it. */}
+                              <PopoverTrigger
+                                onClick={(e) => e.stopPropagation()}
+                                className="rounded-sm text-destructive underline decoration-dotted underline-offset-4 hover:decoration-solid focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                              >
+                                {group.overdue_incomplete}
+                              </PopoverTrigger>
+                              <PopoverContent align="start" className="w-80" onClick={(e) => e.stopPropagation()}>
+                                <p className="mb-1 text-sm font-medium text-foreground">Overdue students - {group.name}</p>
+                                <OverdueStudentsList
+                                  loading={!!groupOverdueLoading[group.id]}
+                                  error={groupOverdueError[group.id] || undefined}
+                                  students={groupOverdue[group.id]}
+                                />
+                              </PopoverContent>
+                            </Popover>
+                          ) : (
+                            group.overdue_incomplete
+                          )}
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>

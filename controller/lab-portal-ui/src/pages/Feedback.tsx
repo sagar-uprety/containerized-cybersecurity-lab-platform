@@ -8,6 +8,7 @@ import Link from "../components/Link";
 import RatingInput from "../components/RatingInput";
 import { getLabFeedback, submitFeedback } from "../api";
 import { navigate } from "../utils/navigate";
+import { showToast } from "../components/Toast";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -54,7 +55,7 @@ export default function Feedback({ user, labId, groupId, onLogout }: FeedbackPro
     if (!groupValid) return;
     setSubmitting(true);
     try {
-      await submitFeedback(labId, {
+      const result = await submitFeedback(labId, {
         csrfToken: info!.csrf_token,
         sessionId: info!.session_id,
         rating,
@@ -62,7 +63,10 @@ export default function Feedback({ user, labId, groupId, onLogout }: FeedbackPro
         issueCategory: issueCategory === "none" ? undefined : issueCategory,
         groupId: groupId!,
       });
-      navigate("/");
+      // Show the toast before navigating so it survives the route swap —
+      // ToastContainer is mounted once at the app root and persists across pages.
+      showToast("Feedback submitted. Thank you!");
+      navigate(result?.redirect || "/results");
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Submission failed");
       setSubmitting(false);

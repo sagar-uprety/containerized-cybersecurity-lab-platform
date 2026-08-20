@@ -1,11 +1,10 @@
-# Survey: Securing an Nginx Web Server - Instructor Guide
+# Securing an Nginx Web Server - Instructor Guide
 
-<!-- AUTHORING NOTE: this is a SURVEY / familiarization lab. Unlike the evaluation
-labs, its student guide is a deliberate, explicit walkthrough so first-time survey
-participants can exercise the platform (Start / edit / reload / Run Check / Reset)
-without prior skill. The reveal boundary is intentionally relaxed here (gated by
-the `survey-` id prefix in the validator). Keep the H2 order aligned with the
-template. -->
+<!-- AUTHORING NOTE: this is the study lab. It is deliberately short and gives
+exact commands so first-time participants can exercise the same Start / terminal /
+edit / reload / Run Check workflow without prior advanced skill. The reveal
+boundary is intentionally relaxed here (gated by the `survey-` ID prefix in the
+validator). Keep the H2 order aligned with the template. -->
 
 ## Lab Overview
 
@@ -13,7 +12,8 @@ A small nginx site ships with two real, documented information-disclosure
 weaknesses: the version banner (`server_tokens on`, CWE-200) and an open
 directory listing (`autoindex on`, CWE-548) that exposes seeded synthetic files.
 The student flips both directives off, reloads nginx, and re-checks. The purpose
-is platform familiarization for survey participants, not skill assessment.
+is to evaluate the student-facing platform workflow under standardized
+conditions, not to assess learning gain or advanced security skill.
 
 ## Learning Objectives
 
@@ -22,7 +22,7 @@ is platform familiarization for survey participants, not skill assessment.
 | 1   | Recognise version-banner disclosure                 | Student shows the `Server:` header advertising the nginx version, then removes it      |
 | 2   | Recognise and close a directory-listing exposure    | Student browses `/files/`, sees the exposed content, then makes the listing return 403 |
 | 3   | Persist a configuration change and reload a service | Both directives set to `off` in the config file and applied via the reload helper      |
-| 4   | Use the platform workflow end to end                | Student completes Start, edit, reload, Run Check, and Reset                            |
+| 4   | Use the platform workflow end to end                | Student completes Start, terminal, edit, reload, Run Check, and End Lab                |
 
 ## Safety and Scope Boundaries
 
@@ -43,9 +43,10 @@ is platform familiarization for survey participants, not skill assessment.
 
 ## Reveal Policy and Intervention
 
-This is a survey lab, so the student guide already shows the exact commands by
-design. Intervention is about keeping participants moving, not withholding
-answers.
+This is the study lab, so the student guide shows the exact commands by design.
+The standardized instructions allow participants to evaluate the same workflow.
+Intervention is about resolving access or platform failures, not assessing
+independent problem solving.
 
 | Trigger                                       | Instructor Response                                                                                |
 | --------------------------------------------- | -------------------------------------------------------------------------------------------------- |
@@ -72,7 +73,7 @@ answers.
 
 How to read this lab's combined feedback form responses:
 
--   Because this is the warm-up, treat clarity/confidence responses as **feedback on the platform experience** (Start, terminal, edit, Run Check, Reset), not on security knowledge.
+-   Treat clarity and confidence responses as **feedback on the platform experience** (Start, terminal, edit, reload, Run Check, End Lab), not as evidence of security learning.
 -   Stuck-point free text mentioning "reload" or "nothing changed" is the most common survey friction - it tells you whether the edit→reload→check loop is clear enough.
 -   A participant who cannot complete even this lab signals an onboarding/tooling problem to fix before the real exercises.
 
@@ -80,8 +81,10 @@ How to read this lab's combined feedback form responses:
 
 -   Both weaknesses are CIS NGINX Benchmark hardening items: `server_tokens off` (version disclosure, CWE-200) and `autoindex off` (directory listing, CWE-548).
 -   Emphasise the difference in severity: the directory listing exposes real files (impactful); hiding the version reduces reconnaissance (defense in depth).
--   This lab is the survey warm-up; the graded exercises are the research-grounded catalog labs.
+-   This is the standardized study lab; course exercises use the research-grounded catalog labs and their guided-discovery format.
 
 ---
 
-**Note:** This guide does NOT duplicate `solution-notes.md`. For the full remediation walkthrough, refer to `solution-notes.md` directly. The instructor guide focuses on assessment, safety, intervention, and feedback interpretation.
+**Note:** This guide does not duplicate `solution-notes.md`. For the full
+remediation sequence, refer to `solution-notes.md` directly. The instructor guide
+focuses on assessment, safety, intervention, and feedback interpretation.

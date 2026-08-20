@@ -6,6 +6,7 @@ import io
 import json
 import logging
 import re
+import shutil
 import threading
 import time
 import uuid
@@ -50,6 +51,7 @@ from app.feedback import (
     save_check_result,
     save_command_events,
     save_feedback,
+    session_group_id,
     sync_assignment_obligations,
 )
 from app.form_tokens import generate_token, validate_token
@@ -1106,9 +1108,14 @@ async def submit_feedback(
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+    # Land the student on their results rather than the portal home -- and on
+    # the specific group's results when it's cheaply known, since a student
+    # can run the same lab under more than one group.
+    group_id = session_group_id(session_id)
+    redirect_path = "/results" + (f"?group={group_id}" if group_id is not None else "")
     if _is_fetch(request):
-        return {"ok": True}
-    return RedirectResponse(url="/portal", status_code=303)
+        return {"ok": True, "redirect": redirect_path}
+    return RedirectResponse(url=redirect_path, status_code=303)
 
 
 @app.get("/api/enrollment-options")
@@ -1367,12 +1374,49 @@ async def api_reset_instructor_password(
         return {"ok": True, "new_password": new_password}
 
 
+#: Portal-host paths worth reporting. The SQLite database, its backups and the
+#: evidence exports all live under the state directory, which is what actually
+#: grows here. Deliberately a local stdlib read rather than importing
+#: labctl_core.system_status: the portal is not allowed to depend on the lab
+#: runtime package (see tools/pre_commit/validate_architecture_imports.py).
+_PORTAL_DISK_PATHS = ("/", str(Path(settings.PORTAL_DB_PATH).parent))
+
+
+def _portal_disk_status() -> list[dict]:
+    """Disk usage for the management host, one entry per distinct filesystem."""
+    by_device: dict[int, dict] = {}
+    for path in _PORTAL_DISK_PATHS:
+        try:
+            device = Path(path).stat().st_dev
+            usage = shutil.disk_usage(path)
+        except OSError:
+            continue
+        if device in by_device:
+            continue
+        by_device[device] = {
+            "path": path,
+            "total_gb": round(usage.total / 1024**3, 1),
+            "used_gb": round((usage.total - usage.free) / 1024**3, 1),
+            "free_gb": round(usage.free / 1024**3, 1),
+            "percent": round(((usage.total - usage.free) / usage.total) * 100, 1)
+            if usage.total
+            else 0.0,
+        }
+    return list(by_device.values())
+
+
 @app.get("/api/admin/system-status")
 def api_admin_system_status(user: dict = Depends(get_authenticated_user)):
-    """Worker (x01) CPU/memory and running-lab count, via the restricted
+    """Worker (x01) CPU/memory/disk and running-lab count, via the restricted
     labctl-ssh-wrapper's read-only `system-status` verb (no lab/student args,
-    no destructive capability)."""
+    no destructive capability), plus the management host's own disk usage.
+
+    The worker's numbers come over SSH and can fail independently; the portal's
+    are read locally and are always available, so a worker outage still leaves
+    the admin able to see whether x02 is filling up.
+    """
     require_admin(user)
+    portal_disks = _portal_disk_status()
     ok, stdout, stderr = run_labctl_system_status()
     if not ok:
         raise HTTPException(status_code=502, detail=stderr or "worker unreachable")
@@ -1380,6 +1424,7 @@ def api_admin_system_status(user: dict = Depends(get_authenticated_user)):
         status = json.loads(stdout)
     except json.JSONDecodeError:
         raise HTTPException(status_code=502, detail="worker returned malformed status") from None
+    status["portal_disks"] = portal_disks
     return status
 
 
@@ -1681,7 +1726,14 @@ def api_instructor_feedback(lab_id: str, user: dict = Depends(get_authenticated_
     validate_lab_id(lab_id)
     with SessionLocal() as session:
         owner_students = _owner_student_ids(session, user["id"])
+        owner_group_ids = _owner_group_ids(session, user["id"])
     summary = feedback_analytics(lab_id, student_ids=owner_students)
+    # An empty feedback page has two very different causes: nobody in the
+    # instructor's groups has this lab assigned, or they have it and have not
+    # responded. Report the assigned count so the UI can say which.
+    summary["assigned_students"] = analytics_service.students_assigned_lab(
+        lab_id, group_ids=owner_group_ids
+    )
     responses = [
         record for record in list_feedback(lab_id) if record["student_id"] in owner_students
     ]
@@ -2469,6 +2521,15 @@ def instructor_lab_spa(lab_id: str):
 
 @app.get("/instructor/labs/{lab_id}/feedback", response_class=HTMLResponse)
 def instructor_lab_feedback_spa(lab_id: str):
+    _ = lab_id
+    return _serve_spa()
+
+
+# Must be registered before /instructor/labs/{lab_id}/{student_id} below --
+# routes match in registration order, and that catch-all would otherwise
+# swallow "guides" as a student_id.
+@app.get("/instructor/labs/{lab_id}/guides", response_class=HTMLResponse)
+def instructor_lab_guides_spa(lab_id: str):
     _ = lab_id
     return _serve_spa()
 
