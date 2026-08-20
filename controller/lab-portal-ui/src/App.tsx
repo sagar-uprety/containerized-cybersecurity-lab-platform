@@ -68,8 +68,14 @@ function parseRoute(): Route {
     return { page: "instructor-lab-feedback", labId: instructorLabFeedbackMatch[1] };
   }
 
+  // The trailing segment here is a student id, and `[^/]+` will just as happily
+  // match a literal word. A sibling route added after this one (or a stale link
+  // to a removed one) would otherwise be read as a student named "feedback" or
+  // "guides" and render "Student not found" instead of a 404 -- which is
+  // exactly how the feedback page was silently broken. Reserve the literals.
+  const RESERVED_LAB_SEGMENTS = new Set(["feedback", "guides"]);
   const instructorSessionMatch = path.match(/^\/instructor\/labs\/([^/]+)\/([^/]+)\/?$/);
-  if (instructorSessionMatch) {
+  if (instructorSessionMatch && !RESERVED_LAB_SEGMENTS.has(instructorSessionMatch[2])) {
     return { page: "instructor-session", labId: instructorSessionMatch[1], studentId: instructorSessionMatch[2] };
   }
 
