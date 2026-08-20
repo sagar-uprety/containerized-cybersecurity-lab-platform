@@ -1,12 +1,12 @@
 import { useState, useEffect, useCallback } from "react";
-import type { User, SystemStatus, DiskUsage } from "../types";
+import type { User, SystemStatus, DiskUsage, HostUsage } from "../types";
 import AdminLayout from "../components/AdminLayout";
 import AlertError from "../components/AlertError";
 import PageHeader from "../components/PageHeader";
 import StatCard from "../components/StatCard";
 import { getAdminSystemStatus } from "../api";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
-import { Cpu, MemoryStick, FlaskConical, RefreshCw, HardDrive } from "lucide-react";
+import { Cpu, MemoryStick, FlaskConical, RefreshCw } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -84,6 +84,73 @@ function DiskGroup({
   );
 }
 
+function HostCard({
+  title,
+  caption,
+  host,
+  storageNote,
+  missingStorage,
+}: {
+  title: string;
+  caption: string;
+  host?: HostUsage;
+  storageNote: string;
+  missingStorage: string;
+}) {
+  const cpu = host?.cpu_percent;
+  const cores = host?.cores;
+  return (
+    <Card>
+      <CardContent className="space-y-5">
+        <div>
+          <div className="text-sm font-semibold text-foreground">{title}</div>
+          <div className="text-xs text-muted-foreground">{caption}</div>
+        </div>
+
+        {!host ? (
+          <p className="text-sm text-muted-foreground">No data reported for this host.</p>
+        ) : (
+          <>
+            {typeof cpu === "number" ? (
+              <UsageBar
+                label="CPU"
+                pct={cpu}
+                // Averaged across every core, so one saturated core on a
+                // 64-core host reads as ~1.6%. Naming the core count is what
+                // makes a low number interpretable rather than suspicious.
+                detail={cores ? `${cpu}% of ${cores} cores` : `${cpu}%`}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">CPU not reported by this host.</p>
+            )}
+
+            {typeof host.memory_percent === "number" &&
+            typeof host.memory_used_mb === "number" &&
+            typeof host.memory_total_mb === "number" ? (
+              <UsageBar
+                label="Memory"
+                pct={host.memory_percent}
+                detail={`${host.memory_used_mb.toLocaleString()} MB / ${host.memory_total_mb.toLocaleString()} MB`}
+              />
+            ) : (
+              <p className="text-sm text-muted-foreground">Memory not reported by this host.</p>
+            )}
+
+            <div className="border-t border-border pt-4">
+              <DiskGroup
+                title="Storage"
+                caption={storageNote}
+                disks={host.disks}
+                missingNote={missingStorage}
+              />
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function AdminSystemUsage({ user, onLogout }: Props) {
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -116,7 +183,7 @@ export default function AdminSystemUsage({ user, onLogout }: Props) {
     <AdminLayout user={user} onLogout={onLogout}>
       <PageHeader
         title="System Usage"
-        description="Live CPU, memory, and running-lab count on the lab worker (x01), plus storage on both hosts."
+        description="Live CPU, memory, and storage for the lab worker (x01) and the management host (x02)."
         actions={
           <Button variant="outline" size="sm" onClick={refresh} disabled={refreshing}>
             <RefreshCw className={cn(refreshing && "animate-spin")} /> Refresh
@@ -160,36 +227,22 @@ export default function AdminSystemUsage({ user, onLogout }: Props) {
             />
           </div>
 
-          <Card>
-            <CardContent className="space-y-5">
-              <UsageBar label="CPU" pct={status.cpu_percent} />
-              <UsageBar
-                label="Memory"
-                pct={status.memory_percent}
-                detail={`${status.memory_used_mb.toLocaleString()} MB / ${status.memory_total_mb.toLocaleString()} MB`}
-              />
-            </CardContent>
-          </Card>
-
-          <h2 className="mt-6 mb-3 flex items-center gap-2 text-lg font-semibold text-foreground">
-            <HardDrive className="size-4 text-muted-foreground" /> Storage
-          </h2>
-          <Card>
-            <CardContent className="space-y-5">
-              <DiskGroup
-                title="Lab worker (x01)"
-                caption="Lab images and container layers grow here."
-                disks={status.disks}
-                missingNote="The worker has not reported storage yet."
-              />
-              <DiskGroup
-                title="Management host (x02)"
-                caption="Portal database, backups, and evidence exports."
-                disks={status.portal_disks}
-                missingNote="No storage reported for the portal host."
-              />
-            </CardContent>
-          </Card>
+          <div className="grid gap-4 lg:grid-cols-2">
+            <HostCard
+              title="Lab worker (x01)"
+              caption="Runs the student lab containers."
+              host={status}
+              storageNote="Lab images and container layers grow here."
+              missingStorage="The worker has not reported storage yet."
+            />
+            <HostCard
+              title="Management host (x02)"
+              caption="Runs the portal, database, and docs."
+              host={status.portal}
+              storageNote="Portal database, backups, and evidence exports."
+              missingStorage="No storage reported for the portal host."
+            />
+          </div>
 
           <p className="mt-3 text-xs text-muted-foreground">
             {lastUpdated ? `Updated ${lastUpdated.toLocaleTimeString()}` : ""} - refreshes automatically every{" "}
