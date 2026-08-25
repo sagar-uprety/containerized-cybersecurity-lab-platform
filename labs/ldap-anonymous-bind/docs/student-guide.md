@@ -56,15 +56,6 @@ Paths and access you will need:
 -   `/lab/access/credentials.txt` - a lab-local access file holding the SSH and directory-bind credentials you will need for the remediation phase. Reading it now is fine; hold off on using those credentials until you reach Remediate.
 -   The directory's runtime configuration is not reachable from the workstation over the network. When you reach the remediation phase you will connect to the directory host itself as its administrative account (`root`) over SSH, using the credentials in that access file.
 
-## Your Mission
-
-1. Identify the directory service on the network and determine its type.
-2. Establish whether unauthenticated queries return organizational data, and enumerate what an outsider could learn - accounts, email addresses, group memberships.
-3. Demonstrate the impact of that exposure.
-4. Bring the directory to a state where only authenticated users can read it and connections are encrypted, without breaking legitimate authenticated queries.
-5. Run **Run Check** in the portal and record the result.
-6. Complete the feedback form after ending the lab.
-
 ## Investigation
 
 Before fixing anything, understand the environment and confirm the problem is

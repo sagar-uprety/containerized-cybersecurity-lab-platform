@@ -62,15 +62,6 @@ Paths and access you will need:
 -   `/lab/sample` - the records service's configuration directory, mounted so you can inspect and edit it from the workstation. Its settings file is `config.env`.
 -   **Service administration** - the target service's administration account uses your own workstation/lab password from the portal's Workstation Access page, and exposes a narrow reload helper for applying a saved configuration.
 
-## Your Mission
-
-1. Identify the target records service and observe its current behaviour.
-2. Determine whether an unauthenticated client can read the synthetic records.
-3. Trace the behaviour to the persistent setting that causes it.
-4. Bring the service to a state where records require an authorized identity, without breaking legitimate authorized reads or service health.
-5. Run **Run Check** in the portal and record the result.
-6. Complete the feedback form after ending the lab.
-
 ## Investigation
 
 Before fixing anything, understand the environment and confirm the problem is

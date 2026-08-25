@@ -84,20 +84,6 @@ Paths and access you will need:
     workstation/lab login password from the portal's Workstation Access
     page.
 
-## Your Mission
-
-1. Map what your current network position can and cannot reach, and
-   identify which of those paths the environment actually requires.
-2. Demonstrate, with working evidence rather than a bare port scan, what
-   your position currently grants access to beyond what it should.
-3. Establish a boundary at the one point in this topology capable of
-   enforcing one, so that only the cross-zone traffic each business
-   function genuinely needs is permitted.
-4. Confirm the public-facing application you depend on keeps working
-   throughout.
-5. Run **Run Check** in the portal and record the result.
-6. Complete the feedback form after ending the lab.
-
 ## Investigation
 
 Before changing anything, understand the environment and confirm the

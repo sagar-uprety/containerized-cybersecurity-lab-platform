@@ -78,20 +78,6 @@ Paths and access you will need:
     Access page (it is also already set as `$STUDENT_PASSWORD` in your
     workstation shell).
 
-## Your Mission
-
-1. Identify every distinct, unauthenticated way target-host currently
-   discloses information about itself - both at the service level and in
-   what it serves over the web.
-2. For each one you find, establish concretely what it hands an outside
-   observer, not just that "something is exposed."
-3. Reduce every one of those disclosures to the minimum needed for the
-   services to keep functioning normally.
-4. Confirm your changes hold up under re-inspection, and that you can still
-   administer the host and reach the web server afterward.
-5. Run **Run Check** in the portal and record the result.
-6. Complete the feedback form after ending the lab.
-
 ## Investigation
 
 Before changing anything, map out exactly what this host is willing to tell

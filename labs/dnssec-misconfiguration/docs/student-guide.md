@@ -92,22 +92,6 @@ Paths and access you will need:
     your workstation; you will need to reach the resolver host directly to
     inspect it.
 
-## Your Mission
-
-1. Establish, from more than one vantage point, who the resolver will
-   actually perform recursive lookups for.
-2. Demonstrate that the resolver will hand back a record it has no way to
-   prove is genuine, and identify what specifically distinguishes that
-   record from one the resolver could verify.
-3. Bring the resolver's client scope, answer-verification behavior, and
-   response sizing for wide-open queries in line with what a resolver
-   serving only its intended network should do - and show it survives a
-   restart.
-4. Confirm that the trusted client network can still resolve names normally
-   throughout.
-5. Run **Run Check** in the portal and record the result.
-6. Complete the feedback form after ending the lab.
-
 ## Investigation
 
 Before changing anything, understand what the resolver actually does and

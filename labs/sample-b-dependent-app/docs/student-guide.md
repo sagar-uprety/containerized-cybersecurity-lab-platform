@@ -66,15 +66,6 @@ Paths and access you will need:
 -   `/lab/app/config.env` - the dependent app's configuration, editable from the workstation
 -   **Service admin accounts** - to reload a service after editing its config, log in over SSH as the `appadmin` account on that service host (`records-backend` or `records-app`). The SSH password is your own workstation/lab login password from the portal's Workstation Access page. Each account can run only a narrow reload helper.
 
-## Your Mission
-
-1. Establish how the records backend responds to a client that presents no identity.
-2. Establish how the records app depends on the backend, and what it presents when it reads.
-3. Bring the backend to a state where it refuses unauthenticated reads, using only the synthetic data.
-4. Keep the records app working after the backend is hardened.
-5. Run **Run Check** in the portal and record the result.
-6. Complete the feedback form after ending the lab.
-
 ## Investigation
 
 Before changing anything, understand the environment and confirm the problem is

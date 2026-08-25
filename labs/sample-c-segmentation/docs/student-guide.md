@@ -68,15 +68,6 @@ Paths and access you will need:
 The proxy serves two kinds of path: a public one intended for outside clients,
 and an internal-only one that should never cross the boundary.
 
-## Your Mission
-
-1. Map what is reachable from the workstation, and establish that the backend is only reachable through the proxy.
-2. Establish which request paths the proxy forwards, and which of them should never have crossed the boundary.
-3. Bring the proxy to a state where the internal-only path is refused, using only synthetic data.
-4. Keep the intended public path working through the proxy.
-5. Run **Run Check** in the portal and record the result.
-6. Complete the feedback form after ending the lab.
-
 ## Investigation
 
 Before changing anything, understand the environment and confirm the problem is

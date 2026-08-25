@@ -59,15 +59,6 @@ Paths and access you will need:
 -   `/lab/access/credentials.txt` - a lab-local access file with the details you need to administer the server
 -   **File-server admin account** - to administer the server directly (restart the service, create a share user), log in over SSH as the `sambaadmin` account. The SSH password is your own workstation/lab login password from the portal's Workstation Access page.
 
-## Your Mission
-
-1. Map the lab network and identify the file-sharing service and the shares it exposes.
-2. Determine whether the service asks for credentials before it lists or serves a share.
-3. Demonstrate the impact - show what an unauthenticated user can enumerate and download - using only the seeded demo data.
-4. Bring the server to a state where only authorized users can read the share, over an encrypted connection, without locking out legitimate users.
-5. Run **Run Check** in the portal and record the result.
-6. Complete the feedback form after ending the lab.
-
 ## Investigation
 
 Before fixing anything, understand the environment and confirm the problem is

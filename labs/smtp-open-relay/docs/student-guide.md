@@ -57,15 +57,6 @@ Paths and access you will need:
 -   `/lab/postfix` - the mail relay's configuration directory, mounted so you can inspect and edit it from the workstation. Its main configuration file is `main.cf`.
 -   Postfix's own command-line tools are installed on the **mail-relay host**, not the workstation. When you need them (for example, to check effective settings or restart the service), work on the relay host itself.
 
-## Your Mission
-
-1. Inspect the mail relay and establish how it decides whether to forward a message.
-2. Determine whether it accepts and queues mail from arbitrary senders for non-local destinations.
-3. Demonstrate the impact by sending test mail through the relay using a sender address you do not control.
-4. Bring the relay to a state where it forwards only for authorized clients and rejects mail from untrusted sources, without breaking legitimate mail flow.
-5. Run **Run Check** in the portal and record the result.
-6. Complete the feedback form after ending the lab.
-
 ## Investigation
 
 Before fixing anything, understand the environment and confirm the problem is

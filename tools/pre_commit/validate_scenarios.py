@@ -349,15 +349,15 @@ def validate_lab_docs(
     if not solution_notes.is_file():
         errors.append(f"missing lab docs: {solution_notes}")
 
-    # SITREP.txt was retired: the student guide's "Your Lab Environment" and
-    # "Your Mission" sections now carry the mission brief, paths, and access
-    # facts always-visibly. A lingering SITREP.txt would leak the old
-    # over-specified mission list, so its presence is an error.
+    # SITREP.txt was retired: the student guide's "Your Lab Environment" section
+    # now carries the mission brief, paths, and access facts always-visibly. A
+    # lingering SITREP.txt would leak the old over-specified mission list, so
+    # its presence is an error.
     stale_sitrep = docs_dir / "SITREP.txt"
     if stale_sitrep.is_file():
         errors.append(
             f"{stale_sitrep}: SITREP.txt is retired; move its content into the "
-            f"student guide's 'Your Lab Environment' and 'Your Mission' sections"
+            f"student guide's 'Your Lab Environment' section"
         )
 
     mkdocs_includes = {

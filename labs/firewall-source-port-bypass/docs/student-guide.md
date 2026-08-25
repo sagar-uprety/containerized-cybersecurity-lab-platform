@@ -60,15 +60,6 @@ Paths and access you will need:
 -   `/lab/config/fw_external_ip.txt` - on the workstation; holds the firewall's external address, which you will need to aim your probes at.
 -   The IPv4 rule file, `/etc/iptables/rules.v4`, lives on the **firewall host**, not the workstation. Connect there over SSH as the `firewall` account, using your own lab password. That account can inspect, save, restore, and reload the IPv4 rules through a limited passwordless `sudo` helper.
 
-## Your Mission
-
-1. Map the lab network and identify the firewall and the internal web server it is meant to protect.
-2. Test whether the internal server is reachable from the external network, and establish under what conditions it answers.
-3. Inspect the firewall's rules and explain, in your own words, why the boundary does or does not hold.
-4. Bring the policy to a state where reply traffic is still recognized but a new external connection cannot reach the internal server, with the active and persistent rules in agreement, and the protected service still healthy.
-5. Run **Run Check** in the portal and record the result.
-6. Complete the feedback form after ending the lab.
-
 ## Investigation
 
 Before fixing anything, understand the environment and confirm the problem is

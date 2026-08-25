@@ -61,15 +61,6 @@ Paths and access you will need:
 -   `/lab/demo-app` - the order application's configuration, including how it connects to the cache
 -   **Cache server admin account** - if you need a shell on the cache server itself (for example, to restart the service after a configuration change), log in over SSH as the `redisadmin` account. Its password is your own workstation/lab login password from the portal's Workstation Access page.
 
-## Your Mission
-
-1. Map the lab network and establish how the cache service is reachable, and from where.
-2. Establish what the cache asks of a client before it accepts commands.
-3. Demonstrate the real consequence of what you found, using only the seeded demo data - and show whether the exposure is limited to reading.
-4. Put the cache on a sound footing without breaking the order application or your own ability to administer it.
-5. Run **Run Check** in the portal and record the result.
-6. Complete the feedback form after ending the lab.
-
 ## Investigation
 
 Before changing anything, understand the environment and confirm the problem is

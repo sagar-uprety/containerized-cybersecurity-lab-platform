@@ -68,15 +68,6 @@ Paths and access you will need:
 -   `/lab/records/config.env` - the service's configuration, editable from the workstation
 -   **Service admin account** - to reload the service after editing its config, log in over SSH as the `recadmin` account on `records-service`. The SSH password is your own workstation/lab login password from the portal's Workstation Access page. The account can run only a narrow reload helper.
 
-## Your Mission
-
-1. Inspect how the records service responds to a request that presents no identity.
-2. Establish which configuration decision permits that behaviour.
-3. Bring the service to a state where unauthenticated reads are refused, using only synthetic data.
-4. Keep authorized access working after the change.
-5. Run **Run Check** in the portal and record the result.
-6. Complete the feedback form after ending the lab.
-
 ## Investigation
 
 Before changing anything, understand the environment and confirm the problem is

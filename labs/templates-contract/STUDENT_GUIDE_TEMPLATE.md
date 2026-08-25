@@ -46,15 +46,6 @@ Use the portal to **Start Lab**, **Run Check**, **Reset**, or **End Lab** at any
 
 If the browser terminal is unavailable, use the SSH fallback endpoint shown on the portal's Workstation Access page.
 
-## Your Mission
-
-1. <Outcome 1: what to establish about the environment>
-2. <Outcome 2: what to demonstrate>
-3. <Outcome 3: what to put right, stated as an end state>
-4. <Outcome 4: what must still work afterwards>
-5. Run **Run Check** in the portal and record the result.
-6. Complete the feedback form after ending the lab.
-
 ## Investigation
 
 Before changing anything, understand the environment and confirm the problem is real.

@@ -59,15 +59,6 @@ Paths and access you will need:
 -   `/lab/keys/weak-passwords.txt` - a short candidate password list authorized for the weak-password assessment. Determine which candidate succeeds rather than assuming it.
 -   For the authorized password assessment, use the `lab-user` account on the target. The target hostname and the legitimate key are both in the lab environment; use standard SSH client help to work out how to connect.
 
-## Your Mission
-
-1. Audit the SSH server: what it is, which authentication methods it accepts, and which accounts exist.
-2. Demonstrate how an attacker could gain access, using only the authorized account and candidate list.
-3. Establish whether the server has already been tampered with, and account for anything you find.
-4. Bring the server to a state where guessing is no longer viable, unauthorized access paths are closed, and repeated failures are blocked - without losing your own legitimate key-based access.
-5. Run **Run Check** in the portal and record the result.
-6. Complete the feedback form after ending the lab.
-
 ## Investigation
 
 Before fixing anything, understand the environment and confirm the problem is

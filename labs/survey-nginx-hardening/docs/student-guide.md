@@ -54,14 +54,6 @@ network.
 
 You can **Run Check** in the portal at any time of the lab. This is recommended to give you idea of the objectives and mandatory checks that you have to pass. Please note that GUARDRAILS are just.
 
-## Your Mission
-
-1. Look at the two problems on the web server.
-2. Fix them by editing two lines in the config file.
-3. Reload the web server so your changes take effect.
-4. Run **Run Check** in the portal and see it turn green.
-5. Complete the short feedback form after ending the lab.
-
 ## Investigation
 
 Click **Run Check** in the portal. You will see some failed checks as expected.

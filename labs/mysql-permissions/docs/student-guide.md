@@ -79,21 +79,6 @@ order application is meant to read and write, and `hr_db`, an unrelated
 database that happens to live on the same server. The order application has
 no legitimate reason to ever touch `hr_db`.
 
-## Your Mission
-
-1. Establish which accounts this database server will accept a connection
-   from, and with what credential each one actually requires.
-2. Demonstrate, using only the synthetic data seeded in this lab, what an
-   under-authenticated client can read - and how far that reach extends
-   beyond the order application's own data.
-3. Bring every account's privileges down to only what it needs, remove any
-   account that grants access without a real credential, and restrict the
-   database's network reachability to the interface it actually requires.
-4. Confirm the order application keeps working throughout, and that query
-   activity is being logged.
-5. Run **Run Check** in the portal and record the result.
-6. Complete the feedback form after ending the lab.
-
 ## Investigation
 
 Before changing anything, understand the environment and confirm the

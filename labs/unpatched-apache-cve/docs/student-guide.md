@@ -59,15 +59,6 @@ Paths and access you will need:
 -   `/lab/apache` - the web server's configuration directory, mounted directly into your workstation so you can edit it in place with any editor. Its main file is `httpd.conf`.
 -   **Web-server admin account** - reloading the service requires the server's administrative account, `apacheadmin`. Its password is your lab password, and its privileges are deliberately limited to the supported service-management path. Inspect those privileges and use that path after saving a valid configuration.
 
-## Your Mission
-
-1. Identify the web server and determine exactly what software and version it is running.
-2. Research whether that version has any publicly known vulnerabilities, and understand what they allow.
-3. Demonstrate that the vulnerability is real against this specific server, using only the lab environment.
-4. Apply a protective configuration fix that blocks the attack path without upgrading the software, while keeping normal requests working.
-5. Run **Run Check** in the portal and record the result.
-6. Complete the feedback form after ending the lab.
-
 ## Investigation
 
 Before fixing anything, understand the environment and confirm the problem is

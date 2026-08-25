@@ -73,18 +73,6 @@ Paths and access you will need:
     password is your own workstation/lab login password from the portal's
     Workstation Access page.
 
-## Your Mission
-
-1. Determine whether the file-transfer service can be reached without
-   credentials, and establish what that access actually permits.
-2. Demonstrate that a real account's credentials are observable to anything
-   positioned to watch the network path during login.
-3. Remove the credential-free access path from the service.
-4. Require encrypted authentication and file transfer for the account that
-   remains, without losing the ability to log in.
-5. Run **Run Check** in the portal and record the result.
-6. Complete the feedback form after ending the lab.
-
 ## Investigation
 
 Before fixing anything, understand the environment and confirm the problem is
