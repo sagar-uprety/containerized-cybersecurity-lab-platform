@@ -16,12 +16,7 @@ title: "Custom Workstation Tooling (Pattern D Reference)"
 difficulty: beginner
 
 story:
-  role: Junior Linux administrator
-  situation: >
-    A small internal records service was deployed from an unfinished template.
-    Monitoring suggests clients may be receiving records without proving who they
-    are. Investigate with the tools on your workstation, preserve legitimate
-    access, and correct the configuration.
+  summary: "Learn to find a service that skips identity checks, then enforce authentication without breaking access."
 
 documentation:
   student_guide_url: /docs/labs/sample-d-custom-workstation/
@@ -45,7 +40,7 @@ checker:
     - fixed
   checks:
     - name: unauthorized_access
-      label: "OBJECTIVE: unauthenticated record access is blocked"
+      label: "Unauthenticated record access is blocked"
       kind: objective
       exec_in: workstation
       run: >-
@@ -69,7 +64,7 @@ checker:
         fixed: "output_eq: UNAUTHORIZED_BLOCKED"
 
     - name: persistent_config
-      label: "OBJECTIVE: hardened configuration is persisted"
+      label: "Hardened configuration is persisted"
       kind: objective
       exec_in: workstation
       run: >-
@@ -82,7 +77,7 @@ checker:
         fixed: "output_eq: CONFIG_HARDENED"
 
     - name: authorized_access
-      label: "GUARDRAIL: authorized record access still works"
+      label: "Authorized record access still works"
       kind: guardrail
       exec_in: workstation
       run: >-
@@ -96,7 +91,7 @@ checker:
         fixed: "output_eq: AUTHORIZED_OK"
 
     - name: service_healthy
-      label: "GUARDRAIL: target service remains healthy"
+      label: "Target service remains healthy"
       kind: guardrail
       exec_in: workstation
       run: >-

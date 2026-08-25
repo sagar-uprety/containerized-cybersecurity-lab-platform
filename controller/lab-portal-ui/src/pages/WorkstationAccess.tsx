@@ -29,7 +29,6 @@ export default function WorkstationAccess({ user, onLogout }: { user: User; onLo
     <StudentLayout user={user} onLogout={onLogout}>
       <PageHeader
         title="SSH Login Password"
-        description="The password your labs mean when they say 'SSH into the workstation' or 'SSH with your lab password'."
       />
 
       <AlertError message={error} className="mb-6" />
@@ -66,12 +65,11 @@ export default function WorkstationAccess({ user, onLogout }: { user: User; onLo
 
             <div className="space-y-2 text-sm text-muted-foreground">
               <p>
-                Use this username and password whenever a lab guide tells you to <strong className="text-foreground">SSH into your workstation</strong> - for
-                example from a terminal on your own laptop, as a fallback if the in-browser terminal isn't working.
+                Some lab guides will require you to SSH from inside the workstation into a target service container. Use
+                this password there, unless the guide gives you a different one.
               </p>
               <p>
-                Some lab guides also have you SSH again from inside the workstation into a target service container. Use
-                this same password there too, unless the guide gives you a different one.
+                You can also use this username and password to SSH into your workstation from a terminal on your own device if you prefer that way.
               </p>
               <p className="font-medium text-foreground">This is separate from your portal login password. Do not share it.</p>
             </div>

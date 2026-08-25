@@ -18,15 +18,13 @@ title: Human-Readable Lab Title
 # REQUIRED. Difficulty shown to students.
 difficulty: beginner  # beginner | intermediate | advanced
 
-# REQUIRED. Scenario narrative - what the student sees before starting.
+# REQUIRED. One-sentence "Learn to ..." outcome shown on the portal's lab
+# card and lab detail page. Keep it vague enough not to name the exact
+# vulnerability. The full role/situation narrative belongs in the student
+# guide's own "## Situation" section, not here - the portal only needs the
+# short pitch.
 story:
-  # REQUIRED. The role the student assumes.
-  role: Junior Linux Administrator
-  # REQUIRED. The situation they walk into. Keep this vague - do not name
-  # the exact vulnerability in the opening paragraph.
-  situation: >
-    Describe the observed symptom here. What does monitoring see?
-    What is unusual? Why does it matter?
+  summary: "Learn to ..."
 
 # REQUIRED. Links to MkDocs guides. Solution notes and instructor guide are
 # protected by Nginx instructor authorization.

@@ -3,12 +3,7 @@ title: "Web Server Vulnerability Mitigation"
 difficulty: intermediate
 
 story:
-  role: Security assessor
-  situation: >
-    During a routine asset inventory, a legacy web server was discovered still
-    running in the lab network. No one knows when it was last patched. Your job
-    is to assess whether it is safe to keep online and, if not, apply an
-    immediate protective fix.
+  summary: "Learn to confirm a server runs a vulnerable version, then apply a compensating fix until you can upgrade it."
 
 documentation:
   student_guide_url: /docs/labs/unpatched-apache-cve/

@@ -1,11 +1,13 @@
 # Service Reconnaissance and Information Exposure
 
-You've been asked to review a server before it goes live next week. The
-operations lead wants confirmation that nothing beyond what's strictly
-necessary can be learned about it by someone probing it from outside - no
-credentials, no exploits, just what the server hands out on its own before
-anyone proves who they are. You have a browser terminal and a target to
-look at; what you find, and what you do about it, is up to you.
+## Situation
+
+**Role:** Junior systems administrator
+
+A server is being prepared for its production launch next week. Before sign-
+off, the operations lead wants confirmation that nothing beyond what is
+strictly necessary can be learned about the server by someone probing it from
+outside, without needing any credentials.
 
 ## Why This Matters
 
@@ -75,13 +77,6 @@ Paths and access you will need:
     own workstation/lab login password, shown on the portal's Workstation
     Access page (it is also already set as `$STUDENT_PASSWORD` in your
     workstation shell).
-
-Use the portal to **Start Lab**, **Run Check**, **Reset**, or **End Lab** at
-any time. **Reset** restores the original vulnerable baseline, so it is not
-a way to reload a fix.
-
-If the browser terminal is unavailable, use the SSH fallback endpoint shown
-on the portal's Workstation Access page.
 
 ## Your Mission
 

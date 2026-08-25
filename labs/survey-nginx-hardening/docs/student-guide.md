@@ -1,11 +1,17 @@
 # Securing an Nginx Web Server
 
-A colleague set up a small internal web server (nginx) in a hurry and asked you
-to tidy up **settings that are leaking more than they should**. You will look
-at the problem, change two lines, reload the server, and confirm it is fixed.
+## Situation
 
-> **Study-lab notice:** This is a real, deliberately short beginner lab. For the
-> study, the guide supplies the exact commands so every participant evaluates
+**Role:** New IT support hire
+
+A colleague set up an internal nginx site quickly and asked you to secure two
+settings that reveal more information than they should. Investigate both
+exposures, harden the configuration, reload the service, and verify the result.
+The survey guide supplies the exact commands so every participant evaluates the
+same platform workflow.
+
+> **Survey-lab notice:** This is a real, deliberately short beginner lab. For the
+> survey, the guide supplies the exact commands so every participant evaluates
 > the same platform workflow. Standard labs on this platform use guiding
 > questions and optional hints instead of providing the complete solution.
 
@@ -32,7 +38,7 @@ By the end of this lab you should be able to:
 -   Basic Linux terminal usage
 -   The idea that a web server has a configuration file you can edit
 
-If you want a little background, these are optional:
+If you want some more background, you can read here, but these are optional:
 
 -   nginx `server_tokens` directive: <https://nginx.org/en/docs/http/ngx_http_core_module.html#server_tokens>
 -   nginx `autoindex` directive: <https://nginx.org/en/docs/http/ngx_http_autoindex_module.html>
@@ -41,23 +47,12 @@ If you want a little background, these are optional:
 ## Your Lab Environment
 
 When you select **Start Lab**, the browser terminal opens on the
-**workstation**. The **web server** (`nginx-host`) runs on the same isolated lab
+**workstation** host terminal.
+
+**web server** the actual nginx server lives in the (`nginx-host`) and runs on the same isolated lab
 network.
 
-What you will use:
-
--   `/lab/nginx/site.conf` - the web server's configuration file. You can open
-    and edit it on the workstation with `nano` or `vim`.
--   **Web-server login** - to reload nginx after editing, log in to the server
-    over SSH as `nginxadmin`. Its password is **your own lab password**, shown
-    on the portal's **Workstation Access** page.
-
-The main portal controls are **Start Lab**, **Run Check**, **Reset**, and
-**End Lab**. **Reset** puts everything back to the vulnerable starting state, so
-use it only if you need to start over; it does not apply your fix.
-
-If the browser terminal does not open, use the SSH fallback endpoint shown on the
-portal's Workstation Access page.
+You can **Run Check** in the portal at any time of the lab. This is recommended to give you idea of the objectives and mandatory checks that you have to pass. Please note that GUARDRAILS are just.
 
 ## Your Mission
 
@@ -68,6 +63,8 @@ portal's Workstation Access page.
 5. Complete the short feedback form after ending the lab.
 
 ## Investigation
+
+Click **Run Check** in the portal. You will see some failed checks as expected.
 
 First, see the two problems for yourself. Run these on the workstation terminal:
 
@@ -87,39 +84,45 @@ data - nothing real is exposed.)
 
 ## Remediate
 
-You need to change **two lines** in `/lab/nginx/site.conf`, then reload nginx.
+You need to edit the nginx config file in `/lab/nginx/site.conf`, then reload nginx.
 
-**What to change:** in that file, `server_tokens on;` should become
+Take a look at the current content first:
+
+```bash
+cat /lab/nginx/site.conf
+```
+
+**Edit the config.** In that file, `server_tokens on;` should become
 `server_tokens off;`, and `autoindex on;` should become `autoindex off;`.
 
-**Edit the config.** Open the file with `nano /lab/nginx/site.conf`,
-change those two words from `on` to `off`, and save (`Ctrl-O`, `Enter`,
-`Ctrl-X`).
+Open the file with `nano /lab/nginx/site.conf`, change those two words from
+`on` to `off`, and save (`Ctrl-O`, `Enter`, `Ctrl-X`). You may use `vim`
+instead if you prefer, or make both edits in one shot with `sed`:
 
-You may use `vim` or `sed` instead if you are comfortable with those tools.
+```bash
+sed -i 's/server_tokens on;/server_tokens off;/; s/autoindex on;/autoindex off;/' /lab/nginx/site.conf
+```
 
 **Now reload nginx** so the change takes effect.
 
-For this, log in over SSH to the web server from the workstation and run
-its reload helper:
+For this, log in over SSH to the nginx-host web server from the workstation and run
+its reload helper. You can find the password on [SSH Login Password](https://x02lp1.ucc.cit.tum.de/workstation-access) page in the lab portal.
 
 ```bash
-# Use your lab password when prompted. Find it on Workstation Access in the portal.
 ssh nginxadmin@nginx-host 'sudo /usr/local/sbin/reload-nginx'
 ```
 
+The first time you connect, SSH will ask
+`Are you sure you want to continue connecting (yes/no/[fingerprint])?` -
+type `yes` and press Enter.
+
 You should see `nginx configuration reloaded`.
-
-**References:**
-
--   nginx `server_tokens`: <https://nginx.org/en/docs/http/ngx_http_core_module.html#server_tokens>
--   nginx `autoindex`: <https://nginx.org/en/docs/http/ngx_http_autoindex_module.html>
 
 **If you're stuck:**
 
 -   Nothing changed when you re-checked? You probably edited the file but did not run the reload step - nginx only picks up changes when it reloads.
 -   The reload printed an error? You likely removed a semicolon (`;`) by accident. Re-open the file, make sure each line ends with `;`, save, and reload again.
--   Password not accepted? The `nginxadmin` password is your own lab password from the portal's Workstation Access page.
+-   Password not accepted? The `nginxadmin` password is the same password you can find [SSH Login Password](https://x02lp1.ucc.cit.tum.de/workstation-access)
 
 ## Verify
 
@@ -136,8 +139,9 @@ curl -s -o /dev/null -w '%{http_code}\n' http://nginx-host:8080/files/
 curl -s http://nginx-host:8080/
 ```
 
-When those look right, click **Run Check** in the portal. All checks should turn
-green (`fixed`). You have completed the lab.
+Click **Run Check** in the portal. All checks should turn
+green (`fixed`). You have completed the lab. Select **End Lab** in the portal and
+complete the short feedback form.
 
 ## Real-World Context
 
@@ -155,15 +159,10 @@ Standard labs on this platform go further: you investigate the problem using
 guiding questions and optional hints, then work out the remediation across
 services such as SSH, LDAP, firewalls, and databases. Exact commands were
 provided here only to standardize the platform experience evaluated in the
-study.
+survey.
 
 **Sources:**
 
 -   CWE-548: Exposure of Information Through Directory Listing. <https://cwe.mitre.org/data/definitions/548.html>
 -   CWE-200: Exposure of Sensitive Information. <https://cwe.mitre.org/data/definitions/200.html>
 -   nginx core module documentation. <https://nginx.org/en/docs/http/ngx_http_core_module.html>
-
----
-
-_When you are done, select **End Lab** in the portal and complete the short
-feedback form. Please answer about the platform and guide you actually used._

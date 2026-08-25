@@ -1,10 +1,13 @@
 # Shared-Service Hardening Without Breaking Dependents (Pattern B Reference)
 
-You are supporting a small records service that an internal application depends
-on. Monitoring suggests the records service may be handing out data without
-checking who is asking. Determine what is happening, correct the shared service
-using only synthetic data, and make sure the application that depends on it keeps
-working.
+## Situation
+
+**Role:** Junior Linux administrator
+
+A small records service is shared by an internal application. Monitoring
+suggests the records service may be handing out data without checking who is
+asking. Investigate, correct the shared service, and make sure the application
+that depends on it keeps working.
 
 <!-- AUTHORING NOTE (sample lab only): this is the runnable reference for
 Pattern B (Service With Dependent Application). It follows every reveal-tier rule
@@ -62,13 +65,6 @@ Paths and access you will need:
 -   `/lab/backend/config.env` - the backend's configuration, editable from the workstation
 -   `/lab/app/config.env` - the dependent app's configuration, editable from the workstation
 -   **Service admin accounts** - to reload a service after editing its config, log in over SSH as the `appadmin` account on that service host (`records-backend` or `records-app`). The SSH password is your own workstation/lab login password from the portal's Workstation Access page. Each account can run only a narrow reload helper.
-
-Use the portal to **Start Lab**, **Run Check**, **Reset**, or **End Lab** at any
-time. **Reset** restores the original vulnerable baseline, so it is not a way to
-reload a fix.
-
-If the browser terminal is unavailable, use the SSH fallback endpoint shown on
-the portal's Workstation Access page.
 
 ## Your Mission
 

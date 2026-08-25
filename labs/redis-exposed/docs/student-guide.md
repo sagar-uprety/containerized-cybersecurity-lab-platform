@@ -1,11 +1,12 @@
 # In-Memory Cache Access Control
 
-You've been assigned as the junior administrator for a small order-processing
-application. Monitoring has flagged unusual direct connections to the
-application's cache service - connections that do not appear to come from the
-application itself. The cache holds customer data, order state, session tokens,
-and internal configuration. The order application still works, but nobody has
-checked what else can reach the cache.
+## Situation
+
+**Role:** Junior Linux administrator
+
+Monitoring noticed direct connections to the order cache service that do not
+appear to come from the application. The order application still works, but the
+cache may be exposed on the internal network.
 
 ## Why This Matters
 
@@ -59,13 +60,6 @@ Paths and access you will need:
 -   `/lab/redis` - the cache server's configuration directory, mounted so you can read and edit it from the workstation
 -   `/lab/demo-app` - the order application's configuration, including how it connects to the cache
 -   **Cache server admin account** - if you need a shell on the cache server itself (for example, to restart the service after a configuration change), log in over SSH as the `redisadmin` account. Its password is your own workstation/lab login password from the portal's Workstation Access page.
-
-Use the portal to **Start Lab**, **Run Check**, **Reset**, or **End Lab** at any
-time. **Reset** restores the original vulnerable baseline, so it is not a way to
-reload a fix.
-
-If the browser terminal is unavailable, use the SSH fallback endpoint shown on
-the portal's Workstation Access page.
 
 ## Your Mission
 

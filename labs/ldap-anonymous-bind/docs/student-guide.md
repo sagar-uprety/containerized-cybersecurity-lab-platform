@@ -1,10 +1,12 @@
 # LDAP Directory Access Control
 
-You've been brought in as a security auditor. A directory service is running on
-the internal network, but nobody has ever formally assessed its security
-posture. Your job is to determine whether organizational data is exposed to
-users who have not proven who they are, demonstrate the risk, and harden the
-service.
+## Situation
+
+**Role:** Security auditor
+
+A directory service is running on the internal network, but its security
+posture has never been formally assessed. Determine what organizational data it
+hands out and to whom, then harden the service.
 
 ## Why This Matters
 
@@ -53,13 +55,6 @@ Paths and access you will need:
 
 -   `/lab/access/credentials.txt` - a lab-local access file holding the SSH and directory-bind credentials you will need for the remediation phase. Reading it now is fine; hold off on using those credentials until you reach Remediate.
 -   The directory's runtime configuration is not reachable from the workstation over the network. When you reach the remediation phase you will connect to the directory host itself as its administrative account (`root`) over SSH, using the credentials in that access file.
-
-Use the portal to **Start Lab**, **Run Check**, **Reset**, or **End Lab** at any
-time. **Reset** restores the original vulnerable baseline, so it is not a way to
-reload a fix.
-
-If the browser terminal is unavailable, use the SSH fallback endpoint shown on
-the portal's Workstation Access page.
 
 ## Your Mission
 

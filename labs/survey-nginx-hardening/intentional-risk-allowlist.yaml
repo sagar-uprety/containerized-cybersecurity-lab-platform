@@ -7,7 +7,7 @@ intentional_findings:
       - site.conf.vulnerable
     patterns:
       - server_tokens on
-    reason: Version-banner disclosure (CWE-200) is one of the two intentional teaching weaknesses students remediate in this standardized study lab.
+    reason: Version-banner disclosure (CWE-200) is one of the two intentional teaching weaknesses students remediate in this standardized survey lab.
   - id: survey-nginx-autoindex
     tool: semgrep
     files:

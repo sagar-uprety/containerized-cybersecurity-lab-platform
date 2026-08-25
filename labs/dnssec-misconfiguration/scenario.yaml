@@ -3,13 +3,7 @@ title: "DNS Resolver Trust and Access Control"
 difficulty: advanced
 
 story:
-  role: Junior Linux administrator
-  situation: >
-    Monitoring flagged an unusual volume of DNS lookups reaching the internal
-    recursive resolver from outside the expected client segment, and a
-    routine spot-check of a recent answer did not match what the domain's own
-    records should contain. You have been asked to confirm whether the
-    resolver's trust boundaries are intact before it becomes a bigger problem.
+  summary: "Learn to spot a resolver trusting unsigned DNS answers, then enable validation and restrict who can query it."
 
 documentation:
   student_guide_url: /docs/labs/dnssec-misconfiguration/

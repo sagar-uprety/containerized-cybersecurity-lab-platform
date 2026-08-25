@@ -1,10 +1,13 @@
 # Standalone Service Hardening (Pattern A Reference)
 
-You are supporting a small internal records service that was deployed from an
-unfinished template. Monitoring suggests clients may be receiving records
-without proving who they are. Determine what is happening, demonstrate why it
-matters using only synthetic data, and correct it without breaking legitimate
-use.
+## Situation
+
+**Role:** Junior Linux administrator
+
+A small internal records service was deployed from an unfinished template.
+Monitoring suggests clients may be receiving records without proving who they
+are. Investigate the service, preserve legitimate access, and correct the
+configuration.
 
 <!-- AUTHORING NOTE (sample lab only): this guide is the reference implementation
 of labs/templates-contract/STUDENT_GUIDE_TEMPLATE.md. It follows every reveal-tier
@@ -58,13 +61,6 @@ Paths and access you will need:
 
 -   `/lab/sample` - the records service's configuration directory, mounted so you can inspect and edit it from the workstation. Its settings file is `config.env`.
 -   **Service administration** - the target service's administration account uses your own workstation/lab password from the portal's Workstation Access page, and exposes a narrow reload helper for applying a saved configuration.
-
-Use the portal to **Start Lab**, **Run Check**, **Reset**, or **End Lab** at any
-time. **Reset** restores the original vulnerable baseline, so it is not a way to
-reload a fix.
-
-If the browser terminal is unavailable, use the SSH fallback endpoint shown on
-the portal's Workstation Access page.
 
 ## Your Mission
 

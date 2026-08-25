@@ -3,12 +3,7 @@ title: "FTP File Transfer Access Control"
 difficulty: beginner
 
 story:
-  role: IT support technician
-  situation: >
-    A file transfer server used for distributing deployment packages between
-    teams was flagged during a routine network review. Nobody has verified
-    how the service authenticates clients or how data moves between them.
-    Assess how the file transfer service is configured and secure it.
+  summary: "Learn to find an FTP server allowing anonymous access, then require authenticated, encrypted connections."
 
 documentation:
   student_guide_url: /docs/labs/ftp-anonymous-access/

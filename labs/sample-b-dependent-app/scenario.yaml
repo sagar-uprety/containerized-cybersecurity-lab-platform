@@ -17,12 +17,7 @@ title: "Shared-Service Hardening Without Breaking Dependents (Pattern B Referenc
 difficulty: beginner
 
 story:
-  role: Junior Linux administrator
-  situation: >
-    A small records service is shared by an internal application. Monitoring
-    suggests the records service may be handing out data without checking who is
-    asking. Investigate, correct the shared service, and make sure the
-    application that depends on it keeps working.
+  summary: "Learn to harden a shared service's authentication while keeping the app that depends on it working."
 
 documentation:
   student_guide_url: /docs/labs/sample-b-dependent-app/
@@ -47,7 +42,7 @@ checker:
   checks:
     # OBJECTIVE: the shared backend must reject direct unauthenticated reads.
     - name: backend_unauth_blocked
-      label: "OBJECTIVE: unauthenticated backend access is blocked"
+      label: "Unauthenticated backend access is blocked"
       kind: objective
       exec_in: workstation
       run: >-
@@ -72,7 +67,7 @@ checker:
 
     # OBJECTIVE: the hardened backend setting must be persisted, not only live.
     - name: backend_config_persisted
-      label: "OBJECTIVE: hardened backend configuration is persisted"
+      label: "Hardened backend configuration is persisted"
       kind: objective
       exec_in: workstation
       run: >-
@@ -88,7 +83,7 @@ checker:
     # state this only passes if the student also gave the app the backend token,
     # which is the whole point of Pattern B: harden without breaking dependents.
     - name: app_continuity
-      label: "GUARDRAIL: dependent app still reads the backend"
+      label: "Dependent app still reads the backend"
       kind: guardrail
       exec_in: workstation
       run: >-
@@ -108,7 +103,7 @@ checker:
 
     # GUARDRAIL: both services healthy, bounded so a broken service cannot hang.
     - name: services_healthy
-      label: "GUARDRAIL: backend and app remain healthy"
+      label: "Backend and app remain healthy"
       kind: guardrail
       exec_in: workstation
       run: >-

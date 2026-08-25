@@ -3,11 +3,7 @@ title: "In-Memory Cache Access Control"
 difficulty: beginner
 
 story:
-  role: Junior Linux administrator
-  situation: >
-    Monitoring noticed direct connections to the order cache service that do
-    not appear to come from the application. The order application still works,
-    but the cache may be exposed on the internal network.
+  summary: "Learn to find a cache service with no authentication, then restrict its network reach and lock down writes."
 
 documentation:
   student_guide_url: /docs/labs/redis-exposed/

@@ -1,11 +1,13 @@
 # Web Server Vulnerability Mitigation
 
-You've been assigned as a security assessor for a small research lab. During a
-routine asset inventory, a legacy web server was discovered still running on the
-internal network. No one on the current team knows when it was last updated, and
-management wants to know whether it is safe to keep online. Your job is to assess
-the server, determine whether it poses a risk, and apply an immediate protective
-fix if it does.
+## Situation
+
+**Role:** Security assessor
+
+During a routine asset inventory, a legacy web server was discovered still
+running in the lab network. No one knows when it was last patched. Your job is
+to assess whether it is safe to keep online and, if not, apply an immediate
+protective fix.
 
 ## Why This Matters
 
@@ -56,13 +58,6 @@ Paths and access you will need:
 
 -   `/lab/apache` - the web server's configuration directory, mounted directly into your workstation so you can edit it in place with any editor. Its main file is `httpd.conf`.
 -   **Web-server admin account** - reloading the service requires the server's administrative account, `apacheadmin`. Its password is your lab password, and its privileges are deliberately limited to the supported service-management path. Inspect those privileges and use that path after saving a valid configuration.
-
-Use the portal to **Start Lab**, **Run Check**, **Reset**, or **End Lab** at any
-time. **Reset** restores the original vulnerable baseline, so it is not a way to
-reload a fix.
-
-If the browser terminal is unavailable, use the SSH fallback endpoint shown on
-the portal's Workstation Access page.
 
 ## Your Mission
 

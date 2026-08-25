@@ -35,15 +35,12 @@
         "story": {
             "type": "object",
             "additionalProperties": false,
-            "required": ["role", "situation"],
+            "required": ["summary"],
             "properties": {
-                "role": {
+                "summary": {
                     "type": "string",
-                    "minLength": 1
-                },
-                "situation": {
-                    "type": "string",
-                    "minLength": 1
+                    "minLength": 1,
+                    "maxLength": 160
                 }
             }
         },

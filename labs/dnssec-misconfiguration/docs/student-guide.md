@@ -1,12 +1,14 @@
 # DNS Resolver Trust and Access Control
 
-You've just joined the on-call rotation, and the first ticket in your queue
-is from the network monitoring team: the internal DNS resolver has been
-logging an unusual volume of lookups that don't look like they're coming
-from the application segment it's meant to serve. Someone also flagged that
-a recent answer for one of the domain's own records didn't match what the
-zone should contain. Nobody's sure yet whether either of these is actually a
-problem, or just noise. You've been asked to find out.
+## Situation
+
+**Role:** Junior Linux administrator
+
+Monitoring flagged an unusual volume of DNS lookups reaching the internal
+recursive resolver from outside the expected client segment, and a routine
+spot-check of a recent answer did not match what the domain's own records
+should contain. You have been asked to confirm whether the resolver's trust
+boundaries are intact before it becomes a bigger problem.
 
 ## Why This Matters
 
@@ -89,13 +91,6 @@ Paths and access you will need:
     inside the resolver's own filesystem that is not directly visible from
     your workstation; you will need to reach the resolver host directly to
     inspect it.
-
-Use the portal to **Start Lab**, **Run Check**, **Reset**, or **End Lab** at
-any time. **Reset** restores the original vulnerable baseline, so it is not
-a way to reload a fix.
-
-If the browser terminal is unavailable, use the SSH fallback endpoint shown
-on the portal's Workstation Access page.
 
 ## Your Mission
 

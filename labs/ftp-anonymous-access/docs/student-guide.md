@@ -1,12 +1,13 @@
 # FTP File Transfer Access Control
 
-You've been asked to look at a file-transfer server used for moving deployment
-packages between teams. It has been running quietly for years with little
-oversight, and a routine network review flagged it for a closer look. Nobody on
-the current team can say how the service authenticates clients or whether
-anything sent to it is protected in transit. Your job is to find out what is
-actually accessible, show why that matters, lock the service down, and confirm
-legitimate users can still get their files.
+## Situation
+
+**Role:** IT support technician
+
+A file transfer server used for distributing deployment packages between teams
+was flagged during a routine network review. Nobody has verified how the
+service authenticates clients or how data moves between them. Assess how the
+file transfer service is configured and secure it.
 
 ## Why This Matters
 
@@ -71,13 +72,6 @@ Paths and access you will need:
     (restart the service), log in over SSH as the `ftpadmin` account. The SSH
     password is your own workstation/lab login password from the portal's
     Workstation Access page.
-
-Use the portal to **Start Lab**, **Run Check**, **Reset**, or **End Lab** at any
-time. **Reset** restores the original vulnerable baseline, so it is not a way to
-reload a fix.
-
-If the browser terminal is unavailable, use the SSH fallback endpoint shown on
-the portal's Workstation Access page.
 
 ## Your Mission
 

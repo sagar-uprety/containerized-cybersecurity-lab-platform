@@ -1,9 +1,9 @@
-# STUDY LAB - Securing an Nginx Web Server (Pattern A)
+# SURVEY LAB - Securing an Nginx Web Server (Pattern A)
 #
 # Intentionally short and beginner-level: a first-time student flips two real,
 # documented nginx
 # information-disclosure weaknesses (server_tokens, autoindex) from on to off,
-# reloads, and re-checks. This lets study participants evaluate the complete
+# reloads, and re-checks. This lets survey participants evaluate the complete
 # platform workflow without requiring advanced security knowledge. Exact
 # commands are supplied to standardize the evaluated experience; this is the
 # one exception to the production-lab reveal boundary, gated by the `survey-`
@@ -14,13 +14,7 @@ title: "Securing an Nginx Web Server"
 difficulty: beginner
 
 story:
-  role: New IT support hire
-  situation: >
-    A colleague set up an internal nginx site quickly and asked you to secure
-    two settings that reveal more information than they should. Investigate
-    both exposures, harden the configuration, reload the service, and verify
-    the result. The study guide supplies the exact commands so every participant
-    evaluates the same platform workflow.
+  summary: "Learn to fix the common Nginx misconfigurations"
 
 documentation:
   student_guide_url: /docs/labs/survey-nginx-hardening/
@@ -45,7 +39,7 @@ checker:
   checks:
     # OBJECTIVE 1: the version banner must not advertise the nginx version.
     - name: version_banner_hidden
-      label: "OBJECTIVE: nginx version banner is not disclosed"
+      label: "nginx version banner is not disclosed"
       kind: objective
       exec_in: workstation
       run: >-
@@ -67,7 +61,7 @@ checker:
 
     # OBJECTIVE 2: the directory listing for /files/ must be closed off.
     - name: directory_listing_disabled
-      label: "OBJECTIVE: directory listing is disabled"
+      label: "Directory listing is disabled"
       kind: objective
       exec_in: workstation
       run: >-
@@ -84,7 +78,7 @@ checker:
 
     # OBJECTIVE 3: both hardened directives must be persisted in the config file.
     - name: config_persisted
-      label: "OBJECTIVE: hardened directives are persisted in the config"
+      label: "Hardened directives are persisted in the config"
       kind: objective
       exec_in: workstation
       run: >-
@@ -100,7 +94,7 @@ checker:
 
     # GUARDRAIL: the website must still serve its home page in BOTH states.
     - name: site_healthy
-      label: "GUARDRAIL: the website still serves its home page"
+      label: "The website still serves its home page"
       kind: guardrail
       exec_in: workstation
       run: >-

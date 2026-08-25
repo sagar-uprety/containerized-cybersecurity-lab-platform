@@ -1,10 +1,12 @@
 # SMTP Relay Access Control
 
-Your team manages a small internal mail relay that handles outgoing mail for
-several applications. Network monitoring recently flagged a spike in outbound
-SMTP traffic from the relay - traffic that does not appear to originate from any
-of your known mail clients. Something is using the relay to send mail, and the
-relay may not be checking who is asking.
+## Situation
+
+**Role:** Junior Linux administrator
+
+Network monitoring flagged unusual outbound SMTP traffic from the mail relay
+server. The traffic does not originate from the mail clients you expect. The
+relay may be authorizing clients outside the intended trust boundary.
 
 ## Why This Matters
 
@@ -54,13 +56,6 @@ Paths and access you will need:
 
 -   `/lab/postfix` - the mail relay's configuration directory, mounted so you can inspect and edit it from the workstation. Its main configuration file is `main.cf`.
 -   Postfix's own command-line tools are installed on the **mail-relay host**, not the workstation. When you need them (for example, to check effective settings or restart the service), work on the relay host itself.
-
-Use the portal to **Start Lab**, **Run Check**, **Reset**, or **End Lab** at any
-time. **Reset** restores the original vulnerable baseline, so it is not a way to
-reload a fix.
-
-If the browser terminal is unavailable, use the SSH fallback endpoint shown on
-the portal's Workstation Access page.
 
 ## Your Mission
 

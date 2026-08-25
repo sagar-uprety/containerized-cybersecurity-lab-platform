@@ -16,11 +16,7 @@ title: "Network Segmentation and Boundary Control (Pattern C Reference)"
 difficulty: intermediate
 
 story:
-  role: Network security auditor
-  situation: >
-    An internal service sits behind an edge proxy on a separate network. Nobody
-    has checked whether the proxy keeps the internal-only parts of that service
-    away from the outside. Verify what the proxy exposes and correct it.
+  summary: "Learn to find a proxy leaking an internal-only path, then restrict it so only public traffic gets through."
 
 documentation:
   student_guide_url: /docs/labs/sample-c-segmentation/
@@ -45,7 +41,7 @@ checker:
   checks:
     # OBJECTIVE: the internal-only path must not be reachable through the proxy.
     - name: internal_path_blocked
-      label: "OBJECTIVE: internal-only path is not exposed through the proxy"
+      label: "Internal-only path is not exposed through the proxy"
       kind: objective
       exec_in: workstation
       run: >-
@@ -70,7 +66,7 @@ checker:
 
     # OBJECTIVE: the restricted proxy mode must be persisted, not only live.
     - name: proxy_config_persisted
-      label: "OBJECTIVE: restricted proxy mode is persisted"
+      label: "Restricted proxy mode is persisted"
       kind: objective
       exec_in: workstation
       run: >-
@@ -84,7 +80,7 @@ checker:
 
     # GUARDRAIL: the public path must keep working through the proxy in BOTH states.
     - name: public_path_works
-      label: "GUARDRAIL: public path still works through the proxy"
+      label: "Public path still works through the proxy"
       kind: guardrail
       exec_in: workstation
       run: >-
@@ -99,7 +95,7 @@ checker:
     # internal backend directly, only through the proxy. True in both states; it
     # teaches that the boundary is the network topology, not just the proxy rule.
     - name: segmentation_intact
-      label: "GUARDRAIL: internal backend is not directly reachable"
+      label: "Internal backend is not directly reachable"
       kind: guardrail
       exec_in: workstation
       run: >-

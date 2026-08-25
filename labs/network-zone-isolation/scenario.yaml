@@ -3,14 +3,7 @@ title: "Network Zone Isolation and Access Control"
 difficulty: intermediate
 
 story:
-  role: Network security engineer
-  situation: >
-    A recent internal assessment gave you the same operating position an
-    attacker would gain after landing on the company's externally facing web
-    application. Leadership wants a clear picture of exactly what that
-    position can reach across the rest of the environment, and a plan to
-    contain it so a single compromised front-end host cannot become a path to
-    everything else.
+  summary: "Learn to map what a compromised host can reach across network zones, then contain it with a boundary policy."
 
 documentation:
   student_guide_url: /docs/labs/network-zone-isolation/

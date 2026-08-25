@@ -1,12 +1,14 @@
 # Database Access Control and Least Privilege
 
-A colleague mentioned they were able to reach the order database from their
-own laptop during a routine check last week - something that should not have
-been possible from outside the application stack. Nobody on the team
-remembers formally hardening this database server after it was first stood
-up. You have been asked to audit exactly what it exposes, to whom, and with
-what level of access, and bring it in line with how a production database
-should actually be run.
+## Situation
+
+**Role:** Junior database administrator
+
+A colleague mentioned they were able to reach the order database from their own
+laptop during a routine check, which should not have been possible from outside
+the application stack. Nobody remembers formally hardening this database server
+after it was stood up. Audit what it exposes, to whom, and with what level of
+access, then bring it in line with how a production database should be run.
 
 ## Why This Matters
 
@@ -76,13 +78,6 @@ The database currently holds two databases: `app_db`, which is what the
 order application is meant to read and write, and `hr_db`, an unrelated
 database that happens to live on the same server. The order application has
 no legitimate reason to ever touch `hr_db`.
-
-Use the portal to **Start Lab**, **Run Check**, **Reset**, or **End Lab** at
-any time. **Reset** restores the original vulnerable baseline, so it is not
-a way to reload a fix.
-
-If the browser terminal is unavailable, use the SSH fallback endpoint shown
-on the portal's Workstation Access page.
 
 ## Your Mission
 

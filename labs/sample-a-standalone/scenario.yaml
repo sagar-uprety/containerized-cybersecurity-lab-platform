@@ -15,12 +15,7 @@ difficulty: beginner
 
 # Portal preview only. Do not reveal the exact vulnerable setting here.
 story:
-  role: Junior Linux administrator
-  situation: >
-    A small internal records service was deployed from an unfinished template.
-    Monitoring suggests clients may be receiving records without proving who
-    they are. Investigate the service, preserve legitimate access, and correct
-    the configuration.
+  summary: "Learn to find a service that skips identity checks, then enforce authentication without breaking access."
 
 # These paths follow a fixed naming convention. The generator creates the three
 # tiny MkDocs include files under docs/labs/ for a copied lab.
@@ -58,7 +53,7 @@ checker:
     # SAMPLE OBJECTIVE: directly test attacker-visible behavior. Prefer behavior
     # checks over checking only for an exact configuration line.
     - name: sample_unauthorized_access
-      label: "SAMPLE OBJECTIVE: unauthenticated record access is blocked"
+      label: "Unauthenticated record access is blocked"
       kind: objective
       exec_in: workstation
       run: >-
@@ -84,7 +79,7 @@ checker:
     # SAMPLE OBJECTIVE: verify the persistent file, not only current runtime
     # behavior. This catches a temporary command that a reset/restart would lose.
     - name: sample_persistent_config
-      label: "SAMPLE OBJECTIVE: hardened configuration is persisted"
+      label: "Hardened configuration is persisted"
       kind: objective
       exec_in: workstation
       run: >-
@@ -99,7 +94,7 @@ checker:
     # SAMPLE GUARDRAIL: legitimate behavior must pass before and after the fix.
     # Guardrails protect service continuity; they do not define the vulnerability.
     - name: sample_authorized_access
-      label: "SAMPLE GUARDRAIL: authorized record access still works"
+      label: "Authorized record access still works"
       kind: guardrail
       exec_in: workstation
       run: >-
@@ -115,7 +110,7 @@ checker:
     # SAMPLE GUARDRAIL: use a bounded request so a broken service cannot hang a
     # portal check indefinitely. Future checks should use timeout/connect limits.
     - name: sample_service_healthy
-      label: "SAMPLE GUARDRAIL: target service remains healthy"
+      label: "Target service remains healthy"
       kind: guardrail
       exec_in: workstation
       run: >-

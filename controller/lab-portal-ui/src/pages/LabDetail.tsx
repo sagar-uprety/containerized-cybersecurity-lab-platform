@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { Maximize2, Clock } from "lucide-react";
+import { Maximize2, Clock, ChevronRight, ArrowRight } from "lucide-react";
 import type { User, LabDetail as LabDetailData, CheckResultData } from "../types";
 import StudentLayout from "../components/StudentLayout";
 import StatusBadge from "../components/StatusBadge";
@@ -14,8 +14,17 @@ import { useDocumentTitle } from "../utils/useDocumentTitle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+
+const PORTAL_CONTROLS: { term: string; explanation: string }[] = [
+  { term: "Start lab", explanation: "Creates your workstation and the lab environment ready for use." },
+  { term: "Run check", explanation: "Automatically verifies your progress against this lab's objectives." },
+  { term: "Reset", explanation: "Puts everything back to the original vulnerable state. All your work in the terminal will be lost, so use it only to start over." },
+  { term: "Stop", explanation: "Pauses your environment without ending the session; you can close and reopen it later" },
+  { term: "End lab", explanation: "Finishes this session. You can't resume after ending." },
+];
 
 type LabAction = "start" | "stop" | "reset" | "end" | "check";
 
@@ -39,6 +48,7 @@ export default function LabDetail({ user, labId, groupId, onLogout }: LabDetailP
   const [actionLoading, setActionLoading] = useState<LabAction | null>(null);
   const [checkResult, setCheckResult] = useState<CheckResultData | null>(null);
   const [hasChecked, setHasChecked] = useState(false);
+  const [howItWorksOpen, setHowItWorksOpen] = useState(false);
   const shellRef = useRef<HTMLDivElement>(null);
   const handleRef = useRef<HTMLDivElement>(null);
 
@@ -335,42 +345,53 @@ export default function LabDetail({ user, labId, groupId, onLogout }: LabDetailP
             )}
           </div>
 
-          {hasChecked && <div className="mb-4"><CheckResult result={checkResult} visible={hasChecked} checkerChecks={scenario.checker?.checks} /></div>}
+          <Collapsible open={howItWorksOpen} onOpenChange={setHowItWorksOpen} className="mb-4">
+            <CollapsibleTrigger className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+              <ChevronRight className={cn("size-3.5 shrink-0 transition-transform", howItWorksOpen && "rotate-90")} />
+              Lab Controls and Usage Information
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <dl className="mt-2 space-y-2 rounded-md border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
+                {PORTAL_CONTROLS.map(({ term, explanation }) => (
+                  <div key={term}>
+                    <dt className="inline font-semibold text-foreground">{term}</dt>
+                    <dd className="inline">: {explanation}</dd>
+                  </div>
+                ))}
+              </dl>
+            </CollapsibleContent>
+          </Collapsible>
 
-          <Card className="mb-4">
+          <Card className={cn("mb-4", isRunning && "border-primary bg-primary/5")}>
             <CardContent className="space-y-2">
-              <h2 className="text-sm font-semibold text-foreground">Situation</h2>
-              <p className="text-sm text-muted-foreground"><strong className="text-foreground">Role:</strong> {scenario.story?.role}</p>
-              <p className="text-sm text-muted-foreground">{scenario.story?.situation}</p>
-              <div className="rounded-md border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
-                This lab will auto-stop if idle for {scenario.lifecycle?.idle_timeout_minutes} min or if running for more than {scenario.lifecycle?.max_runtime_minutes} min.
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="mb-4">
-            <CardContent className="space-y-2">
-              <h2 className="text-sm font-semibold text-foreground">Lab guide</h2>
+              <h2 className="text-sm font-semibold text-foreground">
+                {isRunning ? "Next: open the lab guide" : "Lab guide"}
+              </h2>
               <p className="text-sm text-muted-foreground">
-                Follow the MkDocs guide for orientation, investigation, remediation, and verification.
+                {isRunning
+                  ? "Your workstation is ready. Follow the guide to investigate, fix, and verify the vulnerability."
+                  : "Start the lab, then follow the guide for orientation, investigation, remediation, and verification."}
               </p>
-              <Button asChild size="sm">
+              <Button asChild size={isRunning ? "default" : "sm"}>
                 <a href={endpoints?.guide_url || `/docs/labs/${labId}/`} target="_blank" rel="noreferrer">
-                  Open lab guide
+                  Open lab guide {isRunning && <ArrowRight className="size-4" />}
                 </a>
               </Button>
             </CardContent>
           </Card>
 
+          {hasChecked && <div className="mb-4"><CheckResult result={checkResult} visible={hasChecked} checkerChecks={scenario.checker?.checks} /></div>}
+
+          <div className="mb-4 rounded-md border border-border bg-muted px-3 py-2 text-xs text-muted-foreground">
+            This lab will auto-stop if idle for {scenario.lifecycle?.idle_timeout_minutes} min or if running for more than {scenario.lifecycle?.max_runtime_minutes} min.
+          </div>
+
           {isRunning && endpoints && (
             <Card>
               <CardContent className="space-y-2">
-                <h2 className="text-sm font-semibold text-foreground">Access</h2>
+                <h2 className="text-sm font-semibold text-foreground">Other Way to Access Lab</h2>
                 <p className="text-xs text-muted-foreground">
-                  SSH uses your workstation password, which is separate from your portal password.{" "}
-                  <Link href="/workstation-access" className="text-primary hover:underline">
-                    Get your workstation password
-                  </Link>
+                  Do you prefer working from your own device and code editor? or open terminal in new tab? {" "}
                 </p>
                 <div className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">Terminal</span>
@@ -389,6 +410,9 @@ export default function LabDetail({ user, labId, groupId, onLogout }: LabDetailP
                     <a href={endpoints.app} target="_blank" rel="noreferrer" className="truncate text-primary hover:underline">{endpoints.app}</a>
                   </div>
                 )}
+                   <Link href="/workstation-access" className="text-primary hover:underline">
+                    Find your workstation SSH password
+                  </Link>
               </CardContent>
             </Card>
           )}

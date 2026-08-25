@@ -1,10 +1,14 @@
 # Network Zone Isolation and Access Control
 
-You've been given an assessment position equivalent to what an attacker would
-have after landing on the company's public-facing web application. Before
-this engagement, nobody had actually tested what that position grants access
-to beyond the web tier itself. Your job is to map it, prove it, and then
-make sure the answer is different by the time you're done.
+## Situation
+
+**Role:** Network security engineer
+
+A recent internal assessment gave you the same operating position an attacker
+would gain after landing on the company's externally facing web application.
+Leadership wants a clear picture of exactly what that position can reach across
+the rest of the environment, and a plan to contain it so a single compromised
+front-end host cannot become a path to everything else.
 
 ## Why This Matters
 
@@ -79,13 +83,6 @@ Paths and access you will need:
     in over SSH as the `firewall` account. Its password is your own
     workstation/lab login password from the portal's Workstation Access
     page.
-
-Use the portal to **Start Lab**, **Run Check**, **Reset**, or **End Lab** at
-any time. **Reset** restores the original vulnerable baseline, so it is not
-a way to reload a fix.
-
-If the browser terminal is unavailable, use the SSH fallback endpoint shown
-on the portal's Workstation Access page.
 
 ## Your Mission
 

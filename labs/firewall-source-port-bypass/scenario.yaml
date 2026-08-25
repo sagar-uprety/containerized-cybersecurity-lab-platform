@@ -3,12 +3,7 @@ title: "Stateful Firewall Configuration"
 difficulty: intermediate
 
 story:
-  role: Network security auditor
-  situation: >
-    The organization's perimeter firewall was set up by a previous
-    administrator and has never been independently tested. Management wants
-    you to verify that an internal web service is genuinely protected from
-    new connections arriving from the external network.
+  summary: "Learn to find a firewall rule that trusts a packet's source port, then replace it with real connection tracking."
 
 documentation:
   student_guide_url: /docs/labs/firewall-source-port-bypass/

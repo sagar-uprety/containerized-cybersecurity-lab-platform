@@ -1,6 +1,6 @@
 # Securing an Nginx Web Server - Instructor Guide
 
-<!-- AUTHORING NOTE: this is the study lab. It is deliberately short and gives
+<!-- AUTHORING NOTE: this is the survey lab. It is deliberately short and gives
 exact commands so first-time participants can exercise the same Start / terminal /
 edit / reload / Run Check workflow without prior advanced skill. The reveal
 boundary is intentionally relaxed here (gated by the `survey-` ID prefix in the
@@ -43,7 +43,7 @@ conditions, not to assess learning gain or advanced security skill.
 
 ## Reveal Policy and Intervention
 
-This is the study lab, so the student guide shows the exact commands by design.
+This is the survey lab, so the student guide shows the exact commands by design.
 The standardized instructions allow participants to evaluate the same workflow.
 Intervention is about resolving access or platform failures, not assessing
 independent problem solving.
@@ -81,7 +81,7 @@ How to read this lab's combined feedback form responses:
 
 -   Both weaknesses are CIS NGINX Benchmark hardening items: `server_tokens off` (version disclosure, CWE-200) and `autoindex off` (directory listing, CWE-548).
 -   Emphasise the difference in severity: the directory listing exposes real files (impactful); hiding the version reduces reconnaissance (defense in depth).
--   This is the standardized study lab; course exercises use the research-grounded catalog labs and their guided-discovery format.
+-   This is the standardized survey lab; course exercises use the research-grounded catalog labs and their guided-discovery format.
 
 ---
 

@@ -1,10 +1,12 @@
 # Network Segmentation and Boundary Control (Pattern C Reference)
 
-You are auditing an internal service that sits behind an edge proxy on a separate
-network. Nobody has checked whether the proxy keeps the internal-only parts of
-that service away from the outside. Determine what the proxy actually exposes,
-correct it using only synthetic data, and keep the intended public traffic
-flowing.
+## Situation
+
+**Role:** Network security auditor
+
+An internal service sits behind an edge proxy on a separate network. Nobody has
+checked whether the proxy keeps the internal-only parts of that service away
+from the outside. Verify what the proxy exposes and correct it.
 
 <!-- AUTHORING NOTE (sample lab only): this is the runnable reference for
 Pattern C (Proxy / Firewall / Segmentation), using an application-layer proxy so
@@ -65,13 +67,6 @@ Paths and access you will need:
 
 The proxy serves two kinds of path: a public one intended for outside clients,
 and an internal-only one that should never cross the boundary.
-
-Use the portal to **Start Lab**, **Run Check**, **Reset**, or **End Lab** at any
-time. **Reset** restores the original vulnerable baseline, so it is not a way to
-reload a fix.
-
-If the browser terminal is unavailable, use the SSH fallback endpoint shown on
-the portal's Workstation Access page.
 
 ## Your Mission
 

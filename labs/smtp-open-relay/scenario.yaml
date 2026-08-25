@@ -3,11 +3,7 @@ title: "SMTP Relay Access Control"
 difficulty: intermediate
 
 story:
-  role: Junior Linux administrator
-  situation: >
-    Network monitoring flagged unusual outbound SMTP traffic from the mail
-    relay server. The traffic does not originate from the mail clients you
-    expect. The relay may be authorizing clients outside the intended trust boundary.
+  summary: "Learn to find a mail relay forwarding for untrusted senders, then restrict it to authorized clients only."
 
 documentation:
   student_guide_url: /docs/labs/smtp-open-relay/

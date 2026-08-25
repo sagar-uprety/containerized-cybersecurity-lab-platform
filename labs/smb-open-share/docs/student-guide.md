@@ -1,11 +1,13 @@
 # SMB File Share Access Control
 
-You've been brought in as the junior IT administrator for a small file server
-that several teams use for backups and shared documents. A routine internal
-network scan flagged the server as reachable on the lab network, and nobody is
-sure whether the data it holds is properly protected. Your job is to find out
-what is actually accessible, show why that matters, lock the server down, and
-confirm legitimate users can still get to their files.
+## Situation
+
+**Role:** Junior IT administrator
+
+A file server used by several teams for backups and shared documents was
+flagged during a routine internal network scan. Nobody is sure whether the data
+it holds is properly protected. Find out what is actually accessible, then
+harden the service.
 
 ## Why This Matters
 
@@ -56,13 +58,6 @@ Paths and access you will need:
 -   `/lab/smb/smb.conf` - the file server's configuration, exposed as a shared file so you can inspect and edit how the server is set up from the workstation
 -   `/lab/access/credentials.txt` - a lab-local access file with the details you need to administer the server
 -   **File-server admin account** - to administer the server directly (restart the service, create a share user), log in over SSH as the `sambaadmin` account. The SSH password is your own workstation/lab login password from the portal's Workstation Access page.
-
-Use the portal to **Start Lab**, **Run Check**, **Reset**, or **End Lab** at any
-time. **Reset** restores the original vulnerable baseline, so it is not a way to
-reload a fix.
-
-If the browser terminal is unavailable, use the SSH fallback endpoint shown on
-the portal's Workstation Access page.
 
 ## Your Mission
 

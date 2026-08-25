@@ -3,11 +3,7 @@ title: "LDAP Directory Access Control"
 difficulty: intermediate
 
 story:
-  role: Security auditor
-  situation: >
-    A directory service is running on the internal network, but its security
-    posture has never been formally assessed. Determine what organizational
-    data it hands out and to whom, then harden the service.
+  summary: "Learn to find a directory service leaking data to anonymous binds, then restrict reads to authenticated users."
 
 documentation:
   student_guide_url: /docs/labs/ldap-anonymous-bind/

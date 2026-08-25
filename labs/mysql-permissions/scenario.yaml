@@ -3,14 +3,7 @@ title: "Database Access Control and Least Privilege"
 difficulty: beginner
 
 story:
-  role: Junior database administrator
-  situation: >
-    A colleague mentioned they were able to reach the order database from
-    their own laptop during a routine check, which should not have been
-    possible from outside the application stack. Nobody remembers formally
-    hardening this database server after it was stood up. Audit what it
-    exposes, to whom, and with what level of access, then bring it in line
-    with how a production database should be run.
+  summary: "Learn to audit an over-privileged database account, then cut it to least-privilege, network-restricted access."
 
 documentation:
   student_guide_url: /docs/labs/mysql-permissions/

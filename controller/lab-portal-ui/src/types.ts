@@ -24,7 +24,7 @@ export interface Lab {
   title: string;
   difficulty?: string;
   status?: string;
-  story?: { situation?: string; role?: string };
+  story?: { summary?: string };
   deadline?: string;
   group: { id: number | null; name: string | null; semester?: string | null; is_archived?: boolean };
 }
@@ -45,7 +45,7 @@ export interface LabDetail {
 export interface Scenario {
   title: string;
   difficulty?: string;
-  story?: { situation?: string; role?: string };
+  story?: { summary?: string };
   lifecycle?: { idle_timeout_minutes?: number; max_runtime_minutes?: number };
   checker?: { checks?: CheckerCheck[] };
   documentation?: {

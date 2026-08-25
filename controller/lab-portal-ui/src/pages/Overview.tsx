@@ -156,8 +156,8 @@ function LabCard({ lab, pastDue }: { lab: Lab; pastDue: boolean }) {
           )}
           {lab.deadline && <DeadlineBadge deadline={lab.deadline} />}
         </div>
-        <p className="line-clamp-3 text-sm text-muted-foreground">
-          {lab.story?.situation}
+        <p className="line-clamp-2 text-sm text-muted-foreground">
+          {lab.story?.summary}
         </p>
         <Button asChild size="sm" variant={pastDue ? "outline" : "default"} className="mt-auto">
           <Link href={`/labs/${lab.id}?group=${lab.group.id}`}>Open lab</Link>

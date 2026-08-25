@@ -1,11 +1,13 @@
 # SSH Authentication Hardening
 
-You've been called in as an incident responder. A server was flagged after
-suspicious SSH login activity appeared in the authentication logs. The previous
-administrator may have left weak configurations in place, several user accounts
-exist on the machine, and there are signs that someone may already have gained
-access. Your job is to audit the SSH service, establish how an intruder could
-get in, and harden the server.
+## Situation
+
+**Role:** Incident responder
+
+A server was flagged after suspicious SSH login activity appeared in the
+authentication logs, and there are signs someone may already have gained
+access. Audit the SSH service, establish how an intruder could get in, and
+harden the server.
 
 ## Why This Matters
 
@@ -56,13 +58,6 @@ Paths and access you will need:
 -   `/lab/keys` - contains the legitimate lab key for connecting to the target, along with related material for your assessment
 -   `/lab/keys/weak-passwords.txt` - a short candidate password list authorized for the weak-password assessment. Determine which candidate succeeds rather than assuming it.
 -   For the authorized password assessment, use the `lab-user` account on the target. The target hostname and the legitimate key are both in the lab environment; use standard SSH client help to work out how to connect.
-
-Use the portal to **Start Lab**, **Run Check**, **Reset**, or **End Lab** at any
-time. **Reset** restores the original vulnerable baseline, so it is not a way to
-reload a fix.
-
-If the browser terminal is unavailable, use the SSH fallback endpoint shown on
-the portal's Workstation Access page.
 
 ## Your Mission
 

@@ -1,10 +1,13 @@
 # Stateful Firewall Configuration
 
-You are auditing a perimeter firewall whose previous administrator used packet
-port numbers as a shortcut for recognizing reply traffic. Management wants you to
-determine whether a new connection from the external network can reach an
-internal web server that the firewall is supposed to protect, correct the policy
-if it cannot hold, and confirm the protected service stays healthy.
+## Situation
+
+**Role:** Network security auditor
+
+The organization's perimeter firewall was set up by a previous administrator
+and has never been independently tested. Management wants you to verify that an
+internal web service is genuinely protected from new connections arriving from
+the external network.
 
 ## Why This Matters
 
@@ -56,13 +59,6 @@ Paths and access you will need:
 
 -   `/lab/config/fw_external_ip.txt` - on the workstation; holds the firewall's external address, which you will need to aim your probes at.
 -   The IPv4 rule file, `/etc/iptables/rules.v4`, lives on the **firewall host**, not the workstation. Connect there over SSH as the `firewall` account, using your own lab password. That account can inspect, save, restore, and reload the IPv4 rules through a limited passwordless `sudo` helper.
-
-Use the portal to **Start Lab**, **Run Check**, **Reset**, or **End Lab** at any
-time. **Reset** restores the original vulnerable baseline, so it is not a way to
-reload a fix.
-
-If the browser terminal is unavailable, use the SSH fallback endpoint shown on
-the portal's Workstation Access page.
 
 ## Your Mission
 

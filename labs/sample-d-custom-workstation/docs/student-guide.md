@@ -1,10 +1,13 @@
 # Custom Workstation Tooling (Pattern D Reference)
 
-You are supporting a small internal records service that was deployed from an
-unfinished template. Monitoring suggests clients may be receiving records without
-proving who they are. Determine what is happening, correct it using only
-synthetic data, and keep legitimate access working - using the client tools your
-workstation provides.
+## Situation
+
+**Role:** Junior Linux administrator
+
+A small internal records service was deployed from an unfinished template.
+Monitoring suggests clients may be receiving records without proving who they
+are. Investigate with the tools on your workstation, preserve legitimate
+access, and correct the configuration.
 
 <!-- AUTHORING NOTE (sample lab only): this is the runnable reference for
 Pattern D (Custom Workstation). The topology is a standalone service (Pattern A);
@@ -64,13 +67,6 @@ Paths and access you will need:
 
 -   `/lab/records/config.env` - the service's configuration, editable from the workstation
 -   **Service admin account** - to reload the service after editing its config, log in over SSH as the `recadmin` account on `records-service`. The SSH password is your own workstation/lab login password from the portal's Workstation Access page. The account can run only a narrow reload helper.
-
-Use the portal to **Start Lab**, **Run Check**, **Reset**, or **End Lab** at any
-time. **Reset** restores the original vulnerable baseline, so it is not a way to
-reload a fix.
-
-If the browser terminal is unavailable, use the SSH fallback endpoint shown on
-the portal's Workstation Access page.
 
 ## Your Mission
 

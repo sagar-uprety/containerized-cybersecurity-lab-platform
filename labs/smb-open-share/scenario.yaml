@@ -3,12 +3,7 @@ title: "SMB File Share Access Control"
 difficulty: intermediate
 
 story:
-  role: Junior IT administrator
-  situation: >
-    A file server used by several teams for backups and shared documents was
-    flagged during a routine internal network scan. Nobody is sure whether the
-    data it holds is properly protected. Find out what is actually accessible,
-    then harden the service.
+  summary: "Learn to find an SMB share reachable without credentials, then require authentication and encryption."
 
 documentation:
   student_guide_url: /docs/labs/smb-open-share/

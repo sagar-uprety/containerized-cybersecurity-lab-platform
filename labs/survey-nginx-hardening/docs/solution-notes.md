@@ -1,6 +1,6 @@
 # Securing an Nginx Web Server - Solution Notes
 
-Answer key for the standardized study lab. Not served to students.
+Answer key for the standardized survey lab. Not served to students.
 
 ## Root Cause
 

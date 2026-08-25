@@ -3,12 +3,7 @@ title: "Service Reconnaissance and Information Exposure"
 difficulty: beginner
 
 story:
-  role: Junior systems administrator
-  situation: >
-    A server is being prepared for its production launch next week. Before
-    sign-off, the operations lead wants confirmation that nothing beyond what
-    is strictly necessary can be learned about the server by someone probing
-    it from outside, without needing any credentials.
+  summary: "Learn to find and close the channels a server uses to leak its software and OS to an unauthenticated scan."
 
 documentation:
   student_guide_url: /docs/labs/banner-exposure/

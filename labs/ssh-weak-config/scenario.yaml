@@ -3,12 +3,7 @@ title: "SSH Authentication Hardening"
 difficulty: intermediate
 
 story:
-  role: Incident responder
-  situation: >
-    A server was flagged after suspicious SSH login activity appeared in the
-    authentication logs, and there are signs someone may already have gained
-    access. Audit the SSH service, establish how an intruder could get in, and
-    harden the server.
+  summary: "Learn to audit SSH for weak authentication and signs of prior compromise, then harden it against guessing."
 
 documentation:
   student_guide_url: /docs/labs/ssh-weak-config/
