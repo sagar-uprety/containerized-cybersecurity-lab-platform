@@ -43,7 +43,14 @@ def main() -> None:
     from app.analytics import instructor_analytics  # noqa: PLC0415
     from app.db import SessionLocal  # noqa: PLC0415
     from app.demo_seed import replace_with_demo_data  # noqa: PLC0415
-    from app.models import Group, LabSession, RuntimeLease, TerminalCommand, User  # noqa: PLC0415
+    from app.models import (  # noqa: PLC0415
+        Group,
+        GroupMember,
+        LabSession,
+        RuntimeLease,
+        TerminalCommand,
+        User,
+    )
     from fastapi.testclient import TestClient  # noqa: PLC0415
     from labctl_core import lifecycle as lifecycle_module  # noqa: PLC0415
 
@@ -129,6 +136,19 @@ def main() -> None:
             owner_group_ids = list(
                 session.scalars(select(Group.id).where(Group.owner_id == instructor_user.id))
             )
+            active_roster_count = len(
+                set(
+                    session.scalars(
+                        select(GroupMember.user_id)
+                        .join(Group, Group.id == GroupMember.group_id)
+                        .where(
+                            Group.owner_id == instructor_user.id,
+                            Group.is_archived.is_(False),
+                            GroupMember.status == "approved",
+                        )
+                    )
+                )
+            )
         direct = instructor_analytics(owner_group_ids)
         assert payload["eligible_assignments"] == direct["eligible_assignments"]
         assert payload["eligible_assignments"] > 0
@@ -144,8 +164,47 @@ def main() -> None:
             == 200
         )
         assert len(ssh_calls) == read_call_count
+        csrf = client.get("/api/instructor/csrf").json()["csrf_token"]
+        empty_group = client.post(
+            "/api/instructor/groups",
+            json={
+                "name": "Roster without lab assignments",
+                "semester": "SS 2028",
+                "csrf_token": csrf,
+            },
+        )
+        assert empty_group.status_code == 200, empty_group.text
+        empty_group_id = empty_group.json()["id"]
+        created = client.post(
+            "/api/instructor/students",
+            json={"email": "unassigned-roster@example.edu", "csrf_token": csrf},
+        )
+        assert created.status_code == 200, created.text
+        added = client.post(
+            f"/api/instructor/groups/{empty_group_id}/members",
+            json={"student_id": created.json()["student_id"], "csrf_token": csrf},
+        )
+        assert added.status_code == 200, added.text
+        refreshed_analytics = client.get("/api/instructor/analytics")
+        assert refreshed_analytics.status_code == 200
+        empty_group_summary = next(
+            group for group in refreshed_analytics.json()["groups"] if group["id"] == empty_group_id
+        )
+        assert empty_group_summary["total_students"] == 1
+        assert empty_group_summary["labs_assigned"] == 0
+        assert empty_group_summary["eligible_assignments"] == 0
         students = client.get("/api/instructor/students-progress")
-        assert students.status_code == 200 and len(students.json()) == 77
+        assert students.status_code == 200 and len(students.json()) == active_roster_count + 1
+        roster_only = next(
+            item for item in students.json() if item["email"] == "unassigned-roster@example.edu"
+        )
+        assert roster_only["labs_assigned"] == 0
+        scoped_students = client.get(f"/api/instructor/students-progress?group_id={empty_group_id}")
+        assert scoped_students.status_code == 200
+        assert len(scoped_students.json()) == 1
+        assert scoped_students.json()[0]["email"] == "unassigned-roster@example.edu"
+        assert scoped_students.json()[0]["labs_assigned"] == 0
+        assert client.get("/api/instructor/students-progress?group_id=999999").status_code == 404
         detail = client.get("/api/instructor/students/student03?group_id=1")
         assert detail.status_code == 200 and detail.json()["labs"]
         real_names = {

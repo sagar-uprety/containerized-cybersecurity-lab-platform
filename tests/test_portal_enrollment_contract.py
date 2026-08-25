@@ -40,6 +40,7 @@ def main() -> None:
     from app import repository as repo  # noqa: PLC0415
     from app.db import SessionLocal, init_db  # noqa: PLC0415
     from app.models import AssignmentObligation, GroupLab, GroupMember, User  # noqa: PLC0415
+    from app.semesters import SEMESTERS, validate_semester  # noqa: PLC0415
     from sqlalchemy import select  # noqa: PLC0415
 
     init_db()
@@ -169,6 +170,15 @@ def main() -> None:
         else:
             raise AssertionError("group without semester was accepted")
 
+        assert SEMESTERS[-1] == "SS 2030"
+        assert validate_semester(" WS 2029/30 ") == "WS 2029/30"
+        try:
+            validate_semester("Summer Semester 2026")
+        except ValueError as exc:
+            assert "semester must be one of" in str(exc)
+        else:
+            raise AssertionError("semester outside the dropdown was accepted")
+
         assert ss_group.is_archived is False
         assert archived_group.is_archived is True
 
@@ -199,6 +209,7 @@ def main() -> None:
         assert all(o.lab_id == "redis-exposed" for o in redis_obligations)
 
     main_source = (API_ROOT / "app/main.py").read_text(encoding="utf-8")
+    assert main_source.count("validate_semester(") >= 3
     detail_route = main_source.split('@app.get("/api/instructor/groups/{group_id}")', 1)[1].split(
         '@app.post("/api/instructor/groups/{group_id}/approve")', 1
     )[0]

@@ -87,3 +87,4 @@ skills-lock.json
 *.zip
 controller/lab-portal-ui/package-lock.json
 controller/lab-controller-api/demo-data.json
+controller/lab-controller-api/domain-demo-data.json

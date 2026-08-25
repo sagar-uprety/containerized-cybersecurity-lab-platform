@@ -63,3 +63,5 @@ thesis_portal_nginx_enabled: true
 thesis_portal_event_log: "{{ thesis_log_root }}/portal-events.jsonl"
 thesis_portal_demo_replace: false
 thesis_portal_demo_credentials_path: "{{ thesis_state_root }}/demo-credentials.csv"
+thesis_portal_domain_demo_seed: false
+thesis_portal_domain_demo_credentials_path: "{{ thesis_state_root }}/domain-demo-credentials.csv"

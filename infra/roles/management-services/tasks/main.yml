@@ -363,6 +363,32 @@
     - portal-api
     - portal-demo-seed
 
+- name: Generate targeted domain demo dataset locally
+  ansible.builtin.command:
+    argv:
+      - python3
+      - "{{ playbook_dir }}/../../tools/generate_domain_demo.py"
+  delegate_to: localhost
+  become: false
+  changed_when: false
+  tags:
+    - portal
+    - portal-api
+    - portal-domain-demo-seed
+
+- name: Install targeted domain demo dataset
+  ansible.builtin.copy:
+    src: "{{ playbook_dir }}/../../controller/lab-controller-api/domain-demo-data.json"
+    dest: "{{ management_controller_root }}/lab-controller-api/domain-demo-data.json"
+    owner: root
+    group: "{{ thesis_admin_group }}"
+    mode: "0640"
+  notify: Restart thesis portal
+  tags:
+    - portal
+    - portal-api
+    - portal-domain-demo-seed
+
 - name: Discover lab scenario directories on controller
   ansible.builtin.find:
     paths: "{{ playbook_dir }}/../../labs"
@@ -640,6 +666,106 @@
   tags:
     - portal
     - portal-demo-seed
+
+- name: Check existing portal database before targeted domain demo seed
+  ansible.builtin.stat:
+    path: "{{ thesis_state_root }}/portal.db"
+  register: _portal_domain_demo_db_stat
+  when: thesis_portal_domain_demo_seed | bool
+  tags:
+    - portal-domain-demo-seed
+
+- name: Back up portal database before targeted domain demo seed
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -c
+      - "import sqlite3, sys; source = sqlite3.connect(sys.argv[1]); target = sqlite3.connect(sys.argv[2]); source.backup(target); target.close(); source.close()"
+      - "{{ thesis_state_root }}/portal.db"
+      - "{{ management_backup_root }}/portal.domain-demo.{{ ansible_date_time.iso8601_basic_short }}.db.bak"
+  when:
+    - thesis_portal_domain_demo_seed | bool
+    - _portal_domain_demo_db_stat.stat.exists
+  tags:
+    - portal-domain-demo-seed
+
+- name: Restrict targeted domain demo database backup
+  ansible.builtin.file:
+    path: "{{ management_backup_root }}/portal.domain-demo.{{ ansible_date_time.iso8601_basic_short }}.db.bak"
+    owner: root
+    group: "{{ thesis_admin_group }}"
+    mode: "0640"
+  when:
+    - thesis_portal_domain_demo_seed | bool
+    - _portal_domain_demo_db_stat.stat.exists
+  tags:
+    - portal-domain-demo-seed
+
+- name: Merge targeted domain demo cohorts
+  when: thesis_portal_domain_demo_seed | bool
+  block:
+    - name: Stop portal for targeted domain demo seed
+      ansible.builtin.systemd:
+        name: thesis-portal
+        state: stopped
+        daemon_reload: true
+
+    - name: Load targeted domain demo cohorts
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -m
+          - app.domain_demo_seed
+          - --data
+          - "{{ management_controller_root }}/lab-controller-api/domain-demo-data.json"
+          - --credentials
+          - "{{ thesis_portal_domain_demo_credentials_path }}"
+        chdir: "{{ management_controller_root }}/lab-controller-api"
+      environment:
+        PORTAL_DB_PATH: "{{ thesis_state_root }}/portal.db"
+        EVENT_LOG_PATH: "{{ thesis_portal_event_log }}"
+        RESULTS_DIR: "{{ thesis_state_root }}/results"
+        LABS_DIR: "{{ management_controller_root }}/lab-controller-api/labs"
+      register: _portal_domain_demo_seed
+      changed_when: true
+  always:
+    - name: Ensure portal is running after targeted domain demo seed
+      ansible.builtin.systemd:
+        name: thesis-portal
+        state: started
+        daemon_reload: true
+  tags:
+    - portal-domain-demo-seed
+
+- name: Ensure local private credential directory exists for domain demo seed
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/../../.secrets"
+    state: directory
+    mode: "0700"
+  delegate_to: localhost
+  become: false
+  when: thesis_portal_domain_demo_seed | bool
+  tags:
+    - portal-domain-demo-seed
+
+- name: Fetch generated domain demo credentials locally
+  ansible.builtin.fetch:
+    src: "{{ thesis_portal_domain_demo_credentials_path }}"
+    dest: "{{ playbook_dir }}/../../.secrets/domain-demo-credentials.csv"
+    flat: true
+  when: thesis_portal_domain_demo_seed | bool
+  tags:
+    - portal-domain-demo-seed
+
+- name: Restrict fetched domain demo credentials locally
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/../../.secrets/domain-demo-credentials.csv"
+    mode: "0600"
+  delegate_to: localhost
+  become: false
+  when: thesis_portal_domain_demo_seed | bool
+  tags:
+    - portal-domain-demo-seed
 
 - name: Generate controller SSH key
   ansible.builtin.user:

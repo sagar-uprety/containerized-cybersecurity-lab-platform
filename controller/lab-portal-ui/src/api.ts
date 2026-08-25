@@ -377,8 +377,9 @@ export function renameGroup(
   });
 }
 
-export function getStudentsProgress(): Promise<StudentsProgressEntry[]> {
-  return request("/instructor/students-progress");
+export function getStudentsProgress(groupId?: number): Promise<StudentsProgressEntry[]> {
+  const query = groupId != null ? `?group_id=${groupId}` : "";
+  return request(`/instructor/students-progress${query}`);
 }
 
 export function getGroupExportCsvUrl(groupId: number): string {

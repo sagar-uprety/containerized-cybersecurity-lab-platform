@@ -28,6 +28,7 @@ export default function InstructorLayout({ user, onLogout, pendingCount, groupCo
     { href: `/instructor/groups/${groupContext.id}/labs`, label: "Lab assignments", icon: BookOpenCheck, match: (p) => p === `/instructor/groups/${groupContext.id}/labs` },
     { href: `/instructor/groups/${groupContext.id}/results`, label: "Student results", icon: ListChecks, match: (p) => p === `/instructor/groups/${groupContext.id}/results` || p.includes(`/instructor/groups/${groupContext.id}/students/`) },
     { href: `/instructor/groups/${groupContext.id}/analytics`, label: "Analytics", icon: BarChart3, match: (p) => p === `/instructor/groups/${groupContext.id}/analytics` },
+    { href: `/instructor/groups/${groupContext.id}/students`, label: "Manage students", icon: Users, match: (p) => p === `/instructor/groups/${groupContext.id}/students` },
     ...(groupContext.hasPending ? [{ href: `/instructor/groups/${groupContext.id}/pending`, label: "Approvals", icon: Clock, match: (p) => p === `/instructor/groups/${groupContext.id}/pending` } as NavItem] : []),
     { href: `/instructor/groups/${groupContext.id}/activity`, label: "Recent activity", icon: Activity, match: (p) => p === `/instructor/groups/${groupContext.id}/activity` },
   ] : undefined;

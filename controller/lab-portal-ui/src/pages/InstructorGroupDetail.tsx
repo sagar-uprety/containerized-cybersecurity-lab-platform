@@ -200,10 +200,7 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
   }
 
   async function handleRename(): Promise<void> {
-    if (!renameInput.trim()) {
-      setRenameOpen(false);
-      return;
-    }
+    if (!renameInput.trim() || !SEMESTERS.includes(renameSemester)) return;
     setRenaming(true);
     try {
       await renameGroup(groupId, renameInput.trim(), renameSemester.trim());
@@ -242,11 +239,6 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
   }
 
   const now = new Date();
-  // Include the group's current semester even if it predates the fixed SEMESTERS
-  // list (e.g. older groups), so renaming never silently drops an existing value.
-  const renameSemesterOptions = renameSemester && !SEMESTERS.includes(renameSemester)
-    ? [renameSemester, ...SEMESTERS]
-    : SEMESTERS;
   const assignedLabIds = new Set((group?.labs || []).map((l) => l.lab_id));
   const unassignedLabs = labs.filter((l) => !assignedLabIds.has(l.id));
   const unassignedCourseLabs = unassignedLabs.filter((l) => !l.is_sample);
@@ -340,7 +332,7 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="whitespace-nowrap">
-                <DropdownMenuItem onSelect={() => { setRenameInput(group?.name || ""); setRenameSemester(group?.semester || ""); setRenameOpen(true); }}>
+                <DropdownMenuItem onSelect={() => { setRenameInput(group?.name || ""); setRenameSemester(SEMESTERS.includes(group?.semester || "") ? group?.semester || "" : ""); setRenameOpen(true); }}>
                   <Pencil /> Rename
                 </DropdownMenuItem>
                 {!group?.is_archived && (
@@ -589,6 +581,7 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
         open={renameOpen}
         title="Rename group"
         confirmLabel={renaming ? "Renaming…" : "Rename"}
+        confirmDisabled={renaming || !renameInput.trim() || !SEMESTERS.includes(renameSemester)}
         onConfirm={handleRename}
         onCancel={() => setRenameOpen(false)}
       >
@@ -604,7 +597,7 @@ export default function InstructorGroupDetail({ user, groupId, section, onLogout
         <Select value={renameSemester} onValueChange={setRenameSemester}>
           <SelectTrigger className="w-full"><SelectValue placeholder="Select semester…" /></SelectTrigger>
           <SelectContent>
-            {renameSemesterOptions.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
+            {SEMESTERS.map((s) => <SelectItem key={s} value={s}>{s}</SelectItem>)}
           </SelectContent>
         </Select>
       </ConfirmModal>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
-import type { User, StudentsProgressEntry } from "../types";
+import type { GroupDetail, User, StudentsProgressEntry } from "../types";
 import InstructorLayout from "../components/InstructorLayout";
 import AlertError from "../components/AlertError";
 import ConfirmModal from "../components/ConfirmModal";
@@ -10,7 +10,7 @@ import PageHeader from "../components/PageHeader";
 import DataChip from "../components/DataChip";
 import { Trash2, ArrowUpDown, Search } from "lucide-react";
 import { showToast } from "../components/Toast";
-import { getStudentsProgress, removeGroupMember, deleteStudent } from "../api";
+import { getGroupDetail, getStudentsProgress, removeGroupMember, deleteStudent } from "../api";
 import { fmtTime } from "../utils/time";
 import { navigate } from "../utils/navigate";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 
 interface Props {
   user: User;
+  groupId?: number;
   onLogout: () => void;
 }
 
@@ -33,11 +34,12 @@ function initials(email: string): string {
   return (email || "?").charAt(0).toUpperCase();
 }
 
-export default function InstructorStudents({ user, onLogout }: Props) {
+export default function InstructorStudents({ user, groupId, onLogout }: Props) {
   const params = new URLSearchParams(window.location.search);
-  const initialGroupId = params.get("group") ? parseInt(params.get("group")!, 10) : null;
+  const initialGroupId = groupId ?? (params.get("group") ? parseInt(params.get("group")!, 10) : null);
 
   const [students, setStudents] = useState<StudentsProgressEntry[] | null>(null);
+  const [group, setGroup] = useState<GroupDetail | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounce(search, 200);
@@ -53,15 +55,22 @@ export default function InstructorStudents({ user, onLogout }: Props) {
     return [...map.entries()].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
   }, [students]);
 
-  const filterGroupName = allGroups.find((g) => g.id === filterGroupId)?.name || null;
+  const filterGroupName = group?.name || allGroups.find((g) => g.id === filterGroupId)?.name || null;
 
   useDocumentTitle(filterGroupName ? `Students in ${filterGroupName}` : "All Students");
 
   const refresh = useCallback(() => {
-    getStudentsProgress()
-      .then(setStudents)
-      .catch((err: Error) => setError(err.message));
-  }, []);
+    if (groupId != null) {
+      Promise.all([getStudentsProgress(groupId), getGroupDetail(groupId)])
+        .then(([studentRows, groupDetail]) => {
+          setStudents(studentRows);
+          setGroup(groupDetail);
+        })
+        .catch((err: Error) => setError(err.message));
+      return;
+    }
+    getStudentsProgress().then(setStudents).catch((err: Error) => setError(err.message));
+  }, [groupId]);
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -152,13 +161,23 @@ export default function InstructorStudents({ user, onLogout }: Props) {
   }
 
   return (
-    <InstructorLayout user={user} onLogout={onLogout}>
+    <InstructorLayout
+      user={user}
+      onLogout={onLogout}
+      groupContext={groupId != null ? { id: groupId, name: group?.name, hasPending: !!group?.pending_members.length } : undefined}
+    >
       <PageHeader
         title={filterGroupName ? `Students in ${filterGroupName}` : "All students"}
-        breadcrumbs={[
-          { label: "Dashboard", href: "/instructor" },
-          { label: filterGroupName ? filterGroupName : "All Students" },
-        ]}
+        breadcrumbs={groupId != null
+          ? [
+              { label: "Dashboard", href: "/instructor" },
+              { label: filterGroupName || "Group", href: `/instructor/groups/${groupId}` },
+              { label: "Manage students" },
+            ]
+          : [
+              { label: "Dashboard", href: "/instructor" },
+              { label: filterGroupName ? filterGroupName : "All Students" },
+            ]}
       />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -172,18 +191,20 @@ export default function InstructorStudents({ user, onLogout }: Props) {
             className="pl-8"
           />
         </div>
-        <Select
-          value={filterGroupId != null ? String(filterGroupId) : "all"}
-          onValueChange={(v) => setFilterGroupId(v === "all" ? null : parseInt(v, 10))}
-        >
-          <SelectTrigger className="w-64"><SelectValue placeholder="All groups" /></SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All groups</SelectItem>
-            {allGroups.map((g) => (
-              <SelectItem key={g.id} value={String(g.id)}>{g.name}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {groupId == null && (
+          <Select
+            value={filterGroupId != null ? String(filterGroupId) : "all"}
+            onValueChange={(v) => setFilterGroupId(v === "all" ? null : parseInt(v, 10))}
+          >
+            <SelectTrigger className="w-64"><SelectValue placeholder="All groups" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All groups</SelectItem>
+              {allGroups.map((g) => (
+                <SelectItem key={g.id} value={String(g.id)}>{g.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       <AlertError message={error} className="mb-4" />

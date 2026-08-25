@@ -80,6 +80,7 @@ from app.scenarios import (
     validate_lab_id,
 )
 from app.seed import ensure_admin_bootstrap, seed_if_empty
+from app.semesters import validate_semester
 from app.ssh_client import run_labctl, run_labctl_system_status
 
 logger = logging.getLogger(__name__)
@@ -631,7 +632,10 @@ async def api_register(request: Request):
         raise HTTPException(status_code=400, detail="Invalid JSON body") from None
     email = body.get("email", "").strip().lower()
     password = body.get("password", "")
-    semester = body.get("semester", "").strip() or None
+    try:
+        semester = validate_semester(body.get("semester"))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     study_program = body.get("study_program", "").strip() or None
     if not email or not password:
         raise HTTPException(status_code=400, detail="Email and password required")
@@ -2048,7 +2052,10 @@ async def api_create_group(request: Request, user: dict = Depends(get_authentica
     name = body.get("name", "").strip()
     if not name:
         raise HTTPException(status_code=400, detail="name is required")
-    semester = body.get("semester", "").strip() or None
+    try:
+        semester = validate_semester(body.get("semester"))
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     with SessionLocal() as session:
         try:
             group = repo.create_group(session, name, user["id"], semester=semester)
@@ -2108,6 +2115,11 @@ async def api_rename_group(
     if not name:
         raise HTTPException(status_code=400, detail="name is required")
     semester = body.get("semester")
+    if semester is not None:
+        try:
+            semester = validate_semester(semester)
+        except ValueError as exc:
+            raise HTTPException(status_code=400, detail=str(exc)) from exc
     with SessionLocal() as session:
         if repo.get_owned_group(session, group_id, user["id"]) is None:
             raise HTTPException(status_code=404, detail="Group not found")
@@ -2413,13 +2425,21 @@ def api_group_export_csv(group_id: int, user: dict = Depends(get_authenticated_u
 
 
 @app.get("/api/instructor/students-progress")
-def api_instructor_students_progress(user: dict = Depends(get_authenticated_user)):
+def api_instructor_students_progress(
+    group_id: Optional[int] = None,
+    user: dict = Depends(get_authenticated_user),
+):
     require_instructor(user)
     with SessionLocal() as session:
-        # Cross-group aggregate (no group_id in this route at all) -- archived
-        # cohorts are excluded entirely, same as the other all-groups views.
-        owner_ids = _owner_unarchived_group_ids(session, user["id"])
-    return analytics_service.students_progress(group_ids=owner_ids)
+        if group_id is not None:
+            if repo.get_owned_group(session, group_id, user["id"]) is None:
+                raise HTTPException(status_code=404, detail="Group not found")
+            scope_ids = {group_id}
+        else:
+            # Cross-group aggregate excludes archived cohorts, same as the
+            # other all-groups views.
+            scope_ids = _owner_unarchived_group_ids(session, user["id"])
+    return analytics_service.students_progress(group_ids=scope_ids)
 
 
 # ---------------------------------------------------------------------------
@@ -2569,6 +2589,7 @@ def instructor_group_detail_spa(group_id: int):
 
 
 @app.get("/instructor/groups/{group_id}/labs", response_class=HTMLResponse)
+@app.get("/instructor/groups/{group_id}/students", response_class=HTMLResponse)
 @app.get("/instructor/groups/{group_id}/pending", response_class=HTMLResponse)
 @app.get("/instructor/groups/{group_id}/activity", response_class=HTMLResponse)
 def instructor_group_section_spa(group_id: int):

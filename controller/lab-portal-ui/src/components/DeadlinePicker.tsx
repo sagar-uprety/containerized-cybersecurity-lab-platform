@@ -84,7 +84,16 @@ export default function DeadlinePicker({ deadline, labTitle, busy, saving, onSav
 
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
-          <IconButton icon={Pencil} label={`Edit deadline for ${labTitle}`} disabled={busy} />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            title={`Edit deadline for ${labTitle}`}
+            aria-label={`Edit deadline for ${labTitle}`}
+            disabled={busy}
+          >
+            <Pencil size={15} />
+          </Button>
         </PopoverTrigger>
         <PopoverContent align="start" className="w-auto">
           <Calendar

@@ -15,6 +15,7 @@ from app.models import (
     CheckObligation,
     CriterionObservation,
     Group,
+    GroupMember,
     LabSession,
     LifecycleEvidence,
     RuntimeLease,
@@ -504,14 +505,31 @@ def students_progress(group_ids=None):
     with SessionLocal() as session:
         obligations = _obligations(session, group_ids=group_ids)
         _prime_evidence_cache(session, obligations)
-        by_student = defaultdict(list)
+        obligations_by_student = defaultdict(list)
         for obligation in obligations:
-            by_student[obligation.student_id].append(obligation)
+            obligations_by_student[obligation.student_id].append(obligation)
+
+        roster_query = (
+            select(User, Group)
+            .join(GroupMember, GroupMember.user_id == User.id)
+            .join(Group, Group.id == GroupMember.group_id)
+            .where(GroupMember.status == "approved", User.role == "student")
+            .order_by(User.id, Group.name)
+        )
+        if group_ids is not None:
+            roster_query = roster_query.where(Group.id.in_(group_ids))
+
+        users_by_student = {}
+        groups_by_student = defaultdict(list)
+        for roster_user, group in session.execute(roster_query).all():
+            student_id = roster_user.internal_id or roster_user.email
+            users_by_student[student_id] = roster_user
+            groups_by_student[student_id].append(group)
+
         result = []
-        for student_id, student_obligations in by_student.items():
-            user = session.scalar(select(User).where(User.internal_id == student_id))
-            group_ids = sorted({item.group_id for item in student_obligations})
-            groups = [session.get(Group, group_id) for group_id in group_ids]
+        for student_id, roster_user in users_by_student.items():
+            student_obligations = obligations_by_student.get(student_id, [])
+            groups = groups_by_student[student_id]
             # A student's email is only shown here if at least one of their (in-scope)
             # groups is still non-archived -- if every group in scope is archived, this
             # view has no non-archived reason to display their PII.
@@ -519,9 +537,9 @@ def students_progress(group_ids=None):
             result.append(
                 {
                     "student_id": student_id,
-                    "email": None if all_archived else user.email,
-                    "semester": user.semester,
-                    "study_program": None if all_archived else user.study_program,
+                    "email": None if all_archived else roster_user.email,
+                    "semester": roster_user.semester,
+                    "study_program": None if all_archived else roster_user.study_program,
                     "groups": [
                         {"id": group.id, "name": group.name, "is_archived": group.is_archived}
                         for group in groups
@@ -714,12 +732,18 @@ def instructor_analytics(owner_group_ids, group_id=None, status="active"):
                 session.scalars(select(Group.id).where(Group.is_archived.is_(False))).all()
             ) & set(owner_group_ids)
         groups = []
+        roster_student_ids = set()
         for candidate_id in sorted(group_candidate_ids):
             group = session.get(Group, candidate_id)
             if group is None:
                 continue
             group_obligations = [item for item in obligations if item.group_id == candidate_id]
-            group_student_ids = {item.student_id for item in group_obligations}
+            group_student_ids = {
+                member.user.internal_id or member.user.email
+                for member in group.members
+                if member.status == "approved"
+            }
+            roster_student_ids.update(group_student_ids)
             group_completed = sum(1 for item in group_obligations if _achieved(session, item))
             group_overdue = {
                 item.student_id
@@ -767,7 +791,7 @@ def instructor_analytics(owner_group_ids, group_id=None, status="active"):
             "archived_groups_count": archived_groups_count,
             "total_groups": len(groups),
             "total_labs": len(list_scenarios()),
-            "total_students": len(student_ids),
+            "total_students": len(roster_student_ids),
             "completion_rate": round(completed / len(obligations) * 100) if obligations else 0,
             "completed_assignments": completed,
             "eligible_assignments": len(obligations),
