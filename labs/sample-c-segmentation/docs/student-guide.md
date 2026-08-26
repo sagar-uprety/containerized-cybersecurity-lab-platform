@@ -1,6 +1,6 @@
 # Network Segmentation and Boundary Control (Pattern C Reference)
 
-## Situation
+## Scenario
 
 **Role:** Network security auditor
 

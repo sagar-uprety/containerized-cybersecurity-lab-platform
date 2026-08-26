@@ -7,6 +7,8 @@ theme:
   name: mkdocs
 extra_css:
   - stylesheets/tum-theme.css
+extra_javascript:
+  - javascripts/copy-code.js
 markdown_extensions:
   - pymdownx.snippets:
       base_path:

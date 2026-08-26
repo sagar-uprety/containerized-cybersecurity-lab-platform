@@ -1,6 +1,6 @@
 # DNS Resolver Trust and Access Control
 
-## Situation
+## Scenario
 
 **Role:** Junior Linux administrator
 

@@ -1,6 +1,6 @@
 # LDAP Directory Access Control
 
-## Situation
+## Scenario
 
 **Role:** Security auditor
 

@@ -21,7 +21,7 @@ difficulty: beginner  # beginner | intermediate | advanced
 # REQUIRED. One-sentence "Learn to ..." outcome shown on the portal's lab
 # card and lab detail page. Keep it vague enough not to name the exact
 # vulnerability. The full role/situation narrative belongs in the student
-# guide's own "## Situation" section, not here - the portal only needs the
+# guide's own "## Scenario" section, not here - the portal only needs the
 # short pitch.
 story:
   summary: "Learn to ..."

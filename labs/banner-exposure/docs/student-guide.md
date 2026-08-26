@@ -1,6 +1,6 @@
 # Service Reconnaissance and Information Exposure
 
-## Situation
+## Scenario
 
 **Role:** Junior systems administrator
 

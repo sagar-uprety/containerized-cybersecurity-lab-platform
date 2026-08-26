@@ -1,6 +1,6 @@
 # Stateful Firewall Configuration
 
-## Situation
+## Scenario
 
 **Role:** Network security auditor
 

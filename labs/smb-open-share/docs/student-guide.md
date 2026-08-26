@@ -1,6 +1,6 @@
 # SMB File Share Access Control
 
-## Situation
+## Scenario
 
 **Role:** Junior IT administrator
 

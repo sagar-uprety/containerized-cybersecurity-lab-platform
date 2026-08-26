@@ -1,6 +1,6 @@
 # Shared-Service Hardening Without Breaking Dependents (Pattern B Reference)
 
-## Situation
+## Scenario
 
 **Role:** Junior Linux administrator
 

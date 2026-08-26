@@ -1,19 +1,19 @@
 # Securing an Nginx Web Server
 
-## Situation
+_Note: You are not expected to have Nginx/domain knowledge for the purpose of the survey. This guide supplies the exact copy-paste commands to do the lab so every survey participant evaluates the
+same platform workflow. In real university setting, students are expected to have the prior domain knowledge and the guide would differ in depth and explicit instructions._
+
+## Scenario
 
 **Role:** New IT support hire
 
-A colleague set up an internal nginx site quickly and asked you to secure two
+A colleague set up an internal web-server (nginx) site quickly and asked you to secure two
 settings that reveal more information than they should.
-
-_Note: This guide supplies the exact copy-paste commands to do the lab so every survey participant evaluates the
-same platform workflow which in real university setting would differ._
 
 ## Why This Matters
 
 Web servers often reveal information they do not need to. Two of the most common
-examples are advertising the exact software version (which tells an attacker
+examples are advertising the exact **software version** (which tells an attacker
 exactly what to target) and leaving **directory listing** switched on (which lets
 anyone browse and download files that were never meant to be public).
 
@@ -28,24 +28,28 @@ By the end of this lab you should be able to:
 ## Prerequisites Knowledge
 
 -   Basic Linux terminal usage
--   The idea that a web server has a configuration file you can edit
+-   The idea that a web server like nginx has a configuration file you can edit
 
 ## Your Lab Environment
 
-1. Run **Start Lab**, the browser terminal opens on the
+1. Run **Start Lab** if you have not already done so, the browser terminal opens on the
    **workstation** host terminal.
 
 2. Click **Run Check** in the portal. You will see some failed checks as expected. You can run this at anytime to give you idea of the objectives and checks that you have to pass.
 
 ## Investigation
 
-First, see the two problems for yourself. Run these on the workstation terminal:
+See the two problems for yourself. Run these on the workstation terminal.
+
+The server tells everyone its exact version in the `Server:` header:
 
 ```bash
-# 1) The server tells everyone its exact version in the "Server:" header:
 curl -sI http://nginx-host:8080/
+```
 
-# 2) The /files/ directory is wide open - you can list and download everything:
+The `/files/` directory is wide open - you can list and download everything:
+
+```bash
 curl -s http://nginx-host:8080/files/
 curl -s http://nginx-host:8080/files/db-backup.sql
 ```
@@ -57,9 +61,7 @@ data - nothing real is exposed.)
 
 ## Remediate
 
-You need to edit the nginx config file in `/lab/nginx/site.conf`, then reload nginx.
-
-Take a look at the current content first:
+**Step 1: Take a look at the current content first:**
 
 ```bash
 cat /lab/nginx/site.conf
@@ -68,19 +70,19 @@ cat /lab/nginx/site.conf
 In that file, `server_tokens on;` should become
 `server_tokens off;`, and `autoindex on;` should become `autoindex off;`.
 
-**Edit the config.**
+**Step 2: Edit the config.**
 You can make both of the above edits in one shot with `sed`:
 
 ```bash
 sed -i 's/server_tokens on;/server_tokens off;/; s/autoindex on;/autoindex off;/' /lab/nginx/site.conf
 ```
 
-Alternatively,
+**Alternatively,**
 
 Open the file with `nano /lab/nginx/site.conf`, change those two words from
-`on` to `off`, and save (`Ctrl-O`, `Enter`, `Ctrl-X`). You may even use `vim` if you wish.
+`on` to `off`, and save (`Ctrl-O`, `Enter`, `Ctrl-X`).
 
-**Now reload nginx** so the change takes effect.
+**Step 3: Next reload nginx so the change takes effect.**
 
 For this, you need log in over SSH to the nginx-host web server from the workstation and run
 its reload helper.
@@ -97,34 +99,36 @@ It shall then ask you for a password, you can find the password on [SSH Login Pa
 
 You should see `nginx configuration reloaded`.
 
-Click **Run Check** in the portal. Everything should be fixed now.
+**Step 4: Click _Run Check_ in the portal. Everything should be fixed now.**
 
 **If you're stuck:**
 
--   Nothing changed when you re-checked? You probably edited the file but did not run the reload step - nginx only picks up changes when it reloads.
+-   Nothing changed when you re-checked? You probably edited the file but did not run the reload (Step 3) - nginx only picks up changes when it reloads.
 -   The reload printed an error? You likely removed a semicolon (`;`) by accident. Re-open the file, make sure each line ends with `;`, save, and reload again.
 -   Password not accepted? The `nginxadmin` password is the same password you can find [SSH Login Password](https://x02lp1.ucc.cit.tum.de/workstation-access)
 
 ## Verify
 
-If run the same investigation commands again - they should look different now:
+If you run the same investigation commands again - they should look different now.
+
+The version is no longer shown (just `Server: nginx`):
 
 ```bash
-# Version no longer shown (just "Server: nginx"):
 curl -sI http://nginx-host:8080/
+```
 
-# Directory listing is now refused (403):
+Directory listing is now refused (403), and the normal home page still works:
+
+```bash
 curl -s -o /dev/null -w '%{http_code}\n' http://nginx-host:8080/files/
-
-# The normal home page still works:
 curl -s http://nginx-host:8080/
 ```
 
-Click **Run Check** in the portal. All checks should turn
-green (`fixed`). You have completed the lab.
+Select **End Lab** in the portal. You will be asked for end-of-lab feedback, you can click "Skip Feedback" as you will answer them on the actual survey.
 
-Select **End Lab** in the portal and
-complete the short platform embedded feedback form. You can skip this feedback as you will answer them on the actual survey as well.
+You will now be able to see you lab results under **My Results**
+
+Thank you very much for taking the time to use the platform. Please proceed to filling the [Survey Form](https://jotform.com/261886735461064)
 
 ## Real-World Context (Optional Reading)
 

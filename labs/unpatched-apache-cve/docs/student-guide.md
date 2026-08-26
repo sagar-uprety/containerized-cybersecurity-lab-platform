@@ -1,6 +1,6 @@
 # Web Server Vulnerability Mitigation
 
-## Situation
+## Scenario
 
 **Role:** Security assessor
 

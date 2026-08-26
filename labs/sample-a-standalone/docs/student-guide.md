@@ -1,6 +1,6 @@
 # Standalone Service Hardening (Pattern A Reference)
 
-## Situation
+## Scenario
 
 **Role:** Junior Linux administrator
 

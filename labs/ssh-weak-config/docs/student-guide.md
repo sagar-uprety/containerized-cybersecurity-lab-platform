@@ -1,6 +1,6 @@
 # SSH Authentication Hardening
 
-## Situation
+## Scenario
 
 **Role:** Incident responder
 

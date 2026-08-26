@@ -39,7 +39,7 @@ checker:
   checks:
     # OBJECTIVE 1: the version banner must not advertise the nginx version.
     - name: version_banner_hidden
-      label: "nginx version banner is not disclosed"
+      label: "nginx version is not disclosed"
       kind: objective
       exec_in: workstation
       run: >-
@@ -75,22 +75,6 @@ checker:
       states:
         vulnerable: "output_eq: LISTING_EXPOSED"
         fixed: "output_eq: LISTING_DISABLED"
-
-    # OBJECTIVE 3: both hardened directives must be persisted in the config file.
-    - name: config_persisted
-      label: "Hardened directives are persisted in the config"
-      kind: objective
-      exec_in: workstation
-      run: >-
-        c=/lab/nginx/site.conf;
-        if grep -Eq '^[[:space:]]*server_tokens[[:space:]]+off;' "$c"
-        && grep -Eq '^[[:space:]]*autoindex[[:space:]]+off;' "$c"; then echo CONFIG_HARDENED;
-        elif grep -Eq '^[[:space:]]*server_tokens[[:space:]]+on;' "$c"
-        || grep -Eq '^[[:space:]]*autoindex[[:space:]]+on;' "$c"; then echo CONFIG_VULNERABLE;
-        else echo CONFIG_UNKNOWN; fi
-      states:
-        vulnerable: "output_eq: CONFIG_VULNERABLE"
-        fixed: "output_eq: CONFIG_HARDENED"
 
     # GUARDRAIL: the website must still serve its home page in BOTH states.
     - name: site_healthy

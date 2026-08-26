@@ -1,6 +1,6 @@
 # In-Memory Cache Access Control
 
-## Situation
+## Scenario
 
 **Role:** Junior Linux administrator
 

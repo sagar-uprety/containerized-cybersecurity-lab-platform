@@ -1,6 +1,6 @@
 # Network Zone Isolation and Access Control
 
-## Situation
+## Scenario
 
 **Role:** Network security engineer
 

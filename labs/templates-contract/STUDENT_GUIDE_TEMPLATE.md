@@ -1,6 +1,6 @@
 # <Lab Title>
 
-## Situation
+## Scenario
 
 **Role:** <story.role>
 

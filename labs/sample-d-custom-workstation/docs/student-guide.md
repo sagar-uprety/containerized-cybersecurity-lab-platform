@@ -1,6 +1,6 @@
 # Custom Workstation Tooling (Pattern D Reference)
 
-## Situation
+## Scenario
 
 **Role:** Junior Linux administrator
 

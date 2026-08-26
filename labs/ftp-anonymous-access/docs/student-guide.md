@@ -1,6 +1,6 @@
 # FTP File Transfer Access Control
 
-## Situation
+## Scenario
 
 **Role:** IT support technician
 

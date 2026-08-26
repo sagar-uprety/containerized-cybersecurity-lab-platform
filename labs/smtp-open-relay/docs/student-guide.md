@@ -1,6 +1,6 @@
 # SMTP Relay Access Control
 
-## Situation
+## Scenario
 
 **Role:** Junior Linux administrator
 

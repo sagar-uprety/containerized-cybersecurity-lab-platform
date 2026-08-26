@@ -1,6 +1,6 @@
 # Database Access Control and Least Privilege
 
-## Situation
+## Scenario
 
 **Role:** Junior database administrator
 
