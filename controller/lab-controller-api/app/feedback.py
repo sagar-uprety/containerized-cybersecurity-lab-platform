@@ -225,8 +225,8 @@ def save_feedback(
         raise ValueError("A lab session is required")
     if not 1 <= rating <= 5:
         raise ValueError("Rating must be between 1 and 5")
-    if len(section_a) > 4000 or not 4 <= len(comment) <= 4000:
-        raise ValueError("Feedback text must contain 4 to 4000 characters")
+    if len(section_a) > 4000 or len(comment) > 4000:
+        raise ValueError("Feedback text must be at most 4000 characters")
     response_id = str(uuid.uuid4())
     with SessionLocal() as session:
         lab_session = session.get(LabSession, session_id)

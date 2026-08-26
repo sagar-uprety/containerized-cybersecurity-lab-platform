@@ -73,6 +73,10 @@ export default function Feedback({ user, labId, groupId, onLogout }: FeedbackPro
     }
   }
 
+  function handleSkip() {
+    navigate(groupValid ? `/results?group=${groupId}` : "/results");
+  }
+
   if (!groupValid) {
     return (
       <StudentLayout user={user} onLogout={onLogout}>
@@ -150,22 +154,25 @@ export default function Feedback({ user, labId, groupId, onLogout }: FeedbackPro
                     </SelectContent>
                   </Select>
                 </div>
-                <p className="text-sm text-muted-foreground">Free-text feedback on what was confusing or could be improved.</p>
+                <p className="text-sm text-muted-foreground">Free-text feedback on what was confusing or could be improved (optional).</p>
                 <Textarea
                   rows={4}
                   value={comment}
                   onChange={(e) => setComment(e.target.value)}
                   placeholder="Which step was hardest to follow? What additional hint would have helped?"
-                  required
-                  minLength={4}
                   maxLength={4000}
                 />
               </CardContent>
             </Card>
 
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "Submitting…" : "Submit feedback"}
-            </Button>
+            <div className="flex gap-2">
+              <Button type="submit" disabled={submitting}>
+                {submitting ? "Submitting…" : "Submit feedback"}
+              </Button>
+              <Button type="button" variant="outline" disabled={submitting} onClick={handleSkip}>
+                Skip feedback
+              </Button>
+            </div>
           </form>
         </>
       )}

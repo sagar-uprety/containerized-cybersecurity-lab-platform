@@ -7,7 +7,7 @@
 A colleague set up an internal nginx site quickly and asked you to secure two
 settings that reveal more information than they should.
 
-_Note: survey guide supplies the exact copy-paste commands to do the lab so every participant evaluates the
+_Note: This guide supplies the exact copy-paste commands to do the lab so every survey participant evaluates the
 same platform workflow which in real university setting would differ._
 
 ## Why This Matters
@@ -124,7 +124,7 @@ Click **Run Check** in the portal. All checks should turn
 green (`fixed`). You have completed the lab.
 
 Select **End Lab** in the portal and
-complete the short platform embedded feedback form. You can
+complete the short platform embedded feedback form. You can skip this feedback as you will answer them on the actual survey as well.
 
 ## Real-World Context (Optional Reading)
 
