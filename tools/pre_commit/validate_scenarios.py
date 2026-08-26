@@ -21,6 +21,16 @@ FORBIDDEN_HOST_MOUNT_FRAGMENTS = (
 CONDITION_OPERATORS = {"output_contains", "output_eq", "output_ne", "exit_code", "exit_code_ne"}
 LAB_SOURCE_PREFIX = "$platform.lab_source_root/$platform.lab_id/"
 
+# Per-lab student-guide.md heading aliases: {lab_id: {actual_heading: canonical_heading}}.
+# Lets a lab intentionally rename a template section (e.g. the shortened
+# survey-cohort beginner lab) without the validator flagging it as missing/unexpected.
+STUDENT_GUIDE_SECTION_ALIASES: dict[str, dict[str, str]] = {
+    "survey-nginx-hardening": {
+        "## Prerequisites Knowledge": "## Prerequisites",
+        "## Real-World Context (Optional Reading)": "## Real-World Context",
+    },
+}
+
 # Anti-spoiler patterns
 _BASH_BLOCK_RE = re.compile(r"```bash\n(.*?)\n```", re.DOTALL)
 _BASH_VERIFIER_BLOCK_RE = re.compile(r"```bash\s+verifier\n(.*?)\n```", re.DOTALL)
@@ -44,8 +54,15 @@ def _extract_headings(path: Path) -> list[str]:
     ]
 
 
-def _check_sections(guide_path: Path, template_sections: list[str], label: str) -> list[str]:
+def _check_sections(
+    guide_path: Path,
+    template_sections: list[str],
+    label: str,
+    heading_aliases: dict[str, str] | None = None,
+) -> list[str]:
     guide_sections = _extract_headings(guide_path)
+    if heading_aliases:
+        guide_sections = [heading_aliases.get(h, h) for h in guide_sections]
     guide_set, template_set = set(guide_sections), set(template_sections)
 
     errors: list[str] = [
@@ -335,7 +352,14 @@ def validate_lab_docs(
     if not student_guide.is_file():
         errors.append(f"missing lab docs: {student_guide}")
     else:
-        errors.extend(_check_sections(student_guide, student_guide_sections, "student-guide"))
+        errors.extend(
+            _check_sections(
+                student_guide,
+                student_guide_sections,
+                "student-guide",
+                heading_aliases=STUDENT_GUIDE_SECTION_ALIASES.get(lab_id),
+            )
+        )
 
     instructor_guide = docs_dir / "instructor-guide.md"
     if not instructor_guide.is_file():

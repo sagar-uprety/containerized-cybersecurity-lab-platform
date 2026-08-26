@@ -5,25 +5,17 @@
 **Role:** New IT support hire
 
 A colleague set up an internal nginx site quickly and asked you to secure two
-settings that reveal more information than they should. Investigate both
-exposures, harden the configuration, reload the service, and verify the result.
-The survey guide supplies the exact commands so every participant evaluates the
-same platform workflow.
+settings that reveal more information than they should.
 
-> **Survey-lab notice:** This is a real, deliberately short beginner lab. For the
-> survey, the guide supplies the exact commands so every participant evaluates
-> the same platform workflow. Standard labs on this platform use guiding
-> questions and optional hints instead of providing the complete solution.
+_Note: survey guide supplies the exact copy-paste commands to do the lab so every participant evaluates the
+same platform workflow which in real university setting would differ._
 
 ## Why This Matters
 
 Web servers often reveal information they do not need to. Two of the most common
 examples are advertising the exact software version (which tells an attacker
 exactly what to target) and leaving **directory listing** switched on (which lets
-anyone browse and download files that were never meant to be public). Both are
-standard hardening items in the **CIS NGINX Benchmark**, and directory listing in
-particular (CWE-548) is a real cause of data leaks. You are about to see one
-first-hand and close it.
+anyone browse and download files that were never meant to be public).
 
 ## Objectives
 
@@ -33,30 +25,19 @@ By the end of this lab you should be able to:
 -   Turn off both weaknesses by changing two configuration lines
 -   Confirm the fix with the portal checker
 
-## Prerequisites
+## Prerequisites Knowledge
 
 -   Basic Linux terminal usage
 -   The idea that a web server has a configuration file you can edit
 
-If you want some more background, you can read here, but these are optional:
-
--   nginx `server_tokens` directive: <https://nginx.org/en/docs/http/ngx_http_core_module.html#server_tokens>
--   nginx `autoindex` directive: <https://nginx.org/en/docs/http/ngx_http_autoindex_module.html>
--   Directory listing exposure (CWE-548): <https://cwe.mitre.org/data/definitions/548.html>
-
 ## Your Lab Environment
 
-When you select **Start Lab**, the browser terminal opens on the
-**workstation** host terminal.
+1. Run **Start Lab**, the browser terminal opens on the
+   **workstation** host terminal.
 
-**web server** the actual nginx server lives in the (`nginx-host`) and runs on the same isolated lab
-network.
-
-You can **Run Check** in the portal at any time of the lab. This is recommended to give you idea of the objectives and mandatory checks that you have to pass. Please note that GUARDRAILS are just.
+2. Click **Run Check** in the portal. You will see some failed checks as expected. You can run this at anytime to give you idea of the objectives and checks that you have to pass.
 
 ## Investigation
-
-Click **Run Check** in the portal. You will see some failed checks as expected.
 
 First, see the two problems for yourself. Run these on the workstation terminal:
 
@@ -84,21 +65,25 @@ Take a look at the current content first:
 cat /lab/nginx/site.conf
 ```
 
-**Edit the config.** In that file, `server_tokens on;` should become
+In that file, `server_tokens on;` should become
 `server_tokens off;`, and `autoindex on;` should become `autoindex off;`.
 
-Open the file with `nano /lab/nginx/site.conf`, change those two words from
-`on` to `off`, and save (`Ctrl-O`, `Enter`, `Ctrl-X`). You may use `vim`
-instead if you prefer, or make both edits in one shot with `sed`:
+**Edit the config.**
+You can make both of the above edits in one shot with `sed`:
 
 ```bash
 sed -i 's/server_tokens on;/server_tokens off;/; s/autoindex on;/autoindex off;/' /lab/nginx/site.conf
 ```
 
+Alternatively,
+
+Open the file with `nano /lab/nginx/site.conf`, change those two words from
+`on` to `off`, and save (`Ctrl-O`, `Enter`, `Ctrl-X`). You may even use `vim` if you wish.
+
 **Now reload nginx** so the change takes effect.
 
-For this, log in over SSH to the nginx-host web server from the workstation and run
-its reload helper. You can find the password on [SSH Login Password](https://x02lp1.ucc.cit.tum.de/workstation-access) page in the lab portal.
+For this, you need log in over SSH to the nginx-host web server from the workstation and run
+its reload helper.
 
 ```bash
 ssh nginxadmin@nginx-host 'sudo /usr/local/sbin/reload-nginx'
@@ -108,7 +93,11 @@ The first time you connect, SSH will ask
 `Are you sure you want to continue connecting (yes/no/[fingerprint])?` -
 type `yes` and press Enter.
 
+It shall then ask you for a password, you can find the password on [SSH Login Password](https://x02lp1.ucc.cit.tum.de/workstation-access)
+
 You should see `nginx configuration reloaded`.
+
+Click **Run Check** in the portal. Everything should be fixed now.
 
 **If you're stuck:**
 
@@ -118,7 +107,7 @@ You should see `nginx configuration reloaded`.
 
 ## Verify
 
-Run the same checks again - they should look different now:
+If run the same investigation commands again - they should look different now:
 
 ```bash
 # Version no longer shown (just "Server: nginx"):
@@ -132,10 +121,12 @@ curl -s http://nginx-host:8080/
 ```
 
 Click **Run Check** in the portal. All checks should turn
-green (`fixed`). You have completed the lab. Select **End Lab** in the portal and
-complete the short feedback form.
+green (`fixed`). You have completed the lab.
 
-## Real-World Context
+Select **End Lab** in the portal and
+complete the short platform embedded feedback form. You can
+
+## Real-World Context (Optional Reading)
 
 The two settings you changed are textbook web-server hardening. Advertising the
 software version (`server_tokens`) hands attackers a shortcut to matching known
