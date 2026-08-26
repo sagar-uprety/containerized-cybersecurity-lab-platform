@@ -767,6 +767,111 @@
   tags:
     - portal-domain-demo-seed
 
+- name: Check existing portal database before survey student seed
+  ansible.builtin.stat:
+    path: "{{ thesis_state_root }}/portal.db"
+  register: _portal_survey_student_db_stat
+  when: thesis_portal_survey_student_seed | bool
+  tags:
+    - portal-survey-student-seed
+
+- name: Back up portal database before survey student seed
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -c
+      - "import sqlite3, sys; source = sqlite3.connect(sys.argv[1]); target = sqlite3.connect(sys.argv[2]); source.backup(target); target.close(); source.close()"
+      - "{{ thesis_state_root }}/portal.db"
+      - "{{ management_backup_root }}/portal.survey-students.{{ ansible_date_time.iso8601_basic_short }}.db.bak"
+  when:
+    - thesis_portal_survey_student_seed | bool
+    - _portal_survey_student_db_stat.stat.exists
+  tags:
+    - portal-survey-student-seed
+
+- name: Restrict survey student database backup
+  ansible.builtin.file:
+    path: "{{ management_backup_root }}/portal.survey-students.{{ ansible_date_time.iso8601_basic_short }}.db.bak"
+    owner: root
+    group: "{{ thesis_admin_group }}"
+    mode: "0640"
+  when:
+    - thesis_portal_survey_student_seed | bool
+    - _portal_survey_student_db_stat.stat.exists
+  tags:
+    - portal-survey-student-seed
+
+- name: Append survey students
+  when: thesis_portal_survey_student_seed | bool
+  block:
+    - name: Stop portal for survey student seed
+      ansible.builtin.systemd:
+        name: thesis-portal
+        state: stopped
+        daemon_reload: true
+
+    - name: Create append-only survey student cohort
+      ansible.builtin.command:
+        argv:
+          - python3
+          - -m
+          - app.survey_student_seed
+          - --group
+          - System Security (Survey)
+          - --semester
+          - SS 2026
+          - --start-number
+          - "{{ thesis_portal_survey_student_start_number | string }}"
+          - --count
+          - "{{ thesis_portal_survey_student_count | string }}"
+          - --credentials
+          - "{{ thesis_portal_survey_student_credentials_path }}"
+        chdir: "{{ management_controller_root }}/lab-controller-api"
+      environment:
+        PORTAL_DB_PATH: "{{ thesis_state_root }}/portal.db"
+        EVENT_LOG_PATH: "{{ thesis_portal_event_log }}"
+        RESULTS_DIR: "{{ thesis_state_root }}/results"
+        LABS_DIR: "{{ management_controller_root }}/lab-controller-api/labs"
+      changed_when: true
+  always:
+    - name: Ensure portal is running after survey student seed
+      ansible.builtin.systemd:
+        name: thesis-portal
+        state: started
+        daemon_reload: true
+  tags:
+    - portal-survey-student-seed
+
+- name: Ensure local private credential directory exists for survey student seed
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/../../.secrets"
+    state: directory
+    mode: "0700"
+  delegate_to: localhost
+  become: false
+  when: thesis_portal_survey_student_seed | bool
+  tags:
+    - portal-survey-student-seed
+
+- name: Fetch generated survey student credentials locally
+  ansible.builtin.fetch:
+    src: "{{ thesis_portal_survey_student_credentials_path }}"
+    dest: "{{ playbook_dir }}/../../.secrets/survey-student-extension-credentials.csv"
+    flat: true
+  when: thesis_portal_survey_student_seed | bool
+  tags:
+    - portal-survey-student-seed
+
+- name: Restrict fetched survey student credentials locally
+  ansible.builtin.file:
+    path: "{{ playbook_dir }}/../../.secrets/survey-student-extension-credentials.csv"
+    mode: "0600"
+  delegate_to: localhost
+  become: false
+  when: thesis_portal_survey_student_seed | bool
+  tags:
+    - portal-survey-student-seed
+
 - name: Generate controller SSH key
   ansible.builtin.user:
     name: root
