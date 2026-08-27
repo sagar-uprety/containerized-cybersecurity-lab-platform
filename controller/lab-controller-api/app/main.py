@@ -1207,7 +1207,7 @@ def terminal_auth(
             raise HTTPException(status_code=400, detail="Missing terminal endpoint")
         terminal_port = int(match.group(1))
 
-    terminal_owner = terminal_owner_for_port(terminal_port)
+    terminal_owner = terminal_owner_for_port(terminal_port, user)
 
     if not terminal_owner:
         raise HTTPException(status_code=404, detail="Unknown terminal endpoint")

@@ -57,7 +57,7 @@ thesis_instructors:
     password: REDACTED
     role: instructor
 
-thesis_max_concurrent_students: 1
+thesis_max_concurrent_students: 10
 thesis_evaluation_mode: false
 thesis_portal_nginx_enabled: true
 thesis_portal_event_log: "{{ thesis_log_root }}/portal-events.jsonl"

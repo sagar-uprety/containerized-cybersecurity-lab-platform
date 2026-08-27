@@ -95,7 +95,11 @@ The first time you connect, SSH will ask
 `Are you sure you want to continue connecting (yes/no/[fingerprint])?` -
 type `yes` and press Enter.
 
-It shall then ask you for a password, you can find the password on [SSH Login Password](https://x02lp1.ucc.cit.tum.de/workstation-access)
+SSH then asks for a password. Use the password shown on the
+[SSH Login Password](https://x02lp1.ucc.cit.tum.de/workstation-access) page.
+This is a separate password from the portal password you changed after your
+first login. Copy it exactly; the terminal does not display any characters
+while you enter a password.
 
 You should see `nginx configuration reloaded`.
 
@@ -105,7 +109,7 @@ You should see `nginx configuration reloaded`.
 
 -   Nothing changed when you re-checked? You probably edited the file but did not run the reload (Step 3) - nginx only picks up changes when it reloads.
 -   The reload printed an error? You likely removed a semicolon (`;`) by accident. Re-open the file, make sure each line ends with `;`, save, and reload again.
--   Password not accepted? The `nginxadmin` password is the same password you can find [SSH Login Password](https://x02lp1.ucc.cit.tum.de/workstation-access)
+-   Password not accepted? Do not use your portal password. Copy the separate SSH password from the [SSH Login Password](https://x02lp1.ucc.cit.tum.de/workstation-access) page and try again.
 
 ## Verify
 
@@ -128,7 +132,7 @@ Select **End Lab** in the portal. You will be asked for end-of-lab feedback, you
 
 You will now be able to see you lab results under **My Results**
 
-Thank you very much for taking the time to use the platform. Please proceed to filling the [Survey Form](https://jotform.com/261886735461064)
+Thank you very much for taking the time to use the platform. Please proceed to filling the [Survey Form](https://www.jotform.com/form/262242759430053)
 
 ## Real-World Context (Optional Reading)
 

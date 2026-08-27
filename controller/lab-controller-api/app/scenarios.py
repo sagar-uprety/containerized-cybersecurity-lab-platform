@@ -8,8 +8,8 @@ import yaml
 from fastapi import HTTPException
 from jsonschema import ValidationError, validate
 
-from app.auth import get_student_users
 from app.config import settings
+from app.runtime_state import runtime_state_for
 
 LAB_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
 
@@ -175,10 +175,19 @@ def instructor_guide_url(scenario: dict) -> str:
     return documentation.get("instructor_guide_url") or f"/docs/labs/{scenario['id']}-instructor/"
 
 
-def terminal_owner_for_port(terminal_port: int):
-    for student in get_student_users().values():
-        for scenario in list_scenarios():
-            expected = endpoint_ports(scenario, student["student_id"], student)["terminal"]
-            if expected == terminal_port:
-                return student
+def terminal_owner_for_port(terminal_port: int, student: dict):
+    """Return student only when port belongs to their running lab lease.
+
+    Port bases can overlap across scenarios and student-number ranges. Scanning
+    every account can therefore resolve a valid port to an inactive student.
+    """
+    if student.get("role") != "student":
+        return None
+    student_id = student["student_id"]
+    for scenario in list_scenarios():
+        expected = endpoint_ports(scenario, student_id, student)["terminal"]
+        if expected != terminal_port:
+            continue
+        if runtime_state_for(scenario["id"], student_id).get("status") == "running":
+            return student
     return None
