@@ -43,14 +43,14 @@ EOF
 # rotate quarterly - last rotation 2024-03
 build-pipeline:demo-pipeline-pass-2024
 monitoring-agent:demo-monitor-pass-2024
-Action required: move this off the file share.
+# TODO: move this off the file share
 EOF
 
     cat > /srv/ftp/deploy-notes.md <<'EOF'
 # Deployment share migration notes
-- This share still uses the older transfer service for compatibility
+- This share still uses the legacy transfer service for compatibility
   with the older build agents.
-- Action item: retire the older transfer path once agents are upgraded.
+- Action item: retire the legacy transfer path once agents are upgraded.
 EOF
 
     chmod 0644 /srv/ftp/README.txt /srv/ftp/service-accounts.txt /srv/ftp/deploy-notes.md

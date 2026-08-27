@@ -19,11 +19,11 @@ touch /var/log/samba/log.smbd
 
 if [ ! -f "${PROVISIONED_FLAG}" ]; then
     cat > /srv/samba/backup/passwords.txt <<'EOF'
-Credentials rotation record 2024-03
+# DO NOT COMMIT - temporary credentials rotation 2024-03
 svc_backup:demo-backup-pass-2024
 db_admin:demo-db-pass-2024
 monitoring:demo-grafana-tmp-2024
-Rotate these before Q2 deploy.
+# TODO: rotate these before Q2 deploy
 EOF
 
     cat > /srv/samba/backup/db_backup_2024-03-15.sql <<'EOF'
