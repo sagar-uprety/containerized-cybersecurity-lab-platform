@@ -1,11 +1,7 @@
 #!/bin/sh
 set -eu
 
-# This hook runs on every container start (lab-service-base/entrypoint.sh has
-# no built-in guard for LAB_SETUP_SCRIPT). Re-applying the vulnerable schema
-# and grants on a restart would silently revert a student's fix, so gate
-# provisioning behind a sentinel on the persistent data volume (same pattern
-# as labs/ldap-anonymous-bind/setup-vulnerable.sh).
+# Provision once per persistent volume to avoid overwriting student remediation.
 PROVISIONED_FLAG=/var/lib/mysql/.lab-provisioned
 SOCKET=/run/mysqld/mysqld.sock
 
@@ -14,8 +10,7 @@ chown mysql:mysql /run/mysqld /var/log/mysql
 touch /var/log/mysql/general.log /var/log/mysql/error.log
 chown mysql:mysql /var/log/mysql/general.log /var/log/mysql/error.log
 
-# Publish SSH access for this student's isolated lab. Rewrite on every start
-# so the file follows the injected lab password.
+# Refresh isolated-lab SSH credentials on every start.
 mkdir -p /lab/access
 umask 077
 cat > /lab/access/credentials.txt <<EOF
@@ -26,7 +21,7 @@ EOF
 chmod 0644 /lab/access/credentials.txt
 
 if [ -f "${PROVISIONED_FLAG}" ]; then
-    # Already provisioned on a prior boot - don't clobber any student fix.
+    # Preserve existing persistent-volume state.
     exit 0
 fi
 
@@ -35,8 +30,7 @@ if [ ! -d /var/lib/mysql/mysql ]; then
     mariadb-install-db --user=mysql --datadir=/var/lib/mysql >/dev/null
 fi
 
-# ── Start mariadbd temporarily, local socket only, to apply the
-# vulnerable baseline schema/users ────────────────────────────────────
+# Start provisioning-only mariadbd to apply the baseline schema.
 /usr/sbin/mariadbd --user=mysql --datadir=/var/lib/mysql \
     --socket="${SOCKET}" --skip-networking \
     --pid-file=/run/mysqld/mysqld-setup.pid &

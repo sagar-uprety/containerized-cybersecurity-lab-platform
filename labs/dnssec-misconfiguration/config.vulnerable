@@ -14,10 +14,7 @@ options {
     dnssec-validation no;
 };
 
-// This lab's closed network has no real root/TLD infrastructure to iterate
-// against, so the only zone this resolver ever has an answer for is the
-// controlled lab.internal domain, reached through the authoritative host
-// this image was built to forward to.
+// The closed lab network resolves only lab.internal through its authoritative host.
 zone "lab.internal" {
     type forward;
     forward only;

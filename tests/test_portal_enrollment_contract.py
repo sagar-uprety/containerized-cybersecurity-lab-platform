@@ -1,24 +1,4 @@
-"""Contract checks for multi-group enrollment.
-
-Replaces the deleted "one pending or approved group per semester" rule.
-Checks covered here:
-
-- A student may hold approved memberships in two different groups within the
-  same semester (previously rejected).
-- A student may also hold memberships in groups across different semesters.
-- Joining the same group twice is a no-op: `add_member` and
-  `request_membership` both return the existing membership instead of
-  creating a duplicate `group_members` row.
-- Creating a group with a blank/missing semester still raises
-  `ValueError("group semester is required")` from `repository.create_group`.
-- A lab assigned to two of a student's groups produces two independent
-  `AssignmentObligation` rows (different id, different group_id, same
-  lab_id) once `feedback.sync_assignment_obligations()` materializes them.
-
-Session/check evidence crediting (which obligation a run counts against) is
-covered by a separate multi-group evidence contract test and is
-intentionally not duplicated here.
-"""
+"""Verify multi-group enrollment, deduplication, semesters, and obligations."""
 
 from __future__ import annotations
 
@@ -68,8 +48,7 @@ def main() -> None:
         archived_group = repo.create_group(
             session, "Archived Security", owner_id, semester="WS 2025/26"
         )
-        # ws_primary and ws_other both assign the same lab -- this is the case
-        # that must produce two independent obligations below.
+        # Duplicate lab assignments across groups require independent obligations.
         session.add_all(
             [
                 GroupLab(group_id=ws_primary.id, lab_id="redis-exposed"),
@@ -80,14 +59,11 @@ def main() -> None:
         session.flush()
 
         repo.add_member(session, ws_primary.id, student.id)
-        # Join first, then archive -- the real sequence. Archiving is the sole
-        # lifecycle gate now and it is permanent, so neither a student request
-        # nor an instructor-driven add can put anyone in after this point.
+        # Permanent archival blocks student and instructor enrollment paths.
         repo.add_member(session, archived_group.id, student.id)
         repo.archive_group(session, archived_group.id)
 
-        # A second approved membership in the SAME semester used to raise;
-        # now it must succeed.
+        # Same-semester groups permit independent memberships.
         member_other = repo.request_membership(session, ws_other.id, student.id)
         assert member_other.status == "pending"
         approved_count = repo.approve_members(session, ws_other.id, [student.id])
@@ -138,12 +114,7 @@ def main() -> None:
         else:
             raise AssertionError("archived group accepted an enrollment request")
 
-        # The instructor-driven path has to refuse too. Archiving is permanent
-        # and promises nobody joins again -- a guarantee that only held against
-        # students would not be a guarantee at all. Uses an existing user id
-        # that is not yet a member: add_member checks the user exists before it
-        # looks at the group's state, so a fabricated id would raise "user not
-        # found" and prove nothing.
+        # Use a real nonmember to reach the instructor-path archival check.
         try:
             repo.add_member(session, archived_group.id, instructor.id)
         except ValueError as exc:
@@ -184,10 +155,7 @@ def main() -> None:
 
         session.commit()
 
-    # feedback.sync_assignment_obligations() materializes one
-    # AssignmentObligation row per (group_lab, user) pair for every approved
-    # membership -- the same lab assigned via two groups must produce two
-    # independent rows, not one shared row.
+    # Materialize one obligation per approved group-lab membership.
     changed = feedback.sync_assignment_obligations()
     assert changed == 3  # redis-exposed x2 (ws_primary, ws_other) + ldap-anonymous-bind x1
 

@@ -364,7 +364,7 @@ def main():
                         "session_id": session_id,
                         "student_id": student["internal_id"],
                         "lab_id": lab["id"],
-                        "actor_id": student["email"],
+                        "actor_id": student["internal_id"],
                         "actor_type": "student",
                         "action": "start",
                         "result": "success",
@@ -413,7 +413,7 @@ def main():
                         "student_id": student["internal_id"],
                         "lab_id": lab["id"],
                         "group_id": membership["group_id"],
-                        "actor_id": student["email"],
+                        "actor_id": student["internal_id"],
                         "actor_type": "student",
                         "phase": "student",
                         "occurred_at": iso(end - timedelta(minutes=3)),
@@ -427,7 +427,7 @@ def main():
                         "session_id": session_id,
                         "student_id": student["internal_id"],
                         "lab_id": lab["id"],
-                        "actor_id": student["email"],
+                        "actor_id": student["internal_id"],
                         "actor_type": "student",
                         "action": "check",
                         "result": "success",
@@ -489,7 +489,7 @@ def main():
                         "session_id": session_id,
                         "student_id": student["internal_id"],
                         "lab_id": lab["id"],
-                        "actor_id": "scheduler" if outcome == "auto_stop" else student["email"],
+                        "actor_id": "scheduler" if outcome == "auto_stop" else student["internal_id"],
                         "actor_type": "system" if outcome == "auto_stop" else "student",
                         "action": outcome,
                         "result": "success",
@@ -522,7 +522,7 @@ def main():
             "session_id": open_session_id,
             "student_id": first_student["internal_id"],
             "lab_id": open_lab["id"],
-            "actor_id": first_student["email"],
+            "actor_id": first_student["internal_id"],
             "actor_type": "student",
             "action": "start",
             "result": "success",
@@ -568,7 +568,7 @@ def main():
             "session_id": None,
             "student_id": users_by_id[3]["internal_id"],
             "lab_id": labs[1]["id"],
-            "actor_id": users_by_id[3]["email"],
+            "actor_id": users_by_id[3]["internal_id"],
             "actor_type": "student",
             "action": "start",
             "result": "error",
@@ -605,28 +605,6 @@ def main():
                 }
             )
 
-    interventions = [
-        {
-            "student_id": users[4]["internal_id"],
-            "group_id": 1,
-            "lab_id": labs[0]["id"],
-            "reason": "repeated_criterion_failure",
-            "note": "Review the unresolved objective and offer the first conceptual hint.",
-            "owner": "instructor@thesis.local",
-            "status": "open",
-            "follow_up_at": iso(NOW + timedelta(days=2)),
-        },
-        {
-            "student_id": users[28]["internal_id"],
-            "group_id": 2,
-            "lab_id": labs[1]["id"],
-            "reason": "no_check_recorded",
-            "note": "Confirm access and ask the student to submit a technical check.",
-            "owner": "instructor@thesis.local",
-            "status": "contacted",
-            "follow_up_at": iso(NOW + timedelta(days=1)),
-        },
-    ]
     payload = {
         "schema_version": 1,
         "generated_at": iso(NOW),
@@ -640,7 +618,6 @@ def main():
         "checks": checks,
         "commands": commands,
         "feedback": feedback,
-        "interventions": interventions,
     }
     OUTPUT.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     sys.stdout.write(

@@ -23,8 +23,6 @@ class Settings:
     SSH_STRICT_HOST_KEY_CHECKING = os.environ.get("SSH_STRICT_HOST_KEY_CHECKING", "accept-new")
     SSH_COMMAND_TIMEOUT_SECONDS = _int_from_env("SSH_COMMAND_TIMEOUT_SECONDS", 60)
 
-    SCENARIO_REGISTRY = os.environ.get("SCENARIO_REGISTRY", "/etc/thesis-labs/scenarios.txt")
-    PORTAL_USERS_FILE = os.environ.get("PORTAL_USERS_FILE", "/etc/thesis-labs/portal-users.yml")
     PORTAL_DB_PATH = os.environ.get("PORTAL_DB_PATH", "/var/lib/thesis-labs/portal.db")
     PORTAL_DEMO_DATA_PATH = os.environ.get(
         "PORTAL_DEMO_DATA_PATH", "/opt/thesis-labs/controller/lab-controller-api/demo-data.json"

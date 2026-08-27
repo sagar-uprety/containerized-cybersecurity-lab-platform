@@ -229,4 +229,4 @@ broken-service guardrail, reset to vulnerable, and end the lab.
     remediation line.
 -   Student, instructor, and solution documents render at expected URLs.
 -   Full pre-commit, Ansible syntax, deployment, and live student-path checks
-    pass before marking record work done.
+    pass before marking the lab ready.

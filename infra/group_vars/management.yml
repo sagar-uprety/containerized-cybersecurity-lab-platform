@@ -17,7 +17,7 @@ management_directories:
 thesis_portal_public_hostname: x02lp1.ucc.cit.tum.de
 # Contact address Let's Encrypt uses for expiry/problem notices - set to a real, monitored inbox before requesting.
 thesis_portal_letsencrypt_email: "sagar.uprety@tum.de"
-# One-time gate: only attempt certonly issuance when explicitly requested (-e thesis_portal_tls_request=true),
+# Explicit gate: only attempt certonly issuance when requested (-e thesis_portal_tls_request=true),
 # so routine deploys never hammer Let's Encrypt with a doomed request while port 80 is still VPN/campus-only.
 thesis_portal_tls_request: false
 thesis_portal_acme_webroot: "{{ thesis_runtime_root }}/acme-challenge"

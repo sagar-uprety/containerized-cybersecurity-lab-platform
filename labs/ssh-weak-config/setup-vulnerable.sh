@@ -34,7 +34,7 @@ chown -R lab-user /home/lab-user/.ssh
 rm -f /var/run/fail2ban/fail2ban.sock 2>/dev/null || true
 fail2ban-client start || true
 
-# Clean up temporary files
+# Remove generated key staging files.
 rm -rf /tmp/demo-attacker-key
 
 # Allow any student account to run lab-required commands without password

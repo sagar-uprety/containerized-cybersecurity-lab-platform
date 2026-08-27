@@ -145,8 +145,8 @@ This removes platform services, generated lab state, and host-level
 configuration that Ansible provisioned. It does not touch the host OS itself.
 
 There is no separate "monitoring" teardown because no monitoring stack exists
-in the current prototype - Prometheus/Grafana/full agent monitoring were
-stack is added later, its teardown tasks belong in the same playbook.
+in the current prototype. If a monitoring stack is added later, its teardown
+tasks belong in the same playbook.
 
 After teardown, reprovision both VMs from a clean snapshot, then re-run
 `site.yml` to restore a working platform state.

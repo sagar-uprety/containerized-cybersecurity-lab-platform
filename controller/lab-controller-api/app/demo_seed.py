@@ -68,6 +68,7 @@ def replace_with_demo_data(data_path: Path, credentials_path: Path) -> dict:
             synthetic=True,
         )
         session.add(instructor)
+        session.flush()
         credentials.append(
             {
                 "role": "instructor",
@@ -118,6 +119,7 @@ def replace_with_demo_data(data_path: Path, credentials_path: Path) -> dict:
                 is_archived=archived,
                 archived_at=archived_at,
                 created_at=_dt(item["created_at"]),
+                owner_id=instructor.id,
                 synthetic=True,
             )
             session.add(group)
@@ -158,6 +160,7 @@ def replace_with_demo_data(data_path: Path, credentials_path: Path) -> dict:
                 id=item["id"],
                 student_id=item["student_id"],
                 lab_id=item["lab_id"],
+                group_id=group_ids[item["group_id"]],
                 started_at=_dt(item["started_at"]),
                 ended_at=_dt(item.get("ended_at")),
                 outcome=item["outcome"],

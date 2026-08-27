@@ -1,7 +1,7 @@
 """Validate cross-directory Python import boundaries.
 
-This catches LLM-generated code that places logic in the wrong layer or wires lab
-code directly into platform code.
+This catches code that places logic in the wrong layer or wires lab code directly
+into platform code.
 """
 
 from __future__ import annotations
@@ -62,6 +62,7 @@ def main() -> int:
 
     for path in sorted(repo_root.glob("**/*.py")):
         relative = path.relative_to(repo_root).as_posix()
+        if relative.startswith((".venv/", "node_modules/", "site/")):
             continue
 
         rule = _matching_rule(relative)

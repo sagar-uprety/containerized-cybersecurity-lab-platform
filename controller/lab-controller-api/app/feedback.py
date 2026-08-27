@@ -115,13 +115,7 @@ def sync_assignment_obligations() -> int:
 def _active_obligations(
     session, lab_id: str, student_id: str, at: datetime, group_id: Optional[int] = None
 ):
-    """Obligations a session/check should be credited against.
-
-    With `group_id` given, only that group's obligation is credited -- a run
-    started for one group must not also count for a sibling group that
-    assigns the same lab. Without it (legacy callers with no group context),
-    every matching obligation is credited, preserving the historical fan-out.
-    """
+    """Return one group's obligations, or all matches when group context is absent."""
     query = select(AssignmentObligation).where(
         AssignmentObligation.lab_id == lab_id,
         AssignmentObligation.student_id == student_id,
@@ -254,10 +248,7 @@ def save_feedback(
 
 
 def session_group_id(session_id: str) -> Optional[int]:
-    # A student can run the same lab under more than one group, so the group
-    # has to come from the session the feedback is actually attached to (not
-    # e.g. the runtime lease, which only reflects the most recent run) --
-    # lets the post-feedback redirect land on the right group's results.
+    # Resolve group from the attached session so redirects retain the correct scope.
     if not session_id:
         return None
     with SessionLocal() as session:

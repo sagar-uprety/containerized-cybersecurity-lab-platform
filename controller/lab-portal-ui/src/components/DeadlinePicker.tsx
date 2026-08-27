@@ -49,10 +49,7 @@ export default function DeadlinePicker({ deadline, labTitle, busy, saving, onSav
     setTime(next ? next.toTimeString().slice(0, 5) : "23:59");
   }, [deadline]);
 
-  // isOverdue reflects the SAVED deadline (origDate), so the trigger can flag
-  // an already-past deadline. combinedIsPast reflects the date/time currently
-  // being EDITED in the popover - it must stay editable to a future value
-  // even when origDate itself is in the past, so the two are judged separately.
+  // Flag a saved overdue state without blocking edits to a future deadline.
   const isOverdue = !!(origDate && origDate < new Date());
   const [pendingSave, setPendingSave] = useState<string | null>(null);
   const [pendingClear, setPendingClear] = useState(false);

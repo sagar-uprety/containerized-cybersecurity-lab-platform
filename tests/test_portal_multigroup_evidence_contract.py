@@ -1,37 +1,4 @@
-"""Contract checks for multi-group evidence independence.
-
-A student may enroll in any number of groups, including several in the same
-semester. When two of a student's groups assign the SAME lab, that is two
-independent `AssignmentObligation` rows: the student runs the lab once per
-group and each run's evidence must credit EXACTLY ONE group. Passing in
-group A must leave group B "not attempted".
-
-The runtime is still one container per (student, lab) -- labctl derives
-container names from student number + lab id -- so only one group's run of a
-given lab can be live at a time; starting a second group's run while the
-first is still `running` or merely `stopped` (not `end`ed) is rejected with
-409.
-
-Checks covered here:
-- The shared lab yields two independent `AssignmentObligation` rows (brief
-  precondition; the shape itself is covered by
-  `test_portal_enrollment_contract.py`).
-- `create_lab_session(..., group_id=<A>)` writes exactly one
-  `SessionObligation`, pointed at group A's obligation.
-- `save_check_result(..., group_id=<A>)` writes exactly one
-  `CheckObligation`, pointed at group A's obligation.
-- The core invariant: after a passing check credited to group A only,
-  `analytics.student_results` reports group A "passed" and group B
-  "not_attempted" for the same lab -- and a group-scoped call for group B
-  sees only its own (still-unpassed) row.
-- `create_lab_session(..., group_id=None)` still fans out to BOTH
-  obligations -- the legacy path pre-migration rows depend on.
-- `POST /api/labs/{lab_id}/start` for group B returns 409 while group A's
-  run is live, whether group A's lease is `running` or merely `stopped`.
-
-Generic session-outcome behaviour and enrollment rules are intentionally not
-re-tested here; see the sibling contract files for those.
-"""
+"""Verify group-scoped evidence and single-container collision handling."""
 
 from __future__ import annotations
 
@@ -209,13 +176,13 @@ def main() -> None:
     assert group_b_only_lab_rows[0]["result"] != "passed"
     assert group_b_only_lab_rows[0]["result"] == "not_attempted"
 
-    # --- 5. Legacy fan-out preserved (group_id=None credits BOTH obligations)
-    legacy_session = "multigroup-session-legacy"
-    create_lab_session(legacy_session, lab_id, student_internal_id, group_id=None)
+    # Missing group context credits all matching obligations.
+    unscoped_session = "multigroup-session-unscoped"
+    create_lab_session(unscoped_session, lab_id, student_internal_id, group_id=None)
     with SessionLocal() as session:
         rows = (
             session.execute(
-                select(SessionObligation).where(SessionObligation.session_id == legacy_session)
+                select(SessionObligation).where(SessionObligation.session_id == unscoped_session)
             )
             .scalars()
             .all()
@@ -234,10 +201,7 @@ def main() -> None:
         assert lab_detail.status_code == 200, lab_detail.text
         csrf_token = lab_detail.json()["csrf_token"]
 
-        # Simulate group A's run already live, without invoking real labctl --
-        # the 409 check happens before any labctl call in start_lab. Reuse
-        # session_a (already a real LabSession row) since runtime_leases.session_id
-        # has a foreign key into lab_sessions.
+        # Use an existing session to satisfy the runtime-lease foreign key.
         update_runtime_state(
             lab_id,
             student_internal_id,

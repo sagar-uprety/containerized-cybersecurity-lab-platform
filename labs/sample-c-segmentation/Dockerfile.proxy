@@ -1,9 +1,4 @@
-# PATTERN C - EDGE PROXY image (one of TWO images this lab builds)
-#
-# Real segmentation labs build one image per role (compare the firewall lab:
-# Dockerfile.firewall plus Dockerfile.server). This sample follows that:
-# Dockerfile.proxy builds the middlebox, Dockerfile.backend builds the internal
-# target. This reference segments at the application layer, so no NET_ADMIN.
+# Pattern C application-layer proxy; separate image and no NET_ADMIN required.
 FROM thesis-labs/lab-service-base:1.0
 
 RUN apt-get update \

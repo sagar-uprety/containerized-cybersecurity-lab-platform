@@ -19,6 +19,7 @@ repos:
         args: [--unsafe]                           # also parse multi-doc / custom tags
       - id: detect-private-key                     # keep secrets out of git
       - id: end-of-file-fixer                      # ensure files end with a newline
+        exclude: ^resources/                       # skip generated / vendored research files
       - id: mixed-line-ending                      # enforce LF (Unix) line endings
         args: [--fix=lf]
       - id: forbid-new-submodules                  # prevent accidental git submodules
@@ -98,6 +99,7 @@ repos:
     rev: v2.4.1
     hooks:
       - id: codespell
+        args: ["--skip=node_modules,site,test-results,.venv,*.lock,package-lock.json,resources/*.md"]
 
   # --------------------------------------------------------------------
   #  JS / JSON / Markdown formatting (Prettier)
@@ -125,9 +127,7 @@ repos:
         files: ^(labs/.*/scenario\.yaml|labs/.*/docs/.*\.md|labs/templates-contract/.*\.md|labs/templates-contract/scenario\.schema\.json|docs/labs/.*\.md)$
         pass_filenames: false
 
-      # Catch YAML '>' folded-scalar indentation bugs that silently split
-      # a checker `run:` shell command across two commands (see
-      # ldap-anonymous-bind / redis-exposed incidents, 2026-07-15)
+      # Reject checker commands broken by YAML folded-scalar indentation.
       - id: thesis-scenario-checker-shell-validation
         name: Validate scenario.yaml checker run scripts for YAML folding bugs
         entry: python tools/pre_commit/check_scenario_checker_shell.py
@@ -155,7 +155,9 @@ repos:
         additional_dependencies:
           - markdownlint-cli2@0.22.1
         files: \.(md|markdown)$
+        exclude: ^(\.venv/|node_modules/|site/|test-results/|resources/)
 
+      # Enforce cross-directory import boundaries
       - id: thesis-architecture-import-validation
         name: Validate Python architecture import boundaries
         entry: python tools/pre_commit/validate_architecture_imports.py
@@ -198,11 +200,13 @@ repos:
       # Detect dead Python code: unused functions, classes, module-level vars
       - id: vulture
         name: Dead code detection
+        entry: vulture . --min-confidence=70 --exclude .venv,node_modules,site,test-results,resources
         language: python
         additional_dependencies:
           - vulture==2.16
         pass_filenames: false
 
+      # Enforce plain ASCII hyphens over em dashes in tracked text
       - id: thesis-no-em-dash
         name: No em dashes
         entry: python tools/pre_commit/check_no_em_dash.py

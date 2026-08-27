@@ -99,11 +99,7 @@ def build_manifest(scenario: dict, ctx: dict) -> dict:
     runtime_project: str = ctx["runtime_project"]
     labels = _platform_labels(ctx)
 
-    # ------------------------------------------------------------------ #
-    # runtime / network                                                    #
-    # ------------------------------------------------------------------ #
-    # Build network list. If scenario declares custom networks, create them;
-    # otherwise fall back to a single default lab network.
+    # Use the default network when none are declared.
     scenario_networks = scenario.get("networks", [])
     if scenario_networks:
         networks = []
@@ -138,12 +134,7 @@ def build_manifest(scenario: dict, ctx: dict) -> dict:
         "containers": [],
     }
 
-    # ------------------------------------------------------------------ #
-    # Collect all named volumes declared across all containers            #
-    # ------------------------------------------------------------------ #
-    # We build the volumes list by scanning containers so there is a      #
-    # single source of truth - no separate top-level volumes: block in    #
-    # scenario.yaml required.                                             #
+    # Derive named volumes from container declarations.
     seen_volume_names: set[str] = set()
 
     container_defs = scenario.get("containers", [])
@@ -162,18 +153,13 @@ def build_manifest(scenario: dict, ctx: dict) -> dict:
                     }
                 )
 
-    # ------------------------------------------------------------------ #
-    # Build each container entry                                          #
-    # ------------------------------------------------------------------ #
     for cdef in container_defs:
         service_name: str = cdef["service"]
         hostname: str = cdef["hostname"]
 
-        # image from services:
         service_cfg = services.get(service_name, {})
         image: str = service_cfg.get("image", "")
 
-        # resource limits from resources: (keyed by service name)
         res = resources_cfg.get(service_name, {})
 
         container_name = f"{runtime_project}_{service_name.replace('-', '_')}"
@@ -189,15 +175,12 @@ def build_manifest(scenario: dict, ctx: dict) -> dict:
         if cdef.get("restart"):
             entry["restart"] = cdef["restart"]
 
-        # sysctls
         if cdef.get("sysctls"):
             entry["sysctls"] = _resolve_obj(cdef["sysctls"], ctx)
 
-        # environment
         if cdef.get("environment"):
             entry["environment"] = _resolve_obj(cdef["environment"], ctx)
 
-        # ports
         resolved_ports = [
             {
                 "host_ip": _resolve(port.get("host_ip", ctx.get("host_bind_ip", "0.0.0.0")), ctx),
@@ -210,15 +193,12 @@ def build_manifest(scenario: dict, ctx: dict) -> dict:
         if resolved_ports:
             entry["ports"] = resolved_ports
 
-        # expose
         if cdef.get("expose"):
             entry["expose"] = cdef["expose"]
 
-        # volumes
         resolved_volumes = []
         for vol in cdef.get("volumes", []):
             if "name" in vol:
-                # named (managed) volume
                 volume_entry = {
                     "source": f"{runtime_project}_{vol['name']}",
                     "target": vol["target"],
@@ -227,7 +207,6 @@ def build_manifest(scenario: dict, ctx: dict) -> dict:
                     volume_entry["read_only"] = True
                 resolved_volumes.append(volume_entry)
             elif "host_path" in vol:
-                # bind-mount from lab source tree
                 resolved_volumes.append(
                     {
                         "source": _resolve(vol["host_path"], ctx),
@@ -238,16 +217,13 @@ def build_manifest(scenario: dict, ctx: dict) -> dict:
         if resolved_volumes:
             entry["volumes"] = resolved_volumes
 
-        # network - assign to specified networks or default lab network
         container_networks = cdef.get("networks", [])
         if container_networks and scenario_networks:
-            # Primary network is the first one listed
             primary = container_networks[0]
             entry["network"] = {
                 "name": f"{runtime_project}_{primary}",
                 "aliases": cdef.get("network_aliases", [hostname]),
             }
-            # Additional networks to connect after creation
             if len(container_networks) > 1:
                 entry["additional_networks"] = [
                     {"name": f"{runtime_project}_{net}", "aliases": [hostname]}
@@ -259,11 +235,9 @@ def build_manifest(scenario: dict, ctx: dict) -> dict:
                 "aliases": cdef.get("network_aliases", [hostname]),
             }
 
-        # depends_on
         if cdef.get("depends_on"):
             entry["depends_on"] = cdef["depends_on"]
 
-        # healthcheck
         if cdef.get("healthcheck"):
             hc = cdef["healthcheck"]
             entry["healthcheck"] = {
@@ -274,43 +248,31 @@ def build_manifest(scenario: dict, ctx: dict) -> dict:
                 "start_period": hc.get("start_period", "10s"),
             }
 
-        # security
         if cdef.get("security"):
             entry["security"] = cdef["security"]
 
-        # user - run as a specific user/uid inside the container
         if cdef.get("user"):
             entry["user"] = cdef["user"]
 
-        # read_only - mount root filesystem read-only
         if cdef.get("read_only"):
             entry["read_only"] = cdef["read_only"]
 
-        # resources from scenario resources: block
         if res:
             entry["resources"] = res
 
-        # standard labels on every container
         entry["labels"] = labels
 
         manifest["containers"].append(entry)
 
-    # ------------------------------------------------------------------ #
-    # Auto-generate the workstation container from the workstation: block #
-    # ------------------------------------------------------------------ #
-    # The workstation is a shared platform container present in every lab.
-    # Lab authors declare only the lab-specific pieces (env, shared_volumes,
-    # depends_on, cap_add). Everything else is platform boilerplate.
+    # Generate the standard workstation from lab-specific overrides.
     ws_cfg = scenario.get("workstation", {})
     ws_shared_vols = ws_cfg.get("shared_volumes", [])
 
-    # standard platform volumes for the workstation
     ws_standard_vols = [
         ("workstation_home", "/home/student"),
         ("command_logs", "/var/log/thesis-labs/commands"),
     ]
 
-    # register all workstation volumes (standard + shared)
     for vol_name, _target in ws_standard_vols:
         if vol_name not in seen_volume_names:
             seen_volume_names.add(vol_name)

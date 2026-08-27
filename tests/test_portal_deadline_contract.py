@@ -48,9 +48,7 @@ def main() -> None:
             lab_password="workstation-test-password",
         )
         group = Group(name="Deadline contract group", semester="SS 2026")
-        # Archiving is the sole lifecycle gate now (formerly is_active=False):
-        # it still blocks start/reset/check while existing members keep their
-        # historical labs/results and may still stop/end a running lab.
+        # Archived groups block lifecycle actions but retain results and safe shutdown.
         archived_group = Group(
             name="Archived contract group",
             semester="WS 2026/27",
@@ -103,10 +101,7 @@ def main() -> None:
             "archived group's lab is still listed for the student"
         )
 
-        # An expired-but-unarchived lab is now readable (read-only): the
-        # student can reopen it to reread the scenario/guides/story, but the
-        # response must say so explicitly via "expired" so the client never
-        # has to infer it from the deadline timestamp (clock skew).
+        # Expired assignments remain readable and expose explicit expiry state.
         expired_detail = client.get(f"/api/labs/{lab_id}")
         assert expired_detail.status_code == 200, expired_detail.text
         assert expired_detail.json()["expired"] is True
@@ -137,10 +132,7 @@ def main() -> None:
         denied_archived_start = client.post(f"/api/labs/{archived_lab_id}/start")
         assert denied_archived_start.status_code == 403, denied_archived_start.text
 
-        # Readable != startable: the expired lab's detail page is now 200,
-        # but its full lifecycle (start/reset/check) must still be denied --
-        # require_lab_visible/get_visible_lab_ids excludes expired labs
-        # independently of the detail-route change above.
+        # Readable expired assignments still deny lifecycle actions.
         denied_reset = client.post(f"/api/labs/{lab_id}/reset")
         assert denied_reset.status_code == 403, denied_reset.text
         denied_check = client.post(f"/api/labs/{lab_id}/check")
@@ -154,10 +146,7 @@ def main() -> None:
         assert instructor_login.status_code == 200, instructor_login.text
         assert client.get("/api/workstation-access").status_code == 403
 
-        # --- Task 2 contract: POST /api/instructor/groups/{id}/labs rejects
-        # a new deadline that is strictly in the past, accepts a future one,
-        # keeps clearing the deadline working, and never blocks moving an
-        # already-lapsed STORED deadline forward. ---
+        # Deadline updates reject past input but allow future values and clearing.
         from sqlalchemy import select  # noqa: PLC0415
 
         with SessionLocal() as session:
@@ -166,9 +155,7 @@ def main() -> None:
             )
             session.add(api_group)
             session.flush()
-            # Pre-existing assignment whose deadline has already lapsed --
-            # editing it forward (below) must still succeed even though it
-            # started out in the past.
+            # Existing expired deadlines can be moved forward.
             session.add(
                 GroupLab(
                     group_id=api_group.id,
@@ -229,10 +216,7 @@ def main() -> None:
         assert cleared.status_code == 200, cleared.text
         assert group_lab_deadline(lab_id) is None
 
-        # Editing an assignment whose STORED deadline is already in the past
-        # must not become impossible -- moving it forward is exactly how an
-        # instructor fixes a bad deadline. Validation must judge only the
-        # incoming value, never the value already on record.
+        # Validate incoming deadlines independently of stored values.
         assert group_lab_deadline(archived_lab_id) is not None  # sanity: still year 2000
         fixed = client.post(
             f"/api/instructor/groups/{api_group_id}/labs",

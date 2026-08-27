@@ -192,10 +192,6 @@ export function getInstructorSessionDetail(labId: string, studentId: string): Pr
   return request(`/instructor/labs/${labId}/sessions/${studentId}`);
 }
 
-export function getInstructorStudents(): Promise<Array<{ student_id: string; email?: string; username?: string; groups?: Array<{ id: number; name: string }> }>> {
-  return request("/instructor/students");
-}
-
 export function getInstructorStudentDetail(studentId: string, groupId?: number): Promise<StudentDetail> {
   const query = groupId != null ? `?group_id=${groupId}` : "";
   return request(`/instructor/students/${studentId}${query}`);

@@ -27,10 +27,7 @@ for _ in 1 2 3 4 5 6 7 8 9 10; do
     sleep 1
 done
 
-# Port-forwarding (NAT) plumbing is not itself the lesson: it is what lets a
-# single gateway host front three distinct backend zones. The FORWARD chain
-# loaded above (or replaced during remediation) is what actually decides
-# whether a forwarded packet for a given destination port is allowed through.
+# NAT exposes backend zones; FORWARD rules enforce isolation.
 if [ -n "$WEB_IP" ]; then
     sudo iptables -t nat -C PREROUTING -p tcp --dport 80 \
         -j DNAT --to-destination "${WEB_IP}:80" 2>/dev/null ||

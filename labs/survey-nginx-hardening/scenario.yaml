@@ -1,13 +1,5 @@
-# SURVEY LAB - Securing an Nginx Web Server (Pattern A)
-#
-# Intentionally short and beginner-level: a first-time student flips two real,
-# documented nginx
-# information-disclosure weaknesses (server_tokens, autoindex) from on to off,
-# reloads, and re-checks. This lets survey participants evaluate the complete
-# platform workflow without requiring advanced security knowledge. Exact
-# commands are supplied to standardize the evaluated experience; this is the
-# one exception to the production-lab reveal boundary, gated by the `survey-`
-# ID prefix.
+# Beginner survey lab covering nginx disclosure settings and the full platform workflow.
+# Exact commands standardize the evaluated experience.
 
 id: survey-nginx-hardening
 title: "Securing an Nginx Web Server"

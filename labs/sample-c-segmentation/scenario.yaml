@@ -1,15 +1,5 @@
-# PATTERN C AUTHORING REFERENCE - Proxy / Firewall / Segmentation
-#
-# Copy this lab when your scenario spans a network boundary enforced by a
-# middlebox (proxy, firewall, or router). Topology:
-#
-#   workstation -- ext-net --> edge-proxy -- int-net --> internal-backend
-#
-# The workstation joins the FIRST declared network (ext-net). The middlebox
-# (edge-proxy) joins BOTH networks and is the only path to the internal backend,
-# which joins int-net only - so the workstation cannot reach the backend
-# directly. This reference uses an application-layer proxy (no NET_ADMIN). For a
-# packet-filter firewall variant, see the firewall lab (iptables + NET_ADMIN).
+# Pattern C: middlebox-enforced boundary between external and internal networks.
+# This application-layer example needs no NET_ADMIN.
 
 id: sample-c-segmentation
 title: "Network Segmentation and Boundary Control (Pattern C Reference)"

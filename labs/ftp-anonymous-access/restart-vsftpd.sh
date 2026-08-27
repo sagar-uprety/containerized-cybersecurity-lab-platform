@@ -1,11 +1,7 @@
 #!/bin/sh
 set -e
 
-# /etc/vsftpd-staging is the volume also mounted on the workstation at
-# /lab/ftp, where students edit vsftpd.conf directly. vsftpd itself refuses
-# to trust a config file that is not root-owned and not world-writable, so
-# it never reads that staging copy - apply it to the private, always
-# root-owned live path first, then restart against the live path.
+# Validate the editable staging config, then install it into the root-owned live path.
 cp /etc/vsftpd-staging/vsftpd.conf /etc/vsftpd/vsftpd.conf
 chown root:root /etc/vsftpd/vsftpd.conf
 chmod 0644 /etc/vsftpd/vsftpd.conf

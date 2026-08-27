@@ -35,11 +35,7 @@ def run_query(database, sql, timeout=3):
         "mariadb",
         "-N",
         "-B",
-        # The demo app's own base image (python:3.12-slim) tracks a newer
-        # Debian release than db-host's (debian:bookworm-slim), so its
-        # mariadb-client build defaults to requiring TLS. db-host never
-        # configures a TLS listener - that's not part of this lab's scope -
-        # so the client side of that mismatch has to be told to skip it.
+        # The lab database has no TLS listener, so disable the client's TLS default.
         "--skip-ssl",
         "-h",
         DB_HOST,

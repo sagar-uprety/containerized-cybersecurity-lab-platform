@@ -1,15 +1,10 @@
 #!/bin/sh
 set -eu
 
-# This hook runs on every container start (lab-service-base/entrypoint.sh has
-# no built-in guard for LAB_SETUP_SCRIPT). Re-applying the vulnerable ACL on a
-# restart would silently revert a student's fix, so gate provisioning behind a
-# sentinel on the persistent ldap_data volume (mirrors the idempotency guard
-# used in other labs, e.g. firewall-source-port-bypass/setup-firewall.sh).
+# Provision once per persistent volume to avoid overwriting student remediation.
 PROVISIONED_FLAG=/var/lib/ldap/.lab-provisioned
 
-# Publish credentials only inside this student's isolated lab network/volume.
-# Rewrite on every start so the file follows the injected lab password.
+# Refresh credentials inside the isolated lab on every start.
 mkdir -p /lab/access
 umask 077
 cat > /lab/access/credentials.txt <<EOF
@@ -36,7 +31,7 @@ chown -R openldap:openldap /etc/ldap/tls
 chmod 600 /etc/ldap/tls/ldap-server.key
 chmod 644 /etc/ldap/tls/ldap-server.crt
 
-# ── Start slapd temporarily for configuration and seeding ─────────────
+# Start provisioning slapd.
 /usr/sbin/slapd -h "ldap:/// ldapi:///" -u openldap -g openldap -F /etc/ldap/slapd.d
 
 # Wait for slapd to accept connections
@@ -51,7 +46,7 @@ done
 [ "${READY}" -eq 1 ] || { echo "slapd did not become ready" >&2; exit 1; }
 
 if [ -f "${PROVISIONED_FLAG}" ]; then
-    # Already provisioned on a prior boot - don't clobber any student fix.
+    # Preserve existing persistent-volume state.
     killall slapd 2>/dev/null || true
     sleep 2
     rm -f /var/run/slapd/ldapi
@@ -253,10 +248,10 @@ gidNumber: 10003
 memberUid: ldapadmin
 EOF
 
-# ── Mark provisioning complete so future restarts skip re-seeding ─────
+# Mark provisioning complete.
 touch "${PROVISIONED_FLAG}"
 
-# ── Stop temporary slapd ─────────────────────────────────────────────
+# Stop provisioning slapd.
 killall slapd 2>/dev/null || true
 sleep 2
 rm -f /var/run/slapd/ldapi

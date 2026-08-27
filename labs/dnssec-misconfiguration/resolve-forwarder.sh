@@ -1,16 +1,8 @@
 #!/bin/sh
 set -eu
 
-# The authoritative host's container IP is assigned dynamically by Podman at
-# instance start, so it cannot be baked into the image. Resolve it once,
-# before named starts, and rewrite the placeholder left in the runtime
-# config. This runs on every start/reset, so a fresh instance always gets a
-# correct forwarder address even if the upstream network's addressing
-# changes between runs.
-# dns-auth is declared as a container dependency so it is created first, but
-# that does not guarantee its network-name registration has propagated by
-# the moment this script runs, so retry briefly instead of failing on the
-# first miss.
+# Resolve the dynamic authoritative-container address before named starts.
+# Retry while container DNS registration propagates.
 FORWARDER_IP=""
 i=0
 while [ "$i" -lt 15 ]; do
@@ -24,8 +16,5 @@ if [ -z "${FORWARDER_IP:-}" ]; then
     exit 1
 fi
 
-# Idempotent: matches the whole forwarders clause (placeholder on first
-# boot, or a previous run's now-stale address after a plain stop/start
-# recreated the containers with new addresses), never just the placeholder
-# literal, so a stale IP can never survive a restart.
+# Replace the entire clause so stale container addresses cannot survive restart.
 sed -i -E "s/forwarders \{ [^}]*; \};/forwarders { ${FORWARDER_IP}; };/" /etc/bind/named.conf

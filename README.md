@@ -1,103 +1,302 @@
-# Thesis Lab Platform
+# Containerized Cybersecurity Training Platform
 
-VM-hosted, container-first cybersecurity lab platform. Two RHEL 9.6 VMs: x02
-(management plane) and x01 (lab worker).
+A VM-hosted, container-first platform for delivering isolated, vulnerable-by-design
+cybersecurity labs. Students investigate and remediate realistic Linux service
+misconfigurations from a browser-based workstation while instructors manage cohorts,
+assignments, deadlines, results, feedback, and evidence through one web portal.
 
+The platform separates application control from vulnerable workload execution. A
+management VM runs the portal and documentation, while a dedicated worker VM creates a
+private Podman environment for each student and lab.
 
-## Nodes
+> [!WARNING]
+> This repository intentionally contains vulnerable service configurations for isolated
+> training. Deploy only on controlled infrastructure behind an appropriate network
+> boundary. Do not expose lab services or the portal directly to the public Internet.
 
-| VM  | Hostname                | Role                                                              |
-| --- | ----------------------- | ----------------------------------------------------------------- |
-| x01 | `x01lp1.ucc.cit.tum.de` | Podman runtime, student lab containers, per-student networks      |
-| x02 | `x02lp1.ucc.cit.tum.de` | FastAPI portal, Nginx reverse proxy, MkDocs, Ansible control node |
+## Features
 
-## Repository Areas
+- Per-student Podman containers, private networks, persistent volumes, and deterministic
+  endpoint allocation.
+- Declarative lab packages with topology, images, resource limits, lifecycle policy,
+  objective checks, and guardrail checks in `scenario.yaml`.
+- Start, stop, reset, end, status, and check operations through the reusable `labctl`
+  lifecycle controller.
+- Restricted management-to-worker SSH gateway that permits approved `labctl` commands
+  instead of general shell access.
+- React 19 portal with student, instructor, and administrator interfaces.
+- FastAPI backend with SQLite-backed identity, enrollment, groups, assignments,
+  deadlines, sessions, runtime leases, feedback, and normalized evidence.
+- Browser terminal access through Nginx and ttyd, with an SSH fallback for students.
+- Instructor analytics, progress views, privacy-aware feedback aggregation, CSV export,
+  and evidence bundles.
+- Runtime scheduling for idle limits, maximum session duration, and stopped-instance
+  retention.
+- MkDocs student guides plus protected instructor guides and solution notes.
+- Reproducible RHEL provisioning and deployment through Ansible.
+- Thirteen training scenarios and four runnable authoring samples covering standalone,
+  dependent-service, segmented-network, and custom-workstation patterns.
 
-| Path               | Purpose                                                                                                               |
-| ------------------ | --------------------------------------------------------------------------------------------------------------------- |
-| `infra/`           | Ansible inventory, playbooks, roles for provisioning both VMs                                                         |
-| `labs/`            | Lab scenarios: `scenario.yaml`, Dockerfiles, optional lab-specific files at the lab root, MkDocs guides under `docs/` |
-| `platform-images/` | Shared images: `workstation-base` (student attack box), `lab-service-base` (generic env-driven service entrypoint)    |
-| `controller/`      | `labctl` CLI, `labctl_core` lifecycle package, SSH wrapper, FastAPI portal                                            |
-| `docs/`            | MkDocs student-facing lab guides                                                                                      |
-| `tests/`           | Playwright E2E tests (portal UI + universal lab verifier)                                                             |
-| `tools/`           | Pre-commit validators                                                                                                 |
-| `resources/`       | Research traceability for scenario selection                                                                          |
+## Architecture
 
-## Create a Lab
+![Platform architecture showing the x02 control plane and x01 execution plane](docs/platform-architecture.png)
 
-Create a runnable, contract-compliant copy of the generic sample:
+The deployment uses two trust zones:
+
+| Plane | Default host | Responsibilities |
+| --- | --- | --- |
+| Application and control | `x02` | Nginx, React SPA, FastAPI, SQLite, MkDocs, scheduler, evidence, and Ansible control |
+| Lab execution | `x01` | Restricted SSH command gateway, `labctl`, Podman/Buildah, images, and isolated student labs |
+
+1. Students and instructors access Nginx on the management plane.
+2. Nginx serves the React application and forwards API, documentation, and terminal
+   traffic to the appropriate internal service.
+3. FastAPI keeps identity, assignments, lifecycle state, and evidence in local SQLite
+   storage on `x02`.
+4. Lifecycle mutations cross the host boundary through a forced-command SSH wrapper.
+   Only validated lab IDs, student IDs, and approved verbs reach `labctl`.
+5. `labctl` renders scenario state and manages Podman resources on `x01`. Each student
+   receives a workstation, vulnerable service containers, private networking, and
+   resettable persistent data.
+
+Vulnerable services run only inside lab containers. The management and worker hosts do
+not require vulnerable packages installed directly on their operating systems.
+
+## Technology Stack
+
+| Layer | Technology |
+| --- | --- |
+| Frontend | React 19, TypeScript, Vite, Tailwind CSS, Radix UI, Recharts |
+| Backend | FastAPI, SQLAlchemy, SQLite, Uvicorn |
+| Runtime | Podman, Buildah, systemd |
+| Provisioning | Ansible |
+| Documentation | MkDocs, PyMdown Extensions |
+| Validation | pre-commit, Ruff, Bandit, JSON Schema, Ansible Lint |
+| Target hosts | RHEL 9.6 on `ppc64le` |
+
+## Repository Layout
+
+```text
+.
+|-- config/            Development, lint, Ansible, and MkDocs configuration
+|-- controller/        FastAPI portal, React SPA, labctl CLI, and lifecycle library
+|-- docs/              MkDocs pages and lab-guide include stubs
+|-- infra/             Ansible inventory, playbooks, roles, templates, and variables
+|-- labs/              Scenario packages, images, checks, seeds, and co-located guides
+|-- platform-images/   Shared workstation and service base images
+|-- resources/         Research sources and scenario-selection traceability
+|-- tests/             Executable backend and authoring contract checks
+`-- tools/             Scenario scaffolding, fixture generation, and repository validators
+```
+
+## Prerequisites
+
+### Local development
+
+- Python 3.9 or newer
+- Node.js 20 or newer with npm
+- A POSIX-compatible shell
+
+### Full deployment
+
+- Two reachable RHEL 9.6 `ppc64le` hosts
+- Root SSH access from the Ansible control machine
+- Podman and Buildah availability through configured RHEL repositories
+- A private network or VPN between users, management host, and worker host
+
+The committed inventory contains deployment-specific example addresses. Replace them
+before provisioning another environment. Put host credentials in `infra/host_vars/`;
+that directory is ignored by Git.
+
+## Local Development
+
+Local development runs the real FastAPI and React applications. Worker-dependent
+lifecycle actions still require a reachable lab worker, but authentication, enrollment,
+administration, result views, and most portal behavior can be developed locally.
+
+### 1. Install dependencies
+
+```bash
+git clone <repository-url>
+cd "Containerized Cybersecurity Training Platform"
+
+python3 -m venv .venv
+. .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r config/requirements-dev.txt -r controller/requirements.txt
+
+npm ci --prefix controller/lab-portal-ui
+```
+
+### 2. Start the API
+
+Use disposable state under the ignored `state/` directory:
+
+```bash
+mkdir -p state/local-dev/results
+
+export PORTAL_DB_PATH="$PWD/state/local-dev/portal.db"
+export LABS_DIR="$PWD/labs"
+export RESULTS_DIR="$PWD/state/local-dev/results"
+export EVENT_LOG_PATH="$PWD/state/local-dev/portal-events.jsonl"
+export ENABLE_SCHEDULER=false
+
+.venv/bin/uvicorn app.main:app \
+  --app-dir controller/lab-controller-api \
+  --host 127.0.0.1 \
+  --port 8000 \
+  --reload
+```
+
+On first startup, the backend creates a local SQLite database and bootstraps an
+administrator account. Read the generated one-time password from the API log and change
+it after signing in.
+
+### 3. Start the frontend
+
+In a second terminal:
+
+```bash
+npm --prefix controller/lab-portal-ui run dev
+```
+
+Open <http://127.0.0.1:5173>. Vite proxies `/api`, `/terminal`, `/internal`, and
+`/logout` to FastAPI on port 8000.
+
+### 4. Build documentation locally
+
+```bash
+.venv/bin/mkdocs serve -f config/mkdocs.yml
+```
+
+MkDocs prints the local documentation URL when the server starts.
+
+## Validation
+
+Run repository checks from the project root:
+
+```bash
+.venv/bin/pre-commit run --all-files
+
+PYTHONPATH=controller .venv/bin/python tools/pre_commit/validate_scenarios.py
+
+for test_file in tests/test_*.py; do
+  PYTHONPATH=controller:. .venv/bin/python "$test_file"
+done
+
+controller/lab-portal-ui/node_modules/.bin/tsc \
+  -p controller/lab-portal-ui/tsconfig.json \
+  --noEmit
+npm --prefix controller/lab-portal-ui run build
+
+ANSIBLE_CONFIG=config/ansible.cfg \
+  .venv/bin/ansible-playbook infra/playbooks/site.yml --syntax-check
+ANSIBLE_CONFIG=config/ansible.cfg \
+  .venv/bin/ansible-playbook infra/playbooks/management.yml --syntax-check
+ANSIBLE_CONFIG=config/ansible.cfg \
+  .venv/bin/ansible-playbook infra/playbooks/lab-worker.yml --syntax-check
+```
+
+The Python files in `tests/` are executable contract checks rather than a pytest suite.
+
+## Deployment
+
+Review `infra/inventory.ini` and `infra/group_vars/all.yml`, then provision both hosts:
+
+```bash
+ANSIBLE_CONFIG=config/ansible.cfg \
+  .venv/bin/ansible-playbook infra/playbooks/site.yml --check --diff
+
+ANSIBLE_CONFIG=config/ansible.cfg \
+  .venv/bin/ansible-playbook infra/playbooks/site.yml
+
+ANSIBLE_CONFIG=config/ansible.cfg \
+  .venv/bin/ansible-playbook infra/playbooks/verify-platform.yml
+```
+
+Use targeted deployments during development:
+
+```bash
+# FastAPI, portal Python code, and scenario metadata
+ANSIBLE_CONFIG=config/ansible.cfg \
+  .venv/bin/ansible-playbook infra/playbooks/management.yml --tags portal-api
+
+# React production bundle
+ANSIBLE_CONFIG=config/ansible.cfg \
+  .venv/bin/ansible-playbook infra/playbooks/management.yml --tags portal-ui
+
+# Documentation only
+ANSIBLE_CONFIG=config/ansible.cfg \
+  .venv/bin/ansible-playbook infra/playbooks/management.yml --tags docs
+
+# Worker scenario source and images
+ANSIBLE_CONFIG=config/ansible.cfg \
+  .venv/bin/ansible-playbook infra/playbooks/lab-worker.yml --tags lab-source,lab-images
+```
+
+Generated credentials, databases, manifests, logs, evidence exports, and private keys
+must remain outside Git.
+
+## Creating a Lab
+
+Create a schema-valid runnable package from the standalone sample:
 
 ```bash
 python3 tools/create_lab.py <lab-id> \
-  --title "<Human-Readable Lab Title>" \
+  --title "<Human-readable title>" \
   --difficulty beginner
 ```
 
-Start with [`labs/sample-a-standalone/`](labs/sample-a-standalone/) and follow the complete
-instructor guide at `docs/instructor/new-lab-setup/` or the deployed protected
-URL `/docs/instructor/new-lab-setup/`.
+Then replace sample-specific services, checks, and documentation while keeping the
+package runnable. The complete authoring guide starts at
+[`docs/instructor/new-lab-setup/index.md`](docs/instructor/new-lab-setup/index.md).
+Machine-readable requirements are defined by
+[`labs/templates-contract/scenario.schema.json`](labs/templates-contract/scenario.schema.json).
 
-## labctl layout
+Every scenario should include:
 
-`controller/labctl` is a thin wrapper. Reusable logic in `labctl_core/`:
+- `scenario.yaml`
+- Container build and baseline configuration files
+- `intentional-risk-allowlist.yaml`
+- `docs/student-guide.md`
+- `docs/instructor-guide.md`
+- `docs/solution-notes.md`
 
-| Module         | Purpose                                                                         |
-| -------------- | ------------------------------------------------------------------------------- |
-| `cli.py`       | Argument validation and verb dispatch                                           |
-| `config.py`    | Runtime path discovery                                                          |
-| `scenario.py`  | Scenario loading, injected lab credentials, port derivation, checker conditions |
-| `podman.py`    | Safe argv-based Podman operations                                               |
-| `lifecycle.py` | Start, stop, reset, destroy, status, check                                      |
+## Security Model
 
-Checker logic is declarative in `scenario.yaml`. Students never run `labctl`,
-Podman, or Ansible directly - portal actions on x02 call restricted lifecycle
-commands on x01 through the `labadmin` SSH wrapper.
+- No privileged or host-networked lab containers.
+- No container runtime socket mounts or unrestricted host bind mounts.
+- CPU and memory limits are required for scenario services.
+- The worker SSH key is restricted to a forced command with forwarding disabled.
+- Student lifecycle requests derive identity from the authenticated portal session.
+- Terminal authorization is checked against the student's active runtime lease.
+- Instructor guides, solution notes, analytics, and evidence exports require an
+  instructor session.
+- Training data and credentials must be synthetic.
 
-## Ansible
+The current deployment model assumes a trusted private network. Public deployment needs
+additional TLS, cookie, secret-management, firewall, abuse-control, and capacity review.
 
-Run from repo root so `config/ansible.cfg` resolves inventory and roles:
+## Data and Maintenance
 
-```bash
-ansible-playbook playbooks/site.yml --check --diff
-ansible-playbook playbooks/lab-worker.yml --check --diff
-ansible-playbook playbooks/management.yml --check --diff
-ansible-playbook playbooks/verify-platform.yml
-ansible-playbook playbooks/lab-worker.yml --tags lab-source,lab-images
-ansible-playbook playbooks/management.yml --tags portal,nginx
-```
+SQLite on the management host is authoritative for portal data. Startup performs
+idempotent schema compatibility checks so existing installations can receive additive
+columns and privacy backfills safely. Canonical synthetic demo loading is explicit and
+disabled by default because it replaces portal state.
 
-Roles: `common` (RHEL baseline), `podman` (active runtime), `lab-runtime` (lab
-source, image build, `labctl`), `management-services` (portal, MkDocs, Nginx,
-controller SSH key). Portal and reverse proxy changes belong in
-`management-services` - use handlers, never `systemctl restart`.
+Operational state is stored under `/var/lib/thesis-labs`, logs under
+`/var/log/thesis-labs`, configuration under `/etc/thesis-labs`, and deployed source under
+`/opt/thesis-labs` by default.
 
-## Testing
+## Contributing
 
-Playwright E2E tests:
+1. Keep changes scoped to one platform area or scenario.
+2. Add or update executable contract checks for behavior changes.
+3. Run local validation and all Ansible syntax checks.
+4. Never commit generated state, credentials, logs, or rendered manifests.
+5. For scenario changes, verify vulnerable, fixed, guardrail-failure, reset, and cleanup
+   behavior before deployment.
 
-| Suite     | File                          | Purpose                                                                              |
-| --------- | ----------------------------- | ------------------------------------------------------------------------------------ |
-| Portal UI | `tests/portal-ui.e2e.spec.js` | Page rendering, CSRF, lab links, terminal iframe/WebSocket, checker, instructor view |
+## License
 
-```bash
-npm install
-npx playwright install
-
-# Live (requires VPN):
-PORTAL_BASE_URL=http://<x02-ip> \
-  PORTAL_USER=student01 \
-  PORTAL_PASSWORD=<password> \
-  npm run test:portal
-```
-
-## Local Checks
-
-```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install -r config/requirements-dev.txt
-.venv/bin/pre-commit install
-.venv/bin/pre-commit run --all-files
-```
-
-Hooks are local/offline - they do not contact the thesis VMs.
+Licensed under the [MIT License](LICENSE).

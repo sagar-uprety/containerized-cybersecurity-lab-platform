@@ -1,3 +1,4 @@
+"""SQLAlchemy ORM models for the portal identity store.
 
 Identity model:
 - A student logs in with `email`; the system also holds an internal `studentNN`
@@ -49,10 +50,8 @@ class User(Base):
     # internal_id / number are set for students, NULL for instructors.
     internal_id: Mapped[Optional[str]] = mapped_column(String, unique=True, nullable=True)
     number: Mapped[Optional[int]] = mapped_column(Integer, unique=True, nullable=True)
-    # Lab/SSH password injected into the student's workstation container on x01.
-    # Distinct from the portal-login password above; the portal passes this to
-    # labctl at start-time (Decision B). Plaintext by necessity - the container
-    # needs the literal value. NULL for instructors. Lives on x02 (higher trust).
+    # Plaintext lab credential required by x01 containers; distinct from portal login.
+    # Stored only on higher-trust x02 and null for instructors.
     lab_password: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     semester: Mapped[Optional[str]] = mapped_column(String, nullable=True)
     study_program: Mapped[Optional[str]] = mapped_column(String, nullable=True)
@@ -72,13 +71,7 @@ class Group(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     name: Mapped[str] = mapped_column(String, unique=True, nullable=False)
     semester: Mapped[Optional[str]] = mapped_column(String, nullable=True)
-    # Archived groups are historical/finished cohorts. Archiving is reversible and never
-    # touches `users` (email is also the login username) -- it only suppresses per-member
-    # PII (email, study_program) in this group's own roster/analytics responses. Aggregate
-    # analytics stay intact because they key on the non-PII `internal_id`/student_id.
-    # Archiving is also the *only* lifecycle gate on a group: an archived group blocks
-    # new enrollment and blocks start/reset/check, while existing members keep their
-    # historical labs/results and may still stop/end a running lab.
+    # Archiving hides member PII and blocks enrollment/start/reset/check without deleting results.
     is_archived: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     archived_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False, default=_utcnow)
@@ -163,10 +156,7 @@ class LabSession(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     student_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
     lab_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
-    # Which group this run counts for. A student enrolled in two groups that both
-    # assign this lab runs it once per group and each run credits only its own
-    # group. NULL means a pre-multi-group row: those keep the historical
-    # fan-out (credited to every obligation) so old results stay intact.
+    # NULL preserves fan-out semantics for sessions without group attribution.
     group_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("groups.id", ondelete="SET NULL"), nullable=True, index=True
     )
@@ -183,11 +173,7 @@ class RuntimeLease(Base):
     id: Mapped[str] = mapped_column(String, primary_key=True)
     student_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
     lab_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
-    # The lease id stays `{lab_id}:{student_id}` because the container name is
-    # derived from the student number and lab id -- one physical instance per
-    # (student, lab) regardless of how many groups assign it. group_id records
-    # which group the live instance is currently bound to, so starting the same
-    # lab for a second group while one is running can be rejected.
+    # One physical instance exists per student/lab; group_id owns the active run.
     group_id: Mapped[Optional[int]] = mapped_column(
         ForeignKey("groups.id", ondelete="SET NULL"), nullable=True, index=True
     )

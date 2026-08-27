@@ -47,25 +47,9 @@ thesis_common_directories:
   - "{{ thesis_log_root }}"
   - "{{ thesis_config_root }}"
 
-thesis_students:
-  - id: student01
-    number: 1
-    password: smoke-password
-
-thesis_instructors:
-  - username: instructor
-    password: REDACTED
-    role: instructor
-
 thesis_max_concurrent_students: 10
 thesis_evaluation_mode: false
 thesis_portal_nginx_enabled: true
 thesis_portal_event_log: "{{ thesis_log_root }}/portal-events.jsonl"
 thesis_portal_demo_replace: false
 thesis_portal_demo_credentials_path: "{{ thesis_state_root }}/demo-credentials.csv"
-thesis_portal_domain_demo_seed: false
-thesis_portal_domain_demo_credentials_path: "{{ thesis_state_root }}/domain-demo-credentials.csv"
-thesis_portal_survey_student_seed: false
-thesis_portal_survey_student_start_number: 113
-thesis_portal_survey_student_count: 15
-thesis_portal_survey_student_credentials_path: "{{ thesis_state_root }}/survey-student-extension-credentials.csv"

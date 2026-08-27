@@ -1,15 +1,5 @@
-# PATTERN D AUTHORING REFERENCE - Custom Workstation
-#
-# Copy this lab when a single lab needs a client tool that is NOT in the shared
-# workstation base image. The topology is an ordinary standalone service
-# (Pattern A):
-#
-#   workstation (custom image) --> records-service
-#
-# What makes it Pattern D is that build.images builds a lab-specific workstation
-# image (Dockerfile.workstation) and services.workstation.image points at it,
-# instead of the shared thesis-labs/workstation-base. Do NOT modify the global
-# workstation image for a tool only one lab needs.
+# Pattern D: use a lab-specific workstation image for one additional client.
+# Keep the shared workstation unchanged.
 
 id: sample-d-custom-workstation
 title: "Custom Workstation Tooling (Pattern D Reference)"

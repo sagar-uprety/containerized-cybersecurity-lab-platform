@@ -60,10 +60,7 @@ function SelectTrigger({
 function SelectContent({
   className,
   children,
-  // shadcn's own default ("item-aligned") makes Radix overlap the open menu
-  // with the trigger (native-<select>-style) instead of dropping it below -
-  // reads as a detached/overlapping popup. "popper" is the predictable,
-  // always-below-the-trigger behavior every usage in this app expects.
+  // Use popper positioning so the menu opens below the trigger.
   position = "popper",
   align = "start",
   sideOffset = 4,

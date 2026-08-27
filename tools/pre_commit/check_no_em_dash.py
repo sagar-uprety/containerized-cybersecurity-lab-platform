@@ -1,7 +1,6 @@
 """Reject em dashes (U+2014) in tracked text files.
 
-from generated prose more than once, so this is enforced rather than swept
-by hand each time.
+The project style uses plain ASCII hyphens, so this is enforced consistently.
 """
 
 from __future__ import annotations

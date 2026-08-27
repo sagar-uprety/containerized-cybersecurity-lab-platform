@@ -138,10 +138,7 @@ def validate_scenario(schema: dict[str, Any], scenario_path: Path) -> list[str]:
             f"{scenario_path}: scenario id {scenario.get('id')!r} must match directory {lab_id!r}"
         )
 
-    # Portal reveal boundary (tier 1): title and story.situation render on the
-    # student's lab card BEFORE they start, so neither may name the defect, the
-    # technique, or the fix. Consequence/anomaly words ("exposed", "unexpected")
-    # are allowed; mechanism/technique/fix vocabulary is not.
+    # Titles and pre-start stories may describe symptoms, not mechanism or remediation.
     spoiler_terms = re.compile(
         r"\b("
         r"anonymous bind|open relay|open share|unauthenticated|no-?auth|"
@@ -373,10 +370,7 @@ def validate_lab_docs(
     if not solution_notes.is_file():
         errors.append(f"missing lab docs: {solution_notes}")
 
-    # SITREP.txt was retired: the student guide's "Your Lab Environment" section
-    # now carries the mission brief, paths, and access facts always-visibly. A
-    # lingering SITREP.txt would leak the old over-specified mission list, so
-    # its presence is an error.
+    # Reject SITREP.txt files that duplicate or overexpose guide content.
     stale_sitrep = docs_dir / "SITREP.txt"
     if stale_sitrep.is_file():
         errors.append(
@@ -409,7 +403,8 @@ def validate_lab_docs(
         sg_content = student_guide.read_text(encoding="utf-8")
         sn_content = solution_notes.read_text(encoding="utf-8")
 
-        # Solution notes are one student-executable runbook. Custom verifier
+        # Solution notes are one student-executable runbook. Checks replay
+        # ordinary bash blocks by phase, so custom verifier fences are invalid.
         verifier_blocks = _extract_verifier_bash_blocks(sn_content)
         if verifier_blocks:
             errors.append(
@@ -420,18 +415,10 @@ def validate_lab_docs(
         if not solution_bash:
             errors.append(f"{solution_notes}: must contain student-executable bash blocks")
 
-        # Study labs with a `survey-` ID are the deliberate exception to the
-        # reveal boundary: exact commands standardize the platform workflow that
-        # first-time participants evaluate, without requiring scenario knowledge.
-        # Skip the remediation-duplication anti-spoiler check for them.
+        # Survey labs may reveal commands to standardize the evaluated workflow.
         is_survey_lab = lab_id.startswith("survey-")
 
-        # Exact remediation blocks must not be copied into the discovery guide.
-        # Diagnostic bash IS allowed in the student guide (generic command shapes
-        # with placeholders); solution-revealing remediation bash is not. The
-        # verb list below covers the config-mutating commands the labs actually
-        # use, and comparison is whitespace-normalized so a reformatted copy of a
-        # solution block cannot slip through a verbatim check.
+        # Reject normalized config-mutating solution commands copied into discovery guides.
         sg_bash = [_normalize_bash(b) for b in _extract_bash_blocks(sg_content)]
         remediation_commands = re.compile(
             r"(^|\n)\s*("

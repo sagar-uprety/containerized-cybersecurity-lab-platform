@@ -56,10 +56,7 @@ export default function InstructorGroupStudentDetail({ user, groupId, studentId,
   const passedLabs = student?.labs?.filter((lab) => lab.ever_passed).length || 0;
   const checksSubmitted = student?.labs?.reduce((total, lab) => total + (lab.checks_submitted || 0), 0) || 0;
 
-  // The student-detail endpoint doesn't carry deadlines or review_reasons per lab
-  // (see StudentLabDetail) - only the group's own lab list does. Join on lab_id
-  // and apply the same rule the server uses for overdue_incomplete (analytics.py
-  // _review_reasons): deadline passed and never achieved.
+  // Join group deadlines and review reasons missing from StudentLabDetail.
   const deadlineByLab = new Map((group?.labs || []).map((gl) => [gl.lab_id, gl.deadline]));
   const now = Date.now();
   function labDeadline(lab: StudentDetail["labs"][number]): string | undefined {

@@ -163,12 +163,8 @@ resources:
     cpus: "0.50"
     memory: "256m"
 
-# Three-zone topology: external (workstation <-> firewall-host, the DMZ vantage
-# point), dmz (firewall-host <-> web-server), internal (firewall-host <->
-# database, file-server). The workstation lands on the first declared network
-# (external) and can only reach the DMZ/internal services through whatever the
-# firewall-host forwards - this is what makes cross-zone reachability testable
-# from the student's own position.
+# Three zones: workstation/external, web/DMZ, and database/files/internal.
+# The firewall is the only route between zones.
 networks:
   - name: external
   - name: dmz

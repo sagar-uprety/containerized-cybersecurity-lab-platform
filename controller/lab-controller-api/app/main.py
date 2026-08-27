@@ -35,6 +35,7 @@ from app.auth import (
     get_visible_lab_ids,
     lookup_user,
 )
+from app.bootstrap import ensure_admin_bootstrap
 from app.config import settings
 from app.db import SessionLocal, init_db
 from app.events import record_event
@@ -79,7 +80,6 @@ from app.scenarios import (
     user_student_id,
     validate_lab_id,
 )
-from app.seed import ensure_admin_bootstrap, seed_if_empty
 from app.semesters import validate_semester
 from app.ssh_client import run_labctl, run_labctl_system_status
 
@@ -107,7 +107,6 @@ SESSION_MAX_AGE = 86400
 @app.on_event("startup")
 def _startup_init_db() -> None:
     init_db()
-    seed_if_empty()
     ensure_admin_bootstrap()
     sync_assignment_obligations()
 
@@ -206,7 +205,7 @@ def run_action(
     validate_lab_id(lab_id)
     student_id = user_student_id(user)
     # Provisioning verbs need the student's lab password injected on stdin so
-    # labctl can set the workstation account / terminal credential (Decision B).
+    # labctl can set the workstation account and terminal credential.
     lab_password = user.get("lab_password") if verb in ("start", "reset") else None
     started = time.monotonic()
     success, stdout, stderr = run_labctl(verb, lab_id, student_id, lab_password=lab_password)
@@ -319,6 +318,7 @@ def scenario_idle_timeout(scenario: dict):
 def require_student(user: dict) -> None:
     if user["role"] != "student":
         raise HTTPException(status_code=403, detail="Student access required")
+    # Block all student lab routes until the initial
     # password is changed. /api/me, /api/password, /api/logout do not call this.
     if user.get("must_change_password"):
         raise HTTPException(status_code=403, detail="password_change_required")
@@ -380,7 +380,10 @@ def _resolve_start_group(assignments: list[dict], lab_id: str, group_id: Optiona
 
 
 def require_lab_visible(user: dict, lab_id: str) -> None:
-    """Reject (403) a student acting on a lab not assigned to one of their
+    """Reject a student acting on a lab not assigned to one of their groups.
+
+    Enforcement is server-side, not only UI hiding.
+    """
     if user["role"] != "student":
         return
     if lab_id not in get_visible_lab_ids(user["username"]):
@@ -484,21 +487,14 @@ def api_labs(group_id: Optional[int] = None, user: dict = Depends(get_authentica
     student_id = user_student_id(user)
     runtime_states = dict(tracked_runtime_items())
     result = []
-    # One row per ASSIGNMENT, not per lab: the same lab_id can appear twice
-    # with a different group.
+    # Return one row per assignment because groups can share a lab.
     for assignment in assignments:
         lab = scenarios_by_id.get(assignment["lab_id"])
         if lab is None:
             continue
         runtime_state = runtime_states.get(state_key(assignment["lab_id"], student_id), {})
         lease_group_id = runtime_state.get("group_id")
-        # The container is shared across a student's groups for the same lab
-        # (labctl names it from student number + lab id alone), so only the
-        # group whose id matches the lease's stored group_id may show the
-        # live status -- every sibling group's row must read "not_created",
-        # or both cards would light up as running from a single container.
-        # A lease with no stored group_id is a legacy pre-migration row; fall
-        # back to showing it on every row rather than hiding it entirely.
+        # Only the lease-owning group sees live state; unscoped leases remain visible.
         if lease_group_id is None or lease_group_id == assignment["group_id"]:
             lab_status = runtime_state.get("status") or "not_created"
         else:
@@ -532,12 +528,7 @@ def api_lab_detail(
 ):
     require_student(user)
     validate_lab_id(lab_id)
-    # Excludes archived groups (that 404 stays -- shipped deliberately and
-    # must not regress), but now ALLOWS expired assignments: a student may
-    # reopen a past-deadline lab read-only, to reread the scenario/guides/
-    # story. The response's "expired" field (below) is what keeps the client
-    # from rendering Start/Reset/Check -- those routes still 403 via
-    # require_lab_visible/get_visible_lab_ids, which excludes expired.
+    # Expired assignments remain readable; archived assignments do not.
     assignments = get_unarchived_labs_detail(user["username"])
     assignment = _resolve_lab_assignment(assignments, lab_id, group_id)
     scenario = load_scenario_metadata(lab_id)
@@ -547,8 +538,6 @@ def api_lab_detail(
     student_id = user_student_id(user)
     runtime_state = runtime_state_for(lab_id, student_id)
     lease_group_id = runtime_state.get("group_id")
-    # Same reasoning as /api/labs: don't report "running" on this group's page
-    # when the live container actually belongs to a sibling group's lease.
     if lease_group_id is None or lease_group_id == assignment["group_id"]:
         status_text = runtime_state.get("status") or "not_created"
     else:
@@ -559,10 +548,7 @@ def api_lab_detail(
     endpoints = _build_endpoints(scenario, student_id, user)
 
     deadline = assignment.get("deadline")
-    # Computed server-side, never left for the client to infer from the raw
-    # deadline timestamp -- clock skew between browser and server could
-    # otherwise make the UI render Start on a lab the server will still
-    # refuse (start/reset/check gate on get_visible_lab_ids, independently).
+    # Compute expiry server-side to keep lifecycle authorization consistent.
     expired = bool(deadline) and _aware_utc(datetime.fromisoformat(deadline)) < datetime.now(
         timezone.utc
     )
@@ -593,11 +579,7 @@ def api_lab_feedback(
     require_student(user)
     require_lab_assigned(user, lab_id)
     validate_lab_id(lab_id)
-    # Expired-but-unarchived assignments must resolve here too: POST feedback
-    # (below) already accepts them via require_lab_assigned, so the GET that
-    # backs the feedback form/status needs the same reach, or a student could
-    # submit feedback for an expired lab they can no longer even load the
-    # form for. Archived groups still 404, unchanged.
+    # Feedback remains available for expired, unarchived assignments.
     assignment = _resolve_lab_assignment(
         get_unarchived_labs_detail(user["username"]), lab_id, group_id
     )
@@ -721,6 +703,7 @@ def api_logout():
 
 @app.post("/api/password")
 async def api_change_password(request: Request, user: dict = Depends(get_authenticated_user)):
+    """First-login and self-service password change.
 
     Deliberately does not call require_student so a student with
     must_change_password set can still reach it (require_student would block).
@@ -774,10 +757,7 @@ async def start_lab(
     student_id = user_student_id(user)
     current_key = state_key(lab_id, student_id)
 
-    # One container per (student, lab): labctl derives its name from student
-    # number + lab id alone, with no group in it. If a different group's
-    # lease is still live, starting here would silently rebind that same
-    # container to this group and corrupt the other group's session record.
+    # Container identity excludes group, so reject cross-group lease collisions.
     existing_lease = runtime_state_for(lab_id, student_id)
     existing_group_id = existing_lease.get("group_id")
     if (
@@ -1380,11 +1360,7 @@ async def api_reset_instructor_password(
         return {"ok": True, "new_password": new_password}
 
 
-#: Portal-host paths worth reporting. The SQLite database, its backups and the
-#: evidence exports all live under the state directory, which is what actually
-#: grows here. Deliberately a local stdlib read rather than importing
-#: labctl_core.system_status: the portal is not allowed to depend on the lab
-#: runtime package (see tools/pre_commit/validate_architecture_imports.py).
+# Portal disk paths remain independent of the worker runtime package.
 _PORTAL_DISK_PATHS = ("/", str(Path(settings.PORTAL_DB_PATH).parent))
 
 
@@ -1571,12 +1547,10 @@ def api_instructor_lab_detail(lab_id: str, user: dict = Depends(get_authenticate
         if status_text == "running":
             active_sessions.append(session_info)
         elif status_text in ("ended", "stopped", "not_created"):
-            # Fetch commands and check results for completed sessions
             commands = get_command_events_for_student(lab_id, student_id)
             check_results = get_check_results_for_student(lab_id, student_id)
             lifecycle_events = get_lifecycle_events_for_student(lab_id, student_id)
 
-            # Calculate duration from lifecycle events or runtime state
             duration_seconds = None
             if lifecycle_events:
                 start_events = [e for e in lifecycle_events if e.get("action") == "start"]
@@ -1598,7 +1572,6 @@ def api_instructor_lab_detail(lab_id: str, user: dict = Depends(get_authenticate
             if duration_seconds is None and started_at and last_seen:
                 duration_seconds = round(last_seen - started_at, 1)
 
-            # Get latest check result
             latest_check = None
             if check_results:
                 latest_check = check_results[-1].get("check_result")
@@ -1670,43 +1643,6 @@ def api_instructor_session_detail(
     }
 
 
-@app.get("/api/instructor/students")
-def api_instructor_students(user: dict = Depends(get_authenticated_user)):
-    require_instructor(user)
-    with SessionLocal() as session:
-        owner_ids = _owner_group_ids(session, user["id"])
-        students = repo.list_students_for_owner(session, user["id"])
-        result = []
-        for s in students:
-            # All the instructor's groups this student belongs to (including
-            # archived ones) -- needed to decide PII suppression: a student
-            # whose ONLY tie to this instructor is an archived cohort must
-            # still show up here (so the account can still be deleted), but
-            # with no archived-group detail and no PII, same as the group's
-            # own roster view would show.
-            member_groups = [
-                m.group for m in s.memberships if m.status == "approved" and m.group_id in owner_ids
-            ]
-            all_archived = bool(member_groups) and all(g.is_archived for g in member_groups)
-            visible_groups = [g for g in member_groups if not g.is_archived]
-            result.append(
-                {
-                    # student_id/username kept for backward compatibility with the UI
-                    "student_id": s.internal_id or s.email,
-                    "username": None if all_archived else s.email,
-                    "email": None if all_archived else s.email,
-                    "number": s.number,
-                    "must_change_password": bool(s.must_change_password),
-                    "active": bool(s.active),
-                    "groups": [
-                        {"id": g.id, "name": g.name, "is_archived": g.is_archived}
-                        for g in visible_groups
-                    ],
-                }
-            )
-        return result
-
-
 @app.get("/api/instructor/students/{student_id}")
 def api_instructor_student_detail(
     student_id: str,
@@ -1720,11 +1656,7 @@ def api_instructor_student_detail(
             raise HTTPException(status_code=404, detail="Student not found")
         if group_id is not None and group_id not in owner_ids:
             raise HTTPException(status_code=404, detail="Group not found")
-        # Scoped to one group (already ownership-checked above, archived or
-        # not): pass the full owner set so that group's obligations stay
-        # visible. Unscoped (cross-group): narrow to unarchived groups only,
-        # so an archived cohort's obligations don't leak into the all-groups
-        # student page.
+        # Group views include archived obligations; aggregate views do not.
         scope_ids = (
             owner_ids if group_id is not None else _owner_unarchived_group_ids(session, user["id"])
         )
@@ -1741,14 +1673,9 @@ def _aware_utc(dt: Optional[datetime]) -> Optional[datetime]:
 
 
 def _build_session_history(lifecycle):
-    """Group lifecycle events into discrete sessions (start→end).
+    """Group lifecycle events into newest-first start-to-end sessions.
 
-    A session starts at a "start" event and ends at the next
-    "end"/"stop"/"destroy"/"auto_stop" event. Events before the first
-    "start" (orphans from before session tracking) are discarded.
-    Consecutive "start" events without an intervening end collapse into
-    one session (treats the last start as the real start).
-    Returns newest session first.
+    Ignore events before a start and collapse consecutive starts to the latest one.
     """
     end_actions = {"end", "stop", "destroy", "auto_stop"}
     sessions = []
@@ -1918,6 +1845,7 @@ def api_download_export(export_id: str, user: dict = Depends(get_authenticated_u
 
 
 # ---------------------------------------------------------------------------
+# Instructor management API: students, groups, and assignments
 # ---------------------------------------------------------------------------
 
 
@@ -2207,12 +2135,7 @@ async def api_assign_lab(
                 deadline = deadline.replace(tzinfo=timezone.utc)
         except (ValueError, TypeError):
             raise HTTPException(status_code=400, detail="Invalid deadline format") from None
-        # Reject only a deadline meaningfully in the past -- this is always the
-        # NEW value being set (assign_lab upserts, so editing an assignment
-        # whose stored deadline already lapsed must still work; only the
-        # incoming value is checked). A 1-minute grace absorbs ordinary clock
-        # skew between browser and server so a deadline set for "now" doesn't
-        # bounce.
+        # Validate the incoming deadline, allowing one minute for clock skew.
         if _aware_utc(deadline) < datetime.now(timezone.utc) - timedelta(minutes=1):
             raise HTTPException(status_code=400, detail="Deadline cannot be in the past")
     with SessionLocal() as session:

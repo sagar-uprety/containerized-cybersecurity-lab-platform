@@ -44,9 +44,11 @@ def main() -> None:
     from app.db import SessionLocal  # noqa: PLC0415
     from app.demo_seed import replace_with_demo_data  # noqa: PLC0415
     from app.models import (  # noqa: PLC0415
+        CheckAttempt,
         Group,
         GroupMember,
         LabSession,
+        LifecycleEvidence,
         RuntimeLease,
         TerminalCommand,
         User,
@@ -56,6 +58,12 @@ def main() -> None:
 
     seeded = replace_with_demo_data(fixture_path, credentials_path)
     assert seeded["users"] == 83
+    with SessionLocal() as session:
+        assert all(group.owner_id is not None for group in session.scalars(select(Group)))
+        assert all(item.group_id is not None for item in session.scalars(select(LabSession)))
+        actors = [*session.scalars(select(CheckAttempt.actor_id))]
+        actors.extend(session.scalars(select(LifecycleEvidence.actor_id)))
+        assert all("@" not in actor for actor in actors)
     credentials = list(csv.DictReader(credentials_path.open(encoding="utf-8")))
     instructor = next(item for item in credentials if item["role"] == "instructor")
     student = next(item for item in credentials if item["student_id"] == "student03")

@@ -64,20 +64,13 @@ function parseRoute(): Route {
   const groupAnalyticsMatch = path.match(/^\/instructor\/groups\/(\d+)\/analytics\/?$/);
   if (groupAnalyticsMatch) return { page: "instructor-analytics", groupId: parseInt(groupAnalyticsMatch[1], 10) };
 
-  // This literal-suffix route must be checked BEFORE the generic two-segment
-  // session-detail match below, which would otherwise swallow it (its
-  // `([^/]+)` happily matches the literal "feedback" segment as if it were a
-  // student id).
+  // Match the literal feedback route before the generic student segment.
   const instructorLabFeedbackMatch = path.match(/^\/instructor\/labs\/([^/]+)\/feedback\/?$/);
   if (instructorLabFeedbackMatch) {
     return { page: "instructor-lab-feedback", labId: instructorLabFeedbackMatch[1] };
   }
 
-  // The trailing segment here is a student id, and `[^/]+` will just as happily
-  // match a literal word. A sibling route added after this one (or a stale link
-  // to a removed one) would otherwise be read as a student named "feedback" or
-  // "guides" and render "Student not found" instead of a 404 -- which is
-  // exactly how the feedback page was silently broken. Reserve the literals.
+  // Reserve literal child routes from the generic student-id segment.
   const RESERVED_LAB_SEGMENTS = new Set(["feedback", "guides"]);
   const instructorSessionMatch = path.match(/^\/instructor\/labs\/([^/]+)\/([^/]+)\/?$/);
   if (instructorSessionMatch && !RESERVED_LAB_SEGMENTS.has(instructorSessionMatch[2])) {
@@ -101,9 +94,7 @@ function parseRoute(): Route {
     return { page: "instructor-group-detail", groupId: parseInt(instructorGroupMatch[1], 10) };
   }
 
-  // Must be checked after the bare list route below is ruled impossible by
-  // requiring a non-empty id segment, so "/instructor/students" and
-  // "/instructor/students/" never match here.
+  // Require a non-empty student-id segment.
   const instructorStudentDetailMatch = path.match(/^\/instructor\/students\/([^/]+)\/?$/);
   if (instructorStudentDetailMatch) {
     return { page: "instructor-student-detail", studentId: instructorStudentDetailMatch[1] };

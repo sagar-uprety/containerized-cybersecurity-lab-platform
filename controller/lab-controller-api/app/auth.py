@@ -1,14 +1,4 @@
-
-Login identity is the user's email; the returned dict keeps the historical
-shape so the rest of the portal is unchanged:
-  username    -> email (the login id, also the session-cookie subject)
-  student_id  -> internal `studentNN` id (for labctl/ports); email for instructors
-  number      -> deterministic port number (None for instructors)
-  lab_password-> lab/SSH password injected into the workstation (Decision B)
-  role, must_change_password, active
-
-Passwords are verified with PBKDF2-HMAC-SHA256. The old plaintext YAML registry is gone;
-"""
+"""Database-backed portal authentication using email identities and PBKDF2 passwords."""
 
 from typing import Optional
 
@@ -109,11 +99,7 @@ def get_assigned_labs_detail(username: str) -> list:
 
 
 def get_unarchived_labs_detail(username: str) -> list:
-    """Approved non-archived-group lab assignments, including expired ones.
-    One entry per (group, lab) assignment -- see `get_assigned_labs_detail`.
-
-    Formerly `get_active_labs_detail`; renamed alongside repo.active_labs_detail
-    when the separate `is_active` flag was removed in favor of `is_archived`."""
+    """Approved non-archived assignments, including expired ones, grouped by assignment."""
     with SessionLocal() as session:
         user = repo.get_user_by_email(session, username)
         if user is None or user.role != "student":

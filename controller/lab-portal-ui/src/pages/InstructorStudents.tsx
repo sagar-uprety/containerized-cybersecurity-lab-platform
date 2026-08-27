@@ -132,11 +132,7 @@ export default function InstructorStudents({ user, groupId, onLogout }: Props) {
   }, [students, filterGroupId, debouncedSearch, sortBy, sortDir]);
 
   function handleRowClick(s: StudentsProgressEntry) {
-    // When a group filter is active the instructor has already expressed a
-    // group context, so stay in that group's scoped detail page. With no
-    // filter (or a student outside the filtered group - shouldn't happen
-    // since the list is already filtered) go to the cross-group detail page
-    // rather than guessing which group to show.
+    // Preserve active group scope when opening student details.
     const targetGroup = filterGroupId ? s.groups?.find((g) => g.id === filterGroupId) : null;
     if (targetGroup) {
       navigate(`/instructor/groups/${targetGroup.id}/students/${s.student_id}`);

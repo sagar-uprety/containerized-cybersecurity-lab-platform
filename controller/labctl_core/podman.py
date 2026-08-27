@@ -64,7 +64,7 @@ def ensure_network(manifest: dict) -> None:
     """Create all networks declared in the manifest (single or multi-network)."""
     networks = manifest.get("networks", [])
     if not networks:
-        # Fallback to single network for backward compatibility
+        # Accept single-network manifests.
         network = manifest.get("network", {})
         if network:
             networks = [network]

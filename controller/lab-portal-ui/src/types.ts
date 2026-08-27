@@ -189,11 +189,8 @@ export interface StudentLabDetail {
   checks_submitted?: number;
   criteria?: CriterionEvidence[];
   sessions?: SessionSummary[];
-  // Present when the detail was fetched without a group_id (cross-group view);
-  // a student can now be in several groups so each lab obligation is tagged
-  // with the group it came from.
-  group_id?: number;
-  group_name?: string;
+  group_id: number;
+  group_name: string;
   semester?: string | null;
 }
 
@@ -251,15 +248,12 @@ export interface FeedbackInfo {
   csrf_token: string;
   session_id?: string;
   already_submitted?: boolean;
-  // Not explicitly documented on GET /api/labs/{lab_id}/feedback; inferred so the page can
-  // show which group the feedback prompt belongs to. Rendered only when present.
+  // Group owning this feedback obligation.
   group?: { id: number | null; name: string | null; semester?: string | null };
 }
 
 export interface DiskUsage {
-  /** Paths that resolved to this filesystem. Several of the interesting paths
-   *  usually share one, so entries are deduplicated by device. Absent on the
-   *  portal's own entry, which reports a single path. */
+  /** Paths deduplicated by filesystem device. */
   labels?: string[];
   path: string;
   total_gb: number;
@@ -271,8 +265,7 @@ export interface DiskUsage {
 export interface HostUsage {
   /** Null when the host cannot report it (e.g. /proc unavailable). */
   cpu_percent?: number | null;
-  /** What cpu_percent is averaged over. One busy core on a 64-core host is
-   *  ~1.6%, so the percentage is meaningless without this. */
+  /** Core count used to interpret aggregate CPU percentage. */
   cores?: number | null;
   memory_percent?: number;
   memory_used_mb?: number;
@@ -280,8 +273,7 @@ export interface HostUsage {
   disks?: DiskUsage[];
 }
 
-/** Worker (x01) figures sit at the top level for backward compatibility; the
- *  management host (x02) is nested under `portal`. */
+/** Worker metrics are top-level; management metrics are under portal. */
 export interface SystemStatus extends HostUsage {
   running_labs: number;
   cpu_percent: number;
@@ -366,12 +358,6 @@ export interface StudentLabResultsData extends StudentLabDetail {
   difficulty?: string;
   result: "passed" | "failed" | "not_attempted";
   total_time_seconds: number;
-  // Contract doesn't explicitly document group fields on GET /api/results/{lab_id};
-  // inferred from the group-scoped nature of the endpoint (group_id is required in the
-  // request). Rendered only when present.
-  group_id?: number;
-  group_name?: string;
-  semester?: string | null;
 }
 
 export interface AnalyticsPoint {

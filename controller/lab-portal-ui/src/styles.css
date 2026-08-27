@@ -30,10 +30,7 @@
   --ring: oklch(0.509 0.159 253.4);
   --success: #16A34A;
   --success-bg: #DCFCE7;
-  /* "warning" is intentionally NOT amber/yellow -- pending/in-progress states
-     reuse the brand blue tint (same as the active-nav accent) instead of a
-     third semantic hue. Only success (green) and destructive (red) are true
-     colored signals; everything else is blue or neutral. */
+  /* Warning reuses brand blue; only success and destructive use semantic hues. */
   --warning: var(--primary);
   --warning-bg: var(--accent);
   --chart-1: oklch(0.509 0.159 253.4);

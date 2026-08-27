@@ -1,10 +1,4 @@
-# Custom workstation image for ftp-anonymous-access (Pattern D).
-#
-# The shared workstation base already ships curl, the BSD `ftp` client, and
-# nmap. This lab additionally needs a packet-capture tool so the student can
-# observe FTP control-channel traffic directly, which the shared base does
-# not include. Per platform convention, that one extra client is added here
-# rather than modifying the global workstation image.
+# Extend the workstation with packet capture for FTP traffic analysis.
 # hadolint ignore=DL3007
 FROM thesis-labs/workstation-base:latest
 

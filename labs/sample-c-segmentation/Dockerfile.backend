@@ -1,7 +1,4 @@
-# PATTERN C - INTERNAL BACKEND image (one of TWO images this lab builds)
-#
-# The internal target, reachable only through the proxy. Built from its own
-# Dockerfile so each role is an independent image.
+# Pattern C internal backend, reachable only through the proxy.
 FROM thesis-labs/lab-service-base:1.0
 
 RUN apt-get update \

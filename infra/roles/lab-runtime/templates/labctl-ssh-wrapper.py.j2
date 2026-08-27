@@ -55,9 +55,6 @@ strict_token(student_id, STUDENT_ID, "student_id")
 if lab_id not in read_scenarios():
     fail("unknown lab_id")
 
-# that DB, so the boundary here is the strict student-id regex above. We do not
-# consult a static student allowlist - portal-created students are not in one.
-#
-# stdin is intentionally NOT consumed here: it carries the lab password the
-# portal injects (Decision B) and is inherited by sudo -> labctl.
+# The portal owns identity; x01 enforces its strict student-id format without an allowlist.
+# Preserve stdin so sudo and labctl receive the injected lab password.
 os.execv("/usr/bin/sudo", ["sudo", "-n", LABCTL, verb, lab_id, student_id])

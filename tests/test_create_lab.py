@@ -130,7 +130,7 @@ def main() -> None:
         workstation = next(
             item for item in manifest["containers"] if item["hostname"] == "workstation"
         )
-        # SITREP.txt was retired; the workstation must no longer carry its mount.
+        # Workstation scaffolds must not mount SITREP.txt.
         assert not any(
             vol["target"] == "/opt/lab/student/SITREP.txt" for vol in workstation["volumes"]
         )

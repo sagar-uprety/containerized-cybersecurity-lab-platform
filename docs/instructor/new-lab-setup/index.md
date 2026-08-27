@@ -93,7 +93,7 @@ Reject or redesign a lab if it requires any of these:
 -   A vulnerability that cannot be safely represented on RHEL 9.6 `ppc64le`
 
 Stop and request architecture review rather than weakening isolation to make an
-changes require explicit approval.
+idea fit. Architecture, scope, or security changes require explicit approval.
 
 ## Roles and Permission Boundary
 
@@ -118,6 +118,8 @@ GitHub Action, or workflow dispatch is required - everything is operator-run.
 
 Use these in this order:
 
+1. This guide defines architecture, privacy, isolation, and security boundaries
+   relevant to lab authors.
 2. `labs/templates-contract/scenario.schema.json` defines accepted machine fields.
 3. `labs/sample-a-standalone/` is the runnable, commented authoring reference.
 4. `platform-images/lab-service-base/entrypoint.sh` defines exactly what the

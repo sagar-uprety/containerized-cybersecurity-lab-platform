@@ -1,3 +1,4 @@
+"""CRUD and domain logic over the portal identity store.
 
 All functions take an explicit Session so callers control transaction scope.
 Mutating helpers flush but do not commit unless noted; the caller commits.
@@ -86,6 +87,7 @@ def next_free_number(session: Session) -> int:
 
     Numbers map to deterministic ports (base + number). Deleting the highest
     student frees that number for reuse on the next create; mid-range gaps are
+    not reused. Reuse is safe because student removal tears down the
     student's lab instances first, releasing the associated ports/containers.
     """
     current_max = session.execute(select(func.max(User.number))).scalar_one_or_none()
@@ -570,11 +572,7 @@ def assigned_labs_detail(session: Session, user: User) -> list[dict]:
 
 
 def unarchived_labs_detail(session: Session, user: User) -> list[dict]:
-    """Approved non-archived-group assignments, including expired ones. One
-    entry per (group, lab) assignment -- see `assigned_labs_detail`.
-
-    Formerly `active_labs_detail`; renamed when the separate `is_active` flag
-    was removed in favor of `is_archived` as the sole lifecycle gate."""
+    """Approved non-archived assignments, including expired ones, grouped by assignment."""
     return _labs_detail(session, user, include_expired=True, include_archived=False)
 
 

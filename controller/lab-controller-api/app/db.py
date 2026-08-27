@@ -41,7 +41,7 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False
 
 
 def _migrate_columns() -> None:
-    """Add columns introduced after initial schema without a full migration tool."""
+    """Ensure required columns exist in persisted portal databases."""
     migrations = [
         ("users", "semester", "TEXT"),
         ("users", "study_program", "TEXT"),
@@ -65,9 +65,7 @@ def _migrate_columns() -> None:
         for table, column, col_type in migrations:
             with contextlib.suppress(Exception):
                 conn.execute(sqlalchemy.text(f"ALTER TABLE {table} ADD COLUMN {column} {col_type}"))
-        # One-time backfill: groups created before per-instructor ownership
-        # existed have no owner_id. Assign them to the original instructor
-        # account so nothing goes ownerless/invisible after the upgrade.
+        # Give unowned groups a bootstrap instructor when available.
         conn.execute(
             sqlalchemy.text(
                 "UPDATE groups SET owner_id = "
@@ -76,12 +74,7 @@ def _migrate_columns() -> None:
                 "AND EXISTS (SELECT 1 FROM users WHERE email = 'instructor@thesis.local')"
             )
         )
-        # One-time backfill: evidence rows used to record a student's email as
-        # the actor. That is redundant PII -- the row already carries student_id,
-        # and actor_type already says who acted -- so rewrite it to the student's
-        # pseudonymous internal id. Matches only rows whose actor_id is exactly a
-        # student's email, so instructor and 'system'/'scheduler' actors are left
-        # untouched.
+        # Pseudonymize student actor IDs.
         for table in ("lifecycle_evidence", "check_attempts"):
             conn.execute(
                 sqlalchemy.text(

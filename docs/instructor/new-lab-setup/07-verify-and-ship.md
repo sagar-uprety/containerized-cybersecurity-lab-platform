@@ -118,8 +118,7 @@ so coordinate this test only when concurrent capacity is configured.
 -   `verify-platform.yml` passes.
 -   Fresh live student-path pass, mutation/guardrail checks, and Reset pass.
 
-Only then update the record task from `review` to `done` and assign the lab to
-real teaching groups.
+Only then mark the lab ready and assign it to real teaching groups.
 
 ---
 

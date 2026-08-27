@@ -5,11 +5,7 @@ changetype: modify
 replace: olcAccess
 olcAccess: to * by * read
 
-# The mdb backend ships its own default ACL (Debian's slapd postinst) that
-# protects userPassword regardless of the frontend's global default - that
-# more specific per-database rule wins over the frontend override above, so
-# it must be replaced too or anonymous users could never actually read
-# password hashes (the exposure this lab is meant to demonstrate).
+# Replace the backend ACL because it overrides the frontend rule for password hashes.
 dn: olcDatabase={1}mdb,cn=config
 changetype: modify
 replace: olcAccess

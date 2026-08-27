@@ -29,8 +29,7 @@ export default function Overview({ user, onLogout }: { user: User; onLogout: () 
       .catch((err: Error) => setError(err.message));
   }, []);
 
-  // A student may now belong to several groups; derive the filter's options from whatever
-  // groups actually appear in the assignments, rather than a separate API call.
+  // Derive group filters from assigned labs.
   const groupOptions = useMemo(() => {
     const seen = new Map<number, string>();
     for (const lab of labs ?? []) {

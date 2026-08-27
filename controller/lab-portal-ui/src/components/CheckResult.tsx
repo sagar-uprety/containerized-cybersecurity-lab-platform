@@ -28,11 +28,7 @@ export default function CheckResult({ result, visible, checkerChecks }: CheckRes
       </div>
       <ul className="space-y-1.5">
         {(result.checks || []).map((check) => {
-          // A stored result can reference a check name from an older scenario
-          // version that no longer exists in the current checker definition
-          // (e.g. after a lab was edited). Don't guess "Objective" for those -
-          // an unlabeled check is safer than a wrong label (a guardrail shown
-          // as an objective, or vice versa).
+          // Unknown stored checks remain unlabeled instead of receiving an incorrect kind.
           const kind = kindMap[check.name];
           return (
             <li key={check.name} className="flex items-center gap-2 text-sm">

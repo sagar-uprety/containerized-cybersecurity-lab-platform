@@ -1,16 +1,5 @@
-# PATTERN B AUTHORING REFERENCE - Service With Dependent Application
-#
-# Copy this lab when your scenario has a SHARED service that a dependent
-# application relies on, and the lesson is to harden the shared service without
-# breaking the app (e.g. a database/cache behind an application). Topology:
-#
-#   workstation --> records-backend <-- records-app
-#   workstation ----------------------> records-app
-#
-# Each distinct service is its OWN image built from its OWN Dockerfile
-# (Dockerfile.backend, Dockerfile.app), the convention real multi-service labs
-# follow (compare redis-exposed: a redis image plus a demo-app image). Only add a
-# dependent app when its continuity is genuinely part of the lesson.
+# Pattern B: harden a shared backend without breaking its dependent app.
+# Build each distinct service from its own Dockerfile.
 
 id: sample-b-dependent-app
 title: "Shared-Service Hardening Without Breaking Dependents (Pattern B Reference)"

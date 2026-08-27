@@ -76,15 +76,9 @@ nginx-thesis.conf
 .playwright/
 .playwright-cli/
 
-style guidelines
-interface guidelines
-skills-lock.json
-
 # Packaged archives
 *.tar
 *.tar.gz
 *.tgz
 *.zip
-controller/lab-portal-ui/package-lock.json
 controller/lab-controller-api/demo-data.json
-controller/lab-controller-api/domain-demo-data.json

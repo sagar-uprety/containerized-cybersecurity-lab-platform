@@ -1,7 +1,4 @@
-# BIND9 named.conf - Controlled authoritative server for lab.internal.
-# Students do not edit this host; it exists to give the resolver something
-# real to forward to and to provide a vantage point outside the trusted
-# client network.
+# Controlled authoritative server and external vantage point for lab.internal.
 
 options {
     directory "/var/cache/bind";

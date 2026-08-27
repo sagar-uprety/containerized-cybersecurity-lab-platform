@@ -1,24 +1,13 @@
 #!/bin/sh
 set -eu
 
-#   LAB_CONFIG_SRC        source config path inside image (default: /opt/lab/baseline/service.conf)
-#   LAB_CONFIG_DST        runtime config path on volume   (default: /etc/service/service.conf)
-#   LAB_SERVICE_CMD       command to start the service; if unset, falls back to exec "$@"
-#   LAB_SETUP_SCRIPT      optional pre-start hook at /opt/lab/hooks/pre-start.sh
-#   LAB_DATA_DIR          data directory to create on startup
-#   LAB_DATA_USER         user to own data and config dirs
-#   LAB_SEED_FILE         path to seed data file inside image
-#   LAB_SEED_CMD          command for seeding (receives seed file on stdin)
-#   LAB_LOG_FILE          log file to tail as foreground output; falls back to wait if absent
-#   LAB_ADMIN_USER        in-container user to set password for (default: root)
-#   SERVICE_ADMIN_PASSWORD password assigned to LAB_ADMIN_USER on startup
-# ──────────────────────────────────────────────────────────────────────────────────
+# Runtime behavior is configured through the LAB_* variables documented in the authoring guide.
 
 CONFIG_SRC="${LAB_CONFIG_SRC:-/opt/lab/baseline/service.conf}"
 CONFIG_DST="${LAB_CONFIG_DST:-/etc/service/service.conf}"
 ADMIN_USER="${LAB_ADMIN_USER:-root}"
 
-# ── Set admin password from env ─────────────────────────────────────
+# Set the service administrator password.
 if [ -n "${SERVICE_ADMIN_PASSWORD:-}" ]; then
     echo "${ADMIN_USER}:${SERVICE_ADMIN_PASSWORD}" | chpasswd
 fi
@@ -30,7 +19,7 @@ if [ ! -f "${CONFIG_DST}" ]; then
     cp "${CONFIG_SRC}" "${CONFIG_DST}"
 fi
 
-# ── Fix data directory permissions ───────────────────────────────────
+# Set data-directory ownership and permissions.
 if [ -n "${LAB_DATA_DIR:-}" ]; then
     mkdir -p "${LAB_DATA_DIR}"
 fi

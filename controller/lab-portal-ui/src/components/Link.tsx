@@ -6,10 +6,7 @@ interface LinkProps extends AnchorHTMLAttributes<HTMLAnchorElement> {
   onClick?: () => void;
 }
 
-// forwardRef + prop passthrough so Radix `asChild` composition (SidebarMenuButton,
-// Button, DropdownMenuTrigger...) can clone its data-*/aria-*/ref onto the real <a>
-// instead of having them silently dropped - Radix needs the ref for popper/tooltip
-// positioning, and peer-* CSS selectors need the data attributes to land on the DOM node.
+// Preserve props and refs required by Radix asChild composition.
 const Link = forwardRef<HTMLAnchorElement, LinkProps>(function Link(
   { href, onClick, download, ...rest },
   ref

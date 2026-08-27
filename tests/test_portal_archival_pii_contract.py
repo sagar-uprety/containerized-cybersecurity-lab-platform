@@ -1,28 +1,4 @@
-"""Contract check: archiving a group must suppress per-member PII (email,
-study_program) in that group's OWN instructor-facing responses, and the
-archive is permanent -- there is no route that can undo it.
-
-Guards against two leaks found in the group-detail response
-(GET /api/instructor/groups/{group_id}) and in main.py::_group_to_dict:
-
-1. `analytics.recent_activity()` used to join `User.email` unconditionally,
-   so the group detail page's "Recent activity" feed showed every student's
-   real email on an archived group -- directly contradicting the "Archived -
-   student PII removed" badge the group page renders. Fixed by adding a
-   `redact_email: bool = False` parameter, passed as
-   `redact_email=group.is_archived` from the group-detail route.
-2. `_group_to_dict()` returned `{"email": m.user.email}` for each approved
-   member with no archival check. Fixed to
-   `None if group.is_archived else m.user.email`.
-
-The pseudonymous `student_id` (e.g. `student01`, from `User.internal_id`) is
-NOT PII and must stay present in both the roster and the activity feed even
-when archived -- the instructor needs it to open a session. Email is never
-scrubbed from the `users` table itself (it also doubles as the login
-username); archival only suppresses it in that group's own responses. There
-is no unarchive route -- once a group is archived it stays archived, and the
-suppression above is permanent for that group.
-"""
+"""Verify permanent group archival redacts PII while retaining pseudonymous IDs."""
 
 from __future__ import annotations
 
@@ -107,8 +83,7 @@ def main() -> None:
         )
         assert login.status_code == 200, login.text
 
-        # --- 1. Unarchived baseline: email IS present, so the test would
-        # actually catch a regression rather than passing vacuously. ---
+        # Confirm email appears before archival.
         detail = client.get(f"/api/instructor/groups/{group_id}")
         assert detail.status_code == 200, detail.text
         payload = detail.json()
@@ -139,35 +114,29 @@ def main() -> None:
         payload = detail.json()
         assert payload["is_archived"] is True
 
-        # --- 2. Archived: roster redacted. ---
+        # Archived roster omits PII.
         approved = payload["approved_members"]
         assert len(approved) == 1
         assert approved[0]["email"] is None
         assert approved[0]["study_program"] is None
 
-        # --- 3. Archived: activity feed redacted (the specific bug found). ---
+        # Archived activity omits email.
         activity = payload["recent_activity"]
         assert len(activity) == 1
         assert activity[0]["student_email"] is None
 
-        # --- 4. Archived: no email anywhere in the payload -- the strongest
-        # assertion, and the one that would have caught both leaks at once. ---
+        # No archived payload field exposes email.
         raw_body = detail.text
         assert student_email not in raw_body
         assert student_email not in json.dumps(payload)
 
-        # --- 5. Archived: student_id survives in both roster and activity,
-        # so the instructor can still navigate. ---
+        # Pseudonymous IDs remain available for navigation.
         assert approved[0]["student_id"] == student_internal_id
         assert activity[0]["student_id"] == student_internal_id
 
         csrf_token = payload["csrf_token"]
 
-        # --- _group_to_dict leak (main.py ~1985): exercised via the real
-        # add-member route, re-adding the already-approved student to the
-        # now-archived group. repo.add_member has no archival gate (only
-        # request_membership does), so this hits the same code path a real
-        # instructor action would. ---
+        # Verify redaction through the instructor add-member response.
         add_member_resp = client.post(
             f"/api/instructor/groups/{group_id}/members",
             json={"student_id": student_internal_id, "csrf_token": csrf_token},

@@ -1,8 +1,4 @@
-# PATTERN B - DEPENDENT APP image (one of TWO images this lab builds)
-#
-# The dependent application that reads from the shared backend. Built from its
-# own Dockerfile so each service is an independent, separately-versioned image -
-# the convention real multi-service labs follow.
+# Pattern B dependent app, built independently from its shared backend.
 FROM thesis-labs/lab-service-base:1.0
 
 RUN apt-get update \

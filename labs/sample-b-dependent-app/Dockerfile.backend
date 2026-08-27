@@ -1,9 +1,4 @@
-# PATTERN B - SHARED BACKEND image (one of TWO images this lab builds)
-#
-# Real multi-service labs give each distinct service its own image and
-# Dockerfile (see redis-exposed: a redis image plus a demo-app image). This
-# sample follows that convention: Dockerfile.backend builds the shared records
-# backend, Dockerfile.app builds the dependent app. build.images lists both.
+# Pattern B shared backend, built independently from its dependent app.
 FROM thesis-labs/lab-service-base:1.0
 
 RUN apt-get update \

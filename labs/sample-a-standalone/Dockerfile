@@ -1,12 +1,7 @@
-# SAMPLE DOCKERFILE
-# Keep real lab images small. Start from the shared service base, install only
-# target-service dependencies, create one constrained admin path, and copy
-# versioned baseline artifacts. Never place real secrets in an image.
+# Sample: minimal service image with constrained administration and no real secrets.
 FROM thesis-labs/lab-service-base:1.0
 
-# Install the full Python interpreter so the standard library (http, json, etc.)
-# is available to the sample service. Real labs should pin versions when exact
-# behavior is part of the lesson.
+# Install Python standard-library support; pin versions when behavior depends on them.
 RUN apt-get update \
     && apt-get install -y --no-install-recommends \
       python3 \

@@ -1,9 +1,4 @@
-# PATTERN D AUTHORING REFERENCE - service image
-#
-# The target service is an ordinary standalone (Pattern A) records service. The
-# thing that makes this lab Pattern D is the CUSTOM WORKSTATION image, built by
-# Dockerfile.workstation and wired in scenario.yaml. This service Dockerfile is
-# unremarkable on purpose.
+# Pattern D target service; customization belongs in Dockerfile.workstation.
 FROM thesis-labs/lab-service-base:1.0
 
 RUN apt-get update \

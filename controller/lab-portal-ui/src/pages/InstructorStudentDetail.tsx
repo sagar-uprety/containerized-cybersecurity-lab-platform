@@ -30,7 +30,7 @@ interface InstructorStudentDetailProps {
 
 interface GroupSection {
   key: string;
-  groupId: number | null;
+  groupId: number;
   groupName: string;
   semester?: string | null;
   labs: StudentLabDetail[];
@@ -39,13 +39,13 @@ interface GroupSection {
 function groupLabs(labs: StudentLabDetail[]): GroupSection[] {
   const sections = new Map<string, GroupSection>();
   for (const lab of labs) {
-    const key = lab.group_id != null ? String(lab.group_id) : "ungrouped";
+    const key = String(lab.group_id);
     let section = sections.get(key);
     if (!section) {
       section = {
         key,
-        groupId: lab.group_id ?? null,
-        groupName: lab.group_name || (lab.group_id != null ? `Group ${lab.group_id}` : "Ungrouped"),
+        groupId: lab.group_id,
+        groupName: lab.group_name || `Group ${lab.group_id}`,
         semester: lab.semester,
         labs: [],
       };
@@ -53,12 +53,7 @@ function groupLabs(labs: StudentLabDetail[]): GroupSection[] {
     }
     section.labs.push(lab);
   }
-  // Real groups sorted by name, "Ungrouped" (legacy rows with no group_id) last.
-  return [...sections.values()].sort((a, b) => {
-    if (a.groupId == null) return 1;
-    if (b.groupId == null) return -1;
-    return a.groupName.localeCompare(b.groupName);
-  });
+  return [...sections.values()].sort((a, b) => a.groupName.localeCompare(b.groupName));
 }
 
 export default function InstructorStudentDetail({ user, studentId, onLogout }: InstructorStudentDetailProps) {
@@ -145,8 +140,7 @@ export default function InstructorStudentDetail({ user, studentId, onLogout }: I
               const sessions = hideShort
                 ? (lab.sessions || []).filter((s) => !s.duration_seconds || s.duration_seconds >= 60)
                 : (lab.sessions || []);
-              // Most recent session first (top row = #1), oldest last - matches the
-              // numbering GroupSessionDetail expects when looking a session back up.
+              // Session numbering is newest-first.
               const orderedSessions = [...sessions].reverse();
               const currentPassed = lab.latest_check?.passed === true || lab.latest_check?.status === "fixed";
               const isOpen = expandedLabs.has(labKey);
@@ -231,11 +225,7 @@ export default function InstructorStudentDetail({ user, studentId, onLogout }: I
                             <TableBody>
                               {orderedSessions.map((sess, i) => {
                                 const sessionIndex = (lab.sessions || []).length - (lab.sessions || []).indexOf(sess);
-                                // Legacy rows with no group_id use the group-less session
-                                // route (same one /instructor/labs/{labId}/{studentId} maps to).
-                                const rowHref = section.groupId != null
-                                  ? `/instructor/groups/${section.groupId}/students/${studentId}/labs/${lab.lab_id}?session=${sessionIndex}`
-                                  : `/instructor/labs/${lab.lab_id}/${studentId}?session=${sessionIndex}`;
+                                const rowHref = `/instructor/groups/${section.groupId}/students/${studentId}/labs/${lab.lab_id}?session=${sessionIndex}`;
                                 const style = outcomeStyle(sess.outcome, sess.close_reason);
                                 return (
                                   <TableRow

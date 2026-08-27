@@ -13,6 +13,7 @@ interface PasswordChangeProps {
   onLogout: () => void;
 }
 
+// First-login forced password change. Rendered by App before any
 // lab access when the authenticated user has must_change_password set.
 export default function PasswordChange({ onChanged, onLogout }: PasswordChangeProps) {
   const [current, setCurrent] = useState("");

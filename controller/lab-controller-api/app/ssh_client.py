@@ -36,7 +36,7 @@ def run_labctl(verb: str, lab_id: str, student_id: str, lab_password: Optional[s
 
     When `lab_password` is given (start/reset), it is written to the ssh process
     stdin - never argv - so the restricted wrapper (which logs argv and forbids
-    special characters) cannot expose it. labctl reads it on stdin (Decision B).
+    special characters) cannot expose it. labctl reads it on stdin.
     """
     cmd = [*_ssh_base_cmd(), "labctl", verb, lab_id, student_id]
 

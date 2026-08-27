@@ -1,7 +1,4 @@
--- Vulnerable baseline provisioning for the mysql-permissions lab.
--- Applied once against a freshly initialized data directory by
--- setup-vulnerable.sh (guarded by a provisioned-flag on the persistent
--- volume, so a plain restart never re-applies this over a student's fix).
+-- Apply the vulnerable baseline only to an unprovisioned persistent volume.
 
 -- ── Application database: what the order service is supposed to use ──
 CREATE DATABASE IF NOT EXISTS app_db;

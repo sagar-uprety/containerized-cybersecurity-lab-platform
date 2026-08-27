@@ -1,10 +1,5 @@
-# SAMPLE LAB AUTHORING REFERENCE
-#
-# This file is intentionally more heavily commented than normal lab scenarios.
-# Copy labs/sample-a-standalone to labs/<your-lab-id>, then replace every sample-specific
-# value. Keep machine-readable topology and checker data here; put explanations
-# for people in docs/. The authoritative field rules remain in
-# labs/templates-contract/scenario.schema.json.
+# Sample standalone lab; replace sample values and keep prose in docs/.
+# Field rules: labs/templates-contract/scenario.schema.json.
 
 # Must match the directory name and ^[a-z0-9][a-z0-9-]{0,63}$.
 id: sample-a-standalone
@@ -39,10 +34,7 @@ lifecycle:
   evaluation_idle_timeout_minutes: null
   retention_after_stop_minutes: 180
 
-# Every check executes inside an existing scenario container. Checks emit one
-# short token, then map that token to vulnerable/fixed. A nonzero command exit is
-# error; a zero exit matching neither state is unknown. Overall partial is
-# synthesized when objective checks disagree. Authors never declare those states.
+# Checks emit tokens mapped to vulnerable or fixed; runtime derives other states.
 checker:
   # Increment when criterion meaning or implementation changes.
   version: 1
@@ -77,7 +69,7 @@ checker:
         fixed: "output_eq: SAMPLE_UNAUTHORIZED_BLOCKED"
 
     # SAMPLE OBJECTIVE: verify the persistent file, not only current runtime
-    # behavior. This catches a temporary command that a reset/restart would lose.
+    # behavior. This catches changes that a reset or restart would lose.
     - name: sample_persistent_config
       label: "Hardened configuration is persisted"
       kind: objective
@@ -182,9 +174,7 @@ containers:
     init: true
     restart: unless-stopped
     environment:
-      # lab-service-base copies baseline config on first boot, sets the injected
-      # student password, runs the optional setup hook, starts the command, and
-      # keeps the declared log in the foreground.
+      # Service base seeds config, injects credentials, runs setup, and tails logs.
       LAB_ADMIN_USER: sampleadmin
       LAB_CONFIG_SRC: /opt/lab/baseline/config.env
       LAB_CONFIG_DST: /etc/sample-service/config.env
@@ -198,8 +188,7 @@ containers:
     expose:
       - 22
       - 8080
-    # Optional safe endpoint example. Vulnerable target ports normally stay
-    # private; uncomment only with access.app_port_base and a justified endpoint:
+    # Publish target ports only with a justified app_port_base endpoint.
     # ports:
     #   - host_ip: "$platform.host_bind_ip"
     #     host_port: "$platform.app_port"
