@@ -53,3 +53,7 @@ thesis_portal_nginx_enabled: true
 thesis_portal_event_log: "{{ thesis_log_root }}/portal-events.jsonl"
 thesis_portal_demo_replace: false
 thesis_portal_demo_credentials_path: "{{ thesis_state_root }}/demo-credentials.csv"
+
+# Student numbers map to ports as base + number, and student identifiers carry
+# two to four digits, so every per-student port lies in base+1 .. base+9999.
+thesis_lab_student_number_max: 9999

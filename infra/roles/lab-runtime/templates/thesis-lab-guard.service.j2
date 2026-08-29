@@ -1,0 +1,13 @@
+[Unit]
+Description=Admit lab port connections only from the management host
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/nft -f {{ lab_runtime_guard_rules }}
+ExecStop=/usr/sbin/nft delete table inet {{ lab_runtime_guard_table }}
+
+[Install]
+WantedBy=multi-user.target

@@ -37,6 +37,8 @@
     - lab-source
     - lab-images
     - labadmin
+    - labctl
+    - lab-guard
 
 - name: Set lab scenario list
   ansible.builtin.set_fact:
@@ -54,6 +56,8 @@
     - lab-source
     - lab-images
     - labadmin
+    - labctl
+    - lab-guard
 
 - name: Install lab scenario source trees
   ansible.builtin.copy:
@@ -220,6 +224,20 @@
   tags:
     - labadmin
 
+- name: Validate every installed scenario against the lab contract
+  ansible.builtin.command:
+    argv:
+      - "{{ thesis_labctl_path }}"
+      - validate
+      - "{{ item }}"
+  loop: "{{ lab_runtime_scenarios }}"
+  changed_when: false
+  when: not ansible_check_mode
+  tags:
+    - lab-source
+    - lab-images
+    - labctl
+
 - name: Install lab image build hook
   ansible.builtin.template:
     src: thesis-build-lab-images.py.j2
@@ -350,3 +368,74 @@
   tags:
     - lab-source
     - lab-runtime
+
+- name: Collect per-student lab port bases
+  ansible.builtin.set_fact:
+    lab_runtime_port_bases: >-
+      {{
+        (lab_runtime_port_bases | default([])
+         + ((lookup('ansible.builtin.file', lab_runtime_local_scenario_root ~ '/' ~ item ~ '/scenario.yaml')
+             | from_yaml).access | dict2items
+            | selectattr('key', 'match', '.*_port_base$')
+            | map(attribute='value') | map('int') | list))
+        | unique | sort
+      }}
+  loop: "{{ lab_runtime_scenarios }}"
+  tags:
+    - lab-guard
+
+- name: Merge lab port bases into port ranges
+  ansible.builtin.set_fact:
+    lab_runtime_port_ranges: >-
+      {%- set ns = namespace(ranges=[]) -%}
+      {%- for base in lab_runtime_port_bases -%}
+      {%- set low = base + 1 -%}
+      {%- set high = base + thesis_lab_student_number_max | int -%}
+      {%- if ns.ranges and low <= ns.ranges[-1][1] + 1 -%}
+      {%- set ns.ranges = ns.ranges[:-1] + [[ns.ranges[-1][0], [ns.ranges[-1][1], high] | max]] -%}
+      {%- else -%}
+      {%- set ns.ranges = ns.ranges + [[low, high]] -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {{ ns.ranges }}
+  tags:
+    - lab-guard
+
+- name: Install lab port guard rules
+  ansible.builtin.template:
+    src: thesis-lab-guard.nft.j2
+    dest: "{{ lab_runtime_guard_rules }}"
+    owner: root
+    group: root
+    mode: "0600"
+    validate: nft -c -f %s
+  notify: Restart lab port guard
+  tags:
+    - lab-guard
+
+- name: Install lab port guard service
+  ansible.builtin.template:
+    src: thesis-lab-guard.service.j2
+    dest: /etc/systemd/system/thesis-lab-guard.service
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Restart lab port guard
+  tags:
+    - lab-guard
+
+- name: Apply lab port guard handlers
+  ansible.builtin.meta: flush_handlers
+  tags:
+    - lab-guard
+
+- name: Enable lab port guard
+  ansible.builtin.service:
+    name: thesis-lab-guard
+    state: started
+    enabled: true
+  when: not ansible_check_mode
+  tags:
+    - lab-guard

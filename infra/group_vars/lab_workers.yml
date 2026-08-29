@@ -24,3 +24,8 @@ thesis_platform_images:
   - name: thesis-labs/lab-service-base:1.0
     context: lab-service-base
     dockerfile: Dockerfile
+
+# nftables table that admits new connections to the per-student lab ports
+# only from the management host.
+lab_runtime_guard_table: thesis_lab_guard
+lab_runtime_guard_rules: /etc/nftables/thesis-lab-guard.nft

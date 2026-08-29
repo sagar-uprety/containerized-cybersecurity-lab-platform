@@ -1,0 +1,16 @@
+# Managed by Ansible (lab-runtime).
+# The per-student lab ports (terminal, SSH, application) accept new connections
+# from the management host only. Students reach them through nginx there.
+table inet {{ lab_runtime_guard_table }}
+delete table inet {{ lab_runtime_guard_table }}
+
+table inet {{ lab_runtime_guard_table }} {
+    chain prerouting {
+        # After connection tracking, before the container runtime rewrites the
+        # destination to the container.
+        type filter hook prerouting priority -150; policy accept;
+
+        iifname "{{ ansible_default_ipv4.interface }}" ct state new meta l4proto { tcp, udp } th dport { {% for range in lab_runtime_port_ranges %}{{ range[0] }}-{{ range[1] }}{{ ", " if not loop.last else "" }}{% endfor %} } ip saddr != {{ hostvars[groups['management'][0]]['ansible_default_ipv4']['address'] | default(hostvars[groups['management'][0]].ansible_host) }} drop
+        iifname "{{ ansible_default_ipv4.interface }}" ct state new meta l4proto { tcp, udp } th dport { {% for range in lab_runtime_port_ranges %}{{ range[0] }}-{{ range[1] }}{{ ", " if not loop.last else "" }}{% endfor %} } meta nfproto ipv6 drop
+    }
+}
