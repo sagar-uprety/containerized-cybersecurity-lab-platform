@@ -19,7 +19,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "controller"))
 
 from labctl_core.manifest import build_manifest  # noqa: E402
-from labctl_core.podman import container_run_args  # noqa: E402
+from labctl_core.podman import PodmanError, container_run_args  # noqa: E402
 
 
 def main() -> None:
@@ -139,9 +139,44 @@ def main() -> None:
                 "name": "read-only-test",
                 "image": "example.invalid/test:latest",
                 "volumes": [{"source": "/source", "target": "/target", "read_only": True}],
+                "resources": {"cpus": "0.25", "memory": "128m"},
             }
         )
         assert "/source:/target:ro" in args
+        assert args[args.index("--memory") + 1] == "128m"
+
+        # Password-bearing variables are passed by name; the value is not in argv.
+        args = container_run_args(
+            {
+                "name": "secret-env-test",
+                "image": "example.invalid/test:latest",
+                "environment": {"STUDENT_PASSWORD": "dummy-password", "LAB_ID": "x"},
+                "resources": {"cpus": "0.25", "memory": "128m"},
+            },
+            secret_keys={"STUDENT_PASSWORD"},
+        )
+        assert "STUDENT_PASSWORD" in args and "LAB_ID=x" in args
+        assert not any("dummy-password" in arg for arg in args)
+
+        # The runtime refuses what the contract forbids even if a manifest slips through.
+        for refused in (
+            {"security": {"privileged": True}},
+            {"security": {"host_network": True}},
+            {"security": {"cap_add": ["ALL"]}},
+            {"volumes": [{"source": "/run/podman/podman.sock", "target": "/sock"}]},
+            {"resources": {}},
+        ):
+            container = {
+                "name": "refused-test",
+                "image": "example.invalid/test:latest",
+                "resources": {"cpus": "0.25", "memory": "128m"},
+                **refused,
+            }
+            try:
+                container_run_args(container)
+            except PodmanError:
+                continue
+            raise AssertionError(f"container_run_args accepted {refused}")
 
 
 if __name__ == "__main__":

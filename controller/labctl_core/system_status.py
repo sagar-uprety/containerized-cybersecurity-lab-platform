@@ -1,16 +1,16 @@
 """Host-level system status for the admin usage dashboard (`labctl system-status`).
 
 Read-only: no lab/student identifiers, no destructive capability. Uses /proc
-(stdlib only, no psutil) and `podman ps` filtered by the standard thesis.*
-container labels every lab container already carries (see manifest.py).
+(stdlib only, no psutil) and the running-container list from podman.py, filtered
+by the standard thesis.* container labels every lab container carries.
 """
 
-import json
 import os
 import shutil
-import subprocess
 import time
 from pathlib import Path
+
+from labctl_core.podman import running_containers
 
 
 def _read_proc_stat_totals() -> tuple[int, int]:
@@ -51,20 +51,8 @@ def memory_status() -> dict:
 
 def running_lab_instances() -> int:
     """Count distinct (lab, student) running instances via thesis.lab/thesis.student labels."""
-    result = subprocess.run(
-        ["podman", "ps", "--format", "json"],
-        capture_output=True,
-        text=True,
-        check=False,
-    )
-    if result.returncode != 0:
-        return 0
-    try:
-        containers = json.loads(result.stdout or "[]")
-    except json.JSONDecodeError:
-        return 0
     instances = set()
-    for container in containers:
+    for container in running_containers():
         labels = container.get("Labels") or {}
         lab = labels.get("thesis.lab")
         student = labels.get("thesis.student")

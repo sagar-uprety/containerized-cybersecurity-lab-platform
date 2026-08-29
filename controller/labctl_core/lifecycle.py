@@ -9,10 +9,18 @@ from labctl_core.config import RuntimePaths
 from labctl_core.manifest import build_manifest
 from labctl_core.podman import (
     PodmanError,
+    container_exists,
+    container_state,
     ensure_network,
     ensure_volumes,
-    run_command,
+    exec_in_container,
+    loosen_bridge_reverse_path_filter,
+    remove_container,
+    remove_network,
+    remove_volume,
     start_containers,
+    stop_container,
+    volume_mountpoint,
 )
 from labctl_core.scenario import (
     ScenarioError,
@@ -28,6 +36,23 @@ from labctl_core.scenario import (
 
 class LabctlError(Exception):
     pass
+
+
+WITHHELD = "<withheld>"
+
+
+def _without_secrets(obj, secrets: tuple):
+    """Return a copy of a manifest with every secret value replaced."""
+    if isinstance(obj, str):
+        for secret in secrets:
+            if secret:
+                obj = obj.replace(secret, WITHHELD)
+        return obj
+    if isinstance(obj, dict):
+        return {key: _without_secrets(value, secrets) for key, value in obj.items()}
+    if isinstance(obj, list):
+        return [_without_secrets(item, secrets) for item in obj]
+    return obj
 
 
 class LabRuntime:
@@ -85,12 +110,20 @@ class LabRuntime:
         try:
             scenario, _student, runtime_project, context = self._load_context(lab_id, student_id)
             manifest = build_manifest(scenario, context)
+            # The full manifest, with the lab password, stays in memory. The
+            # copy kept on disk for stop, end, check and status names the
+            # containers but holds no credential.
+            secrets = (context["ttyd_credential"], context["student_password"])
             rendered_path = self._rendered_path(runtime_project)
-            rendered_path.write_text(yaml.dump(manifest, sort_keys=False), encoding="utf-8")
+            rendered_path.write_text(
+                yaml.dump(_without_secrets(manifest, secrets), sort_keys=False), encoding="utf-8"
+            )
+            rendered_path.chmod(0o600)
 
             ensure_network(manifest)
             ensure_volumes(manifest)
-            start_containers(manifest)
+            start_containers(manifest, secret_values=secrets)
+            loosen_bridge_reverse_path_filter(manifest)
         except (ScenarioError, PodmanError, OSError, yaml.YAMLError) as exc:
             raise LabctlError(exc) from exc
 
@@ -104,14 +137,7 @@ class LabRuntime:
             return
         self._emit_recent_command_logs(runtime_project)
         for container in reversed(manifest.get("containers", [])):
-            container_name = container.get("name")
-            if (
-                run_command(
-                    ["podman", "container", "exists", container_name], check=False
-                ).returncode
-                == 0
-            ):
-                run_command(["podman", "stop", container_name], check=False)
+            stop_container(container.get("name"))
         logging.info("Lab %s for student %s stopped.", lab_id, student_id)
 
     def destroy(self, lab_id: str, student_id: str) -> None:
@@ -124,9 +150,9 @@ class LabRuntime:
 
         self._emit_recent_command_logs(runtime_project)
         for container in manifest.get("containers", []):
-            run_command(["podman", "rm", "-f", container.get("name")], check=False)
+            remove_container(container.get("name"))
         for volume in manifest.get("volumes", []):
-            run_command(["podman", "volume", "rm", "-f", volume.get("name")], check=False)
+            remove_volume(volume.get("name"))
 
         # Remove all networks (multi-network support)
         networks = manifest.get("networks", [])
@@ -137,7 +163,7 @@ class LabRuntime:
         for net in networks:
             network_name = net.get("name")
             if network_name:
-                run_command(["podman", "network", "rm", "-f", network_name], check=False)
+                remove_network(network_name)
 
         rendered_path.unlink(missing_ok=True)
         (self.paths.results_dir / f"{runtime_project}.json").unlink(missing_ok=True)
@@ -213,8 +239,7 @@ class LabRuntime:
                         f"in manifest. Available: {sorted(container_map.keys())}"
                     )
 
-                cmd = ["podman", "exec", container_name, "sh", "-c", check_def["run"]]
-                proc = run_command(cmd, check=False)
+                proc = exec_in_container(container_name, check_def["run"])
                 stdout = proc.stdout.strip()
                 stderr = proc.stderr.strip()
                 exit_code = proc.returncode
@@ -271,13 +296,10 @@ class LabRuntime:
         all_running = True
         any_exists = False
         for container in manifest.get("containers", []):
-            result = run_command(
-                ["podman", "inspect", "-f", "{{.State.Status}}", container.get("name")],
-                check=False,
-            )
-            if result.returncode == 0:
+            state = container_state(container.get("name"))
+            if state is not None:
                 any_exists = True
-                if result.stdout.strip() != "running":
+                if state != "running":
                     all_running = False
             else:
                 all_running = False
@@ -291,14 +313,7 @@ class LabRuntime:
             return
 
         running = self._is_running(manifest)
-        any_exists = any(
-            run_command(
-                ["podman", "inspect", "-f", "{{.State.Status}}", c.get("name")],
-                check=False,
-            ).returncode
-            == 0
-            for c in manifest.get("containers", [])
-        )
+        any_exists = any(container_exists(c.get("name")) for c in manifest.get("containers", []))
 
         if running:
             print("running")
@@ -312,15 +327,11 @@ class LabRuntime:
             print("command_logs: " + json.dumps(command_logs, sort_keys=True))
 
     def _recent_command_logs(self, runtime_project: str, limit: int = 25) -> list[dict]:
-        volume_name = f"{runtime_project}_command_logs"
-        result = run_command(
-            ["podman", "volume", "inspect", "-f", "{{.Mountpoint}}", volume_name],
-            check=False,
-        )
-        if result.returncode != 0:
+        mountpoint = volume_mountpoint(f"{runtime_project}_command_logs")
+        if mountpoint is None:
             return []
 
-        log_path = self.paths.command_log_path(result.stdout.strip())
+        log_path = self.paths.command_log_path(mountpoint)
         if not log_path.exists():
             return []
 
