@@ -37,6 +37,13 @@ RULES: tuple[Rule, ...] = (
 )
 
 
+#: Single-file exceptions to RULES. The scenario validator reuses the contract
+#: rules that labctl enforces at load time, so the two cannot drift apart.
+ALLOWED_IMPORTS: dict[str, tuple[str, ...]] = {
+    "tools/pre_commit/validate_scenarios.py": ("labctl_core",),
+}
+
+
 def _import_roots(path: Path) -> list[tuple[int, str]]:
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     roots: list[tuple[int, str]] = []
@@ -76,8 +83,9 @@ def main() -> int:
             errors.append(f"{relative}: failed to parse imports: {exc}")
             continue
 
+        allowed_roots = ALLOWED_IMPORTS.get(relative, ())
         for line_number, root in imports:
-            if root in forbidden_roots:
+            if root in forbidden_roots and root not in allowed_roots:
                 errors.append(f"{relative}:{line_number}: forbidden import {root!r}: {reason}")
 
     if errors:

@@ -3,7 +3,9 @@ import logging
 import re
 import sys
 
+from labctl_core.config import RuntimePaths
 from labctl_core.lifecycle import LabctlError, LabRuntime
+from labctl_core.scenario import ScenarioError, load_scenario
 from labctl_core.system_status import system_status
 
 LAB_ID_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
@@ -21,9 +23,22 @@ def main() -> None:
         print("Usage: labctl <verb> <lab_id> <student_id>", file=sys.stderr)
         print("       labctl destroy-all <lab_id>", file=sys.stderr)
         print("       labctl destroy-all --all-labs", file=sys.stderr)
+        print("       labctl validate <lab_id>", file=sys.stderr)
         sys.exit(1)
 
     verb, args = sys.argv[1], sys.argv[2:]
+
+    if verb == "validate":
+        if len(args) != 1 or not LAB_ID_PATTERN.fullmatch(args[0]):
+            print("Usage: labctl validate <lab_id>", file=sys.stderr)
+            sys.exit(1)
+        try:
+            load_scenario(RuntimePaths(), args[0])
+        except ScenarioError as exc:
+            logging.error("%s", exc)  # noqa: TRY400 - expected CLI error, no stack trace needed.
+            sys.exit(1)
+        print(f"{args[0]}: valid")
+        return
 
     if verb == "system-status":
         print(json.dumps(system_status()))
