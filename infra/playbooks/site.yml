@@ -1,6 +1,23 @@
 ---
-- name: Configure management hosts
-  ansible.builtin.import_playbook: management.yml
+# Role order: common and podman on both hosts first, then management-services
+# (which generates the controller key), then lab-runtime (which installs it).
+- name: Apply the shared baseline to all platform hosts
+  hosts: platform
+  become: true
+  roles:
+    - role: common
+      tags: [common, bootstrap]
+    - role: podman
+      tags: [podman, bootstrap]
 
-- name: Configure lab worker hosts
-  ansible.builtin.import_playbook: lab-worker.yml
+- name: Configure thesis management host
+  hosts: management
+  become: true
+  roles:
+    - management-services
+
+- name: Configure thesis lab worker
+  hosts: lab_workers
+  become: true
+  roles:
+    - lab-runtime
