@@ -2,6 +2,7 @@
 import os
 import re
 import sys
+import syslog
 
 ALLOWED_VERBS = {"start", "stop", "reset", "destroy", "check", "status"}
 LAB_ID = re.compile(r"^[a-z0-9][a-z0-9-]{0,63}$")
@@ -12,7 +13,18 @@ SCENARIO_REGISTRY = "{{ lab_runtime_scenario_registry }}"
 LABCTL = "{{ thesis_labctl_path }}"
 
 
+syslog.openlog("labctl-ssh-wrapper", syslog.LOG_PID, syslog.LOG_AUTH)
+
+
+def log_command(outcome, reason=""):
+    # The command line never carries a password: the portal sends it on stdin.
+    # repr() keeps control characters from forging extra log lines.
+    detail = f" ({reason})" if reason else ""
+    syslog.syslog(syslog.LOG_INFO, f"{outcome}{detail}: {command[:256]!r}")
+
+
 def fail(message):
+    log_command("refused", message)
     print(f"labctl-ssh-wrapper: {message}", file=sys.stderr)
     sys.exit(1)
 
@@ -39,6 +51,7 @@ parts = command.split()
 # and running-lab count for the admin usage dashboard) -- no lab_id/student_id,
 # no destructive capability, so it is handled before the 4-part verb parsing.
 if len(parts) == 2 and parts[0] == "labctl" and parts[1] == "system-status":
+    log_command("accepted")
     os.execv("/usr/bin/sudo", ["sudo", "-n", LABCTL, "system-status"])
 
 if len(parts) != 4 or parts[0] != "labctl":
@@ -57,4 +70,5 @@ if lab_id not in read_scenarios():
 
 # The portal owns identity; x01 enforces its strict student-id format without an allowlist.
 # Preserve stdin so sudo and labctl receive the injected lab password.
+log_command("accepted")
 os.execv("/usr/bin/sudo", ["sudo", "-n", LABCTL, verb, lab_id, student_id])
