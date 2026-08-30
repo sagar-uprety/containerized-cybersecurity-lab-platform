@@ -26,3 +26,13 @@ thesis_portal_acme_webroot: "{{ thesis_runtime_root }}/acme-challenge"
 # would silently upgrade those and can break dnf (confirmed present: python3-requests-2.25.1 RPM).
 thesis_certbot_venv: "{{ thesis_runtime_root }}/certbot-venv"
 thesis_letsencrypt_live_dir: "/etc/letsencrypt/live/{{ thesis_portal_public_hostname }}"
+
+# Session-signing secret, generated once on the host and readable only by the
+# account the portal runs as. Set to true for one run to rotate it.
+thesis_portal_session_secret_path: "{{ thesis_config_root }}/portal-session.key"
+thesis_portal_rotate_session_secret: false
+
+# nginx forwards the per-student SSH ports to the lab worker, so a student's
+# SSH client reaches the workstation through the management host only.
+thesis_portal_ssh_stream_config: /etc/nginx/stream.d/thesis-lab-ssh.conf
+management_lab_worker_address: "{{ hostvars[groups['lab_workers'][0]]['ansible_default_ipv4']['address'] | default(hostvars[groups['lab_workers'][0]].ansible_host) }}"

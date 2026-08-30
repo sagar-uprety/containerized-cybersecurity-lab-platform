@@ -1,0 +1,78 @@
+#!/usr/bin/env python3
+"""Write the nginx stream configuration that forwards per-student SSH ports.
+
+Each lab's SSH port is its base plus the student number. nginx listens on
+every such port and forwards the connection to the same port on the lab
+worker, which admits connections to lab ports only from this host.
+
+A port that the SELinux policy assigns to another service is skipped, since
+nginx may bind only ports labeled http_port_t and a failed bind would stop
+nginx from starting. The script prints "changed" when it rewrote the file.
+"""
+import subprocess
+import sys
+from pathlib import Path
+
+SSH_PORT_BASES = {{ management_ssh_port_bases | to_json }}
+STUDENT_NUMBER_MAX = {{ thesis_lab_student_number_max | int }}
+WORKER_ADDRESS = "{{ management_lab_worker_address }}"
+OUTPUT = Path("{{ thesis_portal_ssh_stream_config }}")
+
+
+def selinux_tcp_ports():
+    """Return (type, low, high) for every SELinux TCP port definition."""
+    result = subprocess.run(
+        ["semanage", "port", "-l"], capture_output=True, text=True, check=True
+    )
+    entries = []
+    for line in result.stdout.splitlines():
+        fields = line.replace(",", " ").split()
+        if len(fields) < 3 or fields[1] != "tcp":
+            continue
+        for value in fields[2:]:
+            low, _, high = value.partition("-")
+            entries.append((fields[0], int(low), int(high or low)))
+    return entries
+
+
+def bindable(port, entries):
+    """True when the most specific SELinux label of the port is http_port_t."""
+    matches = [entry for entry in entries if entry[1] <= port <= entry[2]]
+    if not matches:
+        return False
+    label = min(matches, key=lambda entry: entry[2] - entry[1])[0]
+    return label == "http_port_t"
+
+
+def main():
+    entries = selinux_tcp_ports()
+    ports = sorted(
+        {
+            base + number
+            for base in SSH_PORT_BASES
+            for number in range(1, STUDENT_NUMBER_MAX + 1)
+        }
+    )
+    listen = [port for port in ports if bindable(port, entries)]
+    lines = [
+        "# Managed by Ansible (management-services). Per-student SSH ports.",
+        "server {",
+        *(f"    listen {port};" for port in listen),
+        f"    proxy_pass {WORKER_ADDRESS}:$server_port;",
+        "    proxy_connect_timeout 10s;",
+        "    proxy_timeout 1h;",
+        "}",
+        "",
+    ]
+    content = "\n".join(lines)
+    if OUTPUT.exists() and OUTPUT.read_text(encoding="utf-8") == content:
+        return 0
+    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    OUTPUT.write_text(content, encoding="utf-8")
+    OUTPUT.chmod(0o644)
+    print(f"changed: {len(listen)} of {len(ports)} ports")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -479,6 +479,42 @@
   tags:
     - docs
 
+- name: Remove portal session secret for rotation
+  ansible.builtin.file:
+    path: "{{ thesis_portal_session_secret_path }}"
+    state: absent
+  when: thesis_portal_rotate_session_secret | bool
+  tags:
+    - portal
+    - portal-api
+
+- name: Generate portal session secret
+  ansible.builtin.command:
+    argv:
+      - python3
+      - -c
+      - >-
+        import os, secrets, sys;
+        fd = os.open(sys.argv[1], os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600);
+        os.write(fd, secrets.token_hex(32).encode());
+        os.close(fd)
+      - "{{ thesis_portal_session_secret_path }}"
+    creates: "{{ thesis_portal_session_secret_path }}"
+  notify: Restart thesis portal
+  tags:
+    - portal
+    - portal-api
+
+- name: Restrict portal session secret to the portal account
+  ansible.builtin.file:
+    path: "{{ thesis_portal_session_secret_path }}"
+    owner: root
+    group: root
+    mode: "0600"
+  tags:
+    - portal
+    - portal-api
+
 - name: Install portal systemd service
   ansible.builtin.template:
     src: thesis-portal.service.j2
@@ -813,6 +849,187 @@
   tags:
     - tls
 
+- name: Discover lab scenario files for SSH forwarding
+  ansible.builtin.find:
+    paths: "{{ playbook_dir }}/../../labs"
+    patterns: scenario.yaml
+    recurse: true
+    depth: 2
+    file_type: file
+  delegate_to: localhost
+  become: false
+  register: _ssh_scenario_files
+  changed_when: false
+  when: thesis_portal_nginx_enabled | bool
+  tags:
+    - nginx
+
+- name: Collect per-lab SSH port bases
+  ansible.builtin.set_fact:
+    management_ssh_port_bases: >-
+      {{
+        (management_ssh_port_bases | default([])
+         + [(lookup('ansible.builtin.file', item.path) | from_yaml).access.ssh_port_base | int])
+        | unique | sort
+      }}
+  loop: "{{ _ssh_scenario_files.files }}"
+  loop_control:
+    label: "{{ item.path | dirname | basename }}"
+  when: thesis_portal_nginx_enabled | bool
+  tags:
+    - nginx
+
+- name: Merge SSH port bases into port ranges
+  ansible.builtin.set_fact:
+    management_ssh_port_ranges: >-
+      {%- set ns = namespace(ranges=[]) -%}
+      {%- for base in management_ssh_port_bases -%}
+      {%- set low = base + 1 -%}
+      {%- set high = base + thesis_lab_student_number_max | int -%}
+      {%- if ns.ranges and low <= ns.ranges[-1][1] + 1 -%}
+      {%- set ns.ranges = ns.ranges[:-1] + [[ns.ranges[-1][0], [ns.ranges[-1][1], high] | max]] -%}
+      {%- else -%}
+      {%- set ns.ranges = ns.ranges + [[low, high]] -%}
+      {%- endif -%}
+      {%- endfor -%}
+      {{ ns.ranges }}
+  when: thesis_portal_nginx_enabled | bool
+  tags:
+    - nginx
+
+- name: Install nginx stream module
+  ansible.builtin.dnf:
+    name: nginx-mod-stream
+    state: present
+  when: thesis_portal_nginx_enabled | bool
+  notify: Restart nginx
+  tags:
+    - nginx
+
+- name: Read local SELinux port labels
+  ansible.builtin.command:
+    argv: [semanage, port, -l, -C]
+  register: _selinux_local_ports
+  changed_when: false
+  check_mode: false
+  when: thesis_portal_nginx_enabled | bool
+  tags:
+    - nginx
+
+- name: Label per-student SSH ports for nginx in SELinux
+  ansible.builtin.command:
+    argv:
+      - semanage
+      - port
+      - -a
+      - -t
+      - http_port_t
+      - -p
+      - tcp
+      - "{{ item[0] }}-{{ item[1] }}"
+  loop: "{{ management_ssh_port_ranges }}"
+  changed_when: true
+  when:
+    - thesis_portal_nginx_enabled | bool
+    - (item[0] | string) ~ '-' ~ (item[1] | string) not in _selinux_local_ports.stdout
+  notify: Restart nginx
+  tags:
+    - nginx
+
+- name: Create nginx systemd drop-in directory
+  ansible.builtin.file:
+    path: /etc/systemd/system/nginx.service.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: thesis_portal_nginx_enabled | bool
+  tags:
+    - nginx
+
+- name: Raise the nginx open-file limit for the SSH listeners
+  ansible.builtin.copy:
+    dest: /etc/systemd/system/nginx.service.d/thesis-limits.conf
+    content: |
+      [Service]
+      LimitNOFILE=131072
+    owner: root
+    group: root
+    mode: "0644"
+  when: thesis_portal_nginx_enabled | bool
+  notify:
+    - Reload systemd
+    - Restart nginx
+  tags:
+    - nginx
+
+- name: Allow nginx workers enough connections for the SSH listeners
+  ansible.builtin.replace:
+    path: /etc/nginx/nginx.conf
+    regexp: '^(\s*)worker_connections\s+\d+;'
+    replace: '\1worker_connections 65536;'
+  when: thesis_portal_nginx_enabled | bool
+  notify: Restart nginx
+  tags:
+    - nginx
+
+# Every worker holds every listening socket, so the worker count, not the
+# traffic, sets nginx's memory use. Four workers carry the portal's load.
+- name: Limit the number of nginx workers
+  ansible.builtin.replace:
+    path: /etc/nginx/nginx.conf
+    regexp: '^worker_processes\s+\S+;'
+    replace: 'worker_processes 4;'
+  when: thesis_portal_nginx_enabled | bool
+  notify: Restart nginx
+  tags:
+    - nginx
+
+- name: Create nginx stream configuration directory
+  ansible.builtin.file:
+    path: "{{ thesis_portal_ssh_stream_config | dirname }}"
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when: thesis_portal_nginx_enabled | bool
+  tags:
+    - nginx
+
+- name: Include stream configuration at the top level of nginx.conf
+  ansible.builtin.lineinfile:
+    path: /etc/nginx/nginx.conf
+    line: "stream { include {{ thesis_portal_ssh_stream_config | dirname }}/*.conf; }"
+    insertafter: "^include /usr/share/nginx/modules/"
+  when: thesis_portal_nginx_enabled | bool
+  notify: Restart nginx
+  tags:
+    - nginx
+
+- name: Install SSH stream configuration generator
+  ansible.builtin.template:
+    src: thesis-ssh-stream-config.py.j2
+    dest: /usr/local/sbin/thesis-ssh-stream-config
+    owner: root
+    group: root
+    mode: "0755"
+  when: thesis_portal_nginx_enabled | bool
+  tags:
+    - nginx
+
+- name: Write SSH stream configuration
+  ansible.builtin.command:
+    argv:
+      - /usr/local/sbin/thesis-ssh-stream-config
+  register: _ssh_stream_config
+  changed_when: "'changed' in _ssh_stream_config.stdout"
+  when:
+    - thesis_portal_nginx_enabled | bool
+    - not ansible_check_mode
+  notify: Restart nginx
+  tags:
+    - nginx
+
 - name: Install Nginx portal reverse proxy
   ansible.builtin.template:
     src: thesis-portal-nginx.conf.j2
@@ -824,6 +1041,18 @@
     letsencrypt_cert_exists: "{{ _letsencrypt_cert_stat.stat.exists | default(false) }}"
   notify: Restart nginx
   when: thesis_portal_nginx_enabled | bool
+  tags:
+    - nginx
+
+- name: Validate nginx configuration before any restart
+  ansible.builtin.command:
+    # nginx -t opens every listening socket, so it needs the file limit the
+    # nginx service runs with.
+    argv: [prlimit, --nofile=131072, nginx, -t]
+  changed_when: false
+  when:
+    - thesis_portal_nginx_enabled | bool
+    - not ansible_check_mode
   tags:
     - nginx
 

@@ -18,6 +18,8 @@ Environment="PORTAL_DEMO_DATA_PATH={{ management_controller_root }}/lab-controll
 Environment="MAX_CONCURRENT_STUDENTS={{ thesis_max_concurrent_students }}"
 Environment="EVALUATION_MODE={{ thesis_evaluation_mode | ternary('true', 'false') }}"
 Environment="EVENT_LOG_PATH={{ thesis_portal_event_log }}"
+Environment="PORTAL_SESSION_SECRET_FILE={{ thesis_portal_session_secret_path }}"
+Environment="PORTAL_PUBLIC_HOST={{ thesis_portal_public_hostname }}"
 ExecStart=/usr/local/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
 Restart=always
 
