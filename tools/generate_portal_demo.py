@@ -489,7 +489,9 @@ def main():
                         "session_id": session_id,
                         "student_id": student["internal_id"],
                         "lab_id": lab["id"],
-                        "actor_id": "scheduler" if outcome == "auto_stop" else student["internal_id"],
+                        "actor_id": "scheduler"
+                        if outcome == "auto_stop"
+                        else student["internal_id"],
                         "actor_type": "system" if outcome == "auto_stop" else "student",
                         "action": outcome,
                         "result": "success",
