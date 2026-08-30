@@ -130,6 +130,9 @@ There is no GitHub Actions workflow, CI/CD pipeline, or workflow-dispatch step
 in this repository. Every deploy and verification command in this guide is run
 by you, from your workstation, over the UCC VPN. The Ansible playbooks and
 `labctl` are the entire deployment surface; pre-commit is the local-only gate.
+The same scenario contract is enforced on the worker as well: the `lab-runtime`
+playbook runs `labctl validate <lab-id>` for every lab before it builds images,
+and `labctl` refuses to start a lab whose scenario breaks the contract.
 
 ### Full Teardown
 

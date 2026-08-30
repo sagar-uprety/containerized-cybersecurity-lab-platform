@@ -258,7 +258,9 @@ patterns cover; the rest apply _within_ whatever pattern you pick.
     limits.
 -   **Published student endpoint** - whether the target exposes a browser-reachable
     HTTP port to the student (`access.app_port_base` plus a container `ports`
-    mapping), or stays private and is only reached from the workstation. Most labs
+    mapping), or stays private and is only reached from the workstation. A published
+    app is reached through the portal at `/lab-app/<port>/`, and only by the student
+    who owns it; the worker admits the port only from the management host. Most labs
     keep the target private; publish a port only when a browser-facing app is part
     of the exercise.
 -   **State and persistence** - named volumes for data that must survive a restart,
