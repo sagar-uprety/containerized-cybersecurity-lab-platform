@@ -16,26 +16,27 @@ private Podman environment for each student and lab.
 
 ## Features
 
-- Per-student Podman containers, private networks, persistent volumes, and deterministic
-  endpoint allocation.
-- Declarative lab packages with topology, images, resource limits, lifecycle policy,
-  objective checks, and guardrail checks in `scenario.yaml`.
-- Start, stop, reset, end, status, and check operations through the reusable `labctl`
-  lifecycle controller.
-- Restricted management-to-worker SSH gateway that permits approved `labctl` commands
-  instead of general shell access.
-- React 19 portal with student, instructor, and administrator interfaces.
-- FastAPI backend with SQLite-backed identity, enrollment, groups, assignments,
-  deadlines, sessions, runtime leases, feedback, and normalized evidence.
-- Browser terminal access through Nginx and ttyd, with an SSH fallback for students.
-- Instructor analytics, progress views, privacy-aware feedback aggregation, CSV export,
-  and evidence bundles.
-- Runtime scheduling for idle limits, maximum session duration, and stopped-instance
-  retention.
-- MkDocs student guides plus protected instructor guides and solution notes.
-- Reproducible RHEL provisioning and deployment through Ansible.
-- Thirteen training scenarios and four runnable authoring samples covering standalone,
-  dependent-service, segmented-network, and custom-workstation patterns.
+-   Per-student Podman containers, private networks, persistent volumes, and deterministic
+    endpoint allocation.
+-   Declarative lab packages with topology, images, resource limits, lifecycle policy,
+    objective checks, and guardrail checks in `scenario.yaml`.
+-   Start, stop, reset, end, status, and check operations through the reusable `labctl`
+    lifecycle controller.
+-   Restricted management-to-worker SSH gateway that permits approved `labctl` commands
+    instead of general shell access.
+-   React 19 portal with student, instructor, and administrator interfaces.
+-   FastAPI backend with SQLite-backed identity, enrollment, groups, assignments,
+    deadlines, sessions, runtime leases, feedback, and normalized evidence.
+-   Browser terminal access through Nginx and ttyd, with an SSH fallback for students that
+    Nginx forwards to the student's workstation.
+-   Instructor analytics, progress views, privacy-aware feedback aggregation, CSV export,
+    and evidence bundles.
+-   Runtime scheduling for idle limits, maximum session duration, and stopped-instance
+    retention.
+-   MkDocs student guides plus protected instructor guides and solution notes.
+-   Reproducible RHEL provisioning and deployment through Ansible.
+-   Thirteen training scenarios and four runnable authoring samples covering standalone,
+    dependent-service, segmented-network, and custom-workstation patterns.
 
 ## Architecture
 
@@ -43,36 +44,40 @@ private Podman environment for each student and lab.
 
 The deployment uses two trust zones:
 
-| Plane | Default host | Responsibilities |
-| --- | --- | --- |
-| Application and control | `x02` | Nginx, React SPA, FastAPI, SQLite, MkDocs, scheduler, evidence, and Ansible control |
-| Lab execution | `x01` | Restricted SSH command gateway, `labctl`, Podman/Buildah, images, and isolated student labs |
+| Plane                   | Default host | Responsibilities                                                                            |
+| ----------------------- | ------------ | ------------------------------------------------------------------------------------------- |
+| Application and control | `x02`        | Nginx, React SPA, FastAPI, SQLite, MkDocs, scheduler, evidence, and Ansible control         |
+| Lab execution           | `x01`        | Restricted SSH command gateway, `labctl`, Podman/Buildah, images, and isolated student labs |
 
 1. Students and instructors access Nginx on the management plane.
-2. Nginx serves the React application and forwards API, documentation, and terminal
-   traffic to the appropriate internal service.
+2. Nginx serves the React application and forwards API, documentation, terminal, and
+   lab application traffic (`/lab-app/<port>/`). Terminal and application requests pass
+   only after FastAPI confirms that the signed-in student owns the port. Nginx also
+   forwards the per-student SSH ports to the worker.
 3. FastAPI keeps identity, assignments, lifecycle state, and evidence in local SQLite
    storage on `x02`.
 4. Lifecycle mutations cross the host boundary through a forced-command SSH wrapper.
    Only validated lab IDs, student IDs, and approved verbs reach `labctl`.
-5. `labctl` renders scenario state and manages Podman resources on `x01`. Each student
-   receives a workstation, vulnerable service containers, private networking, and
-   resettable persistent data.
+5. `labctl` validates the scenario contract, starts the containers in dependency order,
+   and waits for each health check. Each student receives a workstation, vulnerable
+   service containers, private networking, and resettable persistent data.
+6. `x01` admits new connections to the per-student port ranges only from `x02`
+   (nftables table `thesis_lab_guard`), so every student path runs through Nginx.
 
 Vulnerable services run only inside lab containers. The management and worker hosts do
 not require vulnerable packages installed directly on their operating systems.
 
 ## Technology Stack
 
-| Layer | Technology |
-| --- | --- |
-| Frontend | React 19, TypeScript, Vite, Tailwind CSS, Radix UI, Recharts |
-| Backend | FastAPI, SQLAlchemy, SQLite, Uvicorn |
-| Runtime | Podman, Buildah, systemd |
-| Provisioning | Ansible |
-| Documentation | MkDocs, PyMdown Extensions |
-| Validation | pre-commit, Ruff, Bandit, JSON Schema, Ansible Lint |
-| Target hosts | RHEL 9.6 on `ppc64le` |
+| Layer         | Technology                                                   |
+| ------------- | ------------------------------------------------------------ |
+| Frontend      | React 19, TypeScript, Vite, Tailwind CSS, Radix UI, Recharts |
+| Backend       | FastAPI, SQLAlchemy, SQLite, Uvicorn                         |
+| Runtime       | Podman, Buildah, systemd                                     |
+| Provisioning  | Ansible                                                      |
+| Documentation | MkDocs, PyMdown Extensions                                   |
+| Validation    | pre-commit, Ruff, Bandit, JSON Schema, Ansible Lint          |
+| Target hosts  | RHEL 9.6 on `ppc64le`                                        |
 
 ## Repository Layout
 
@@ -93,16 +98,21 @@ not require vulnerable packages installed directly on their operating systems.
 
 ### Local development
 
-- Python 3.9 or newer
-- Node.js 20 or newer with npm
-- A POSIX-compatible shell
+-   Python 3.9 or newer
+-   Node.js 20 or newer with npm
+-   A POSIX-compatible shell
 
 ### Full deployment
 
-- Two reachable RHEL 9.6 `ppc64le` hosts
-- Root SSH access from the Ansible control machine
-- Podman and Buildah availability through configured RHEL repositories
-- A private network or VPN between users, management host, and worker host
+-   Two reachable RHEL 9.6 `ppc64le` hosts
+-   Root SSH access from the Ansible control machine
+-   Podman and Buildah availability through configured RHEL repositories
+-   A private network or VPN between users, management host, and worker host
+-   Users reach the management host on 443; the per-student SSH ports (base + student
+    number for every lab's `ssh_port_base`) must also be reachable there for the SSH
+    fallback
+-   The management host reaches the worker on 22 and on the per-student lab port ranges
+-   SELinux may stay enforcing: provisioning labels the SSH port ranges for Nginx
 
 The committed inventory contains deployment-specific example addresses. Replace them
 before provisioning another environment. Put host credentials in `infra/host_vars/`;
@@ -255,24 +265,34 @@ Machine-readable requirements are defined by
 
 Every scenario should include:
 
-- `scenario.yaml`
-- Container build and baseline configuration files
-- `intentional-risk-allowlist.yaml`
-- `docs/student-guide.md`
-- `docs/instructor-guide.md`
-- `docs/solution-notes.md`
+-   `scenario.yaml`
+-   Container build and baseline configuration files
+-   `intentional-risk-allowlist.yaml`
+-   `docs/student-guide.md`
+-   `docs/instructor-guide.md`
+-   `docs/solution-notes.md`
 
 ## Security Model
 
-- No privileged or host-networked lab containers.
-- No container runtime socket mounts or unrestricted host bind mounts.
-- CPU and memory limits are required for scenario services.
-- The worker SSH key is restricted to a forced command with forwarding disabled.
-- Student lifecycle requests derive identity from the authenticated portal session.
-- Terminal authorization is checked against the student's active runtime lease.
-- Instructor guides, solution notes, analytics, and evidence exports require an
-  instructor session.
-- Training data and credentials must be synthetic.
+-   No privileged or host-networked lab containers.
+-   No container runtime socket mounts or unrestricted host bind mounts.
+-   CPU and memory limits are required for scenario services.
+-   Scenario contract rules (resource limits, unique names, forbidden capabilities and
+    mounts, objective checks, image-to-service mapping) are enforced when `labctl` loads a
+    lab and before images are built, not only in pre-commit.
+-   The worker SSH key is restricted to a forced command with forwarding disabled. The
+    wrapper logs every accepted and refused command line to syslog.
+-   The session-signing secret is generated on the management host at provisioning
+    (`/etc/thesis-labs/portal-session.key`, root-only). Rotate it with
+    `-e thesis_portal_rotate_session_secret=true`.
+-   Lab passwords reach the worker on stdin and are never written to its files.
+-   Evidence exports are always pseudonymized, scoped to one group the instructor owns,
+    and include feedback only for labs with at least five responses.
+-   Student lifecycle requests derive identity from the authenticated portal session.
+-   Terminal authorization is checked against the student's active runtime lease.
+-   Instructor guides, solution notes, analytics, and evidence exports require an
+    instructor session.
+-   Training data and credentials must be synthetic.
 
 The current deployment model assumes a trusted private network. Public deployment needs
 additional TLS, cookie, secret-management, firewall, abuse-control, and capacity review.
