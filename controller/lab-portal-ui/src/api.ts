@@ -192,6 +192,10 @@ export function getInstructorSessionDetail(labId: string, studentId: string): Pr
   return request(`/instructor/labs/${labId}/sessions/${studentId}`);
 }
 
+export function getInstructorStudents(): Promise<Array<{ student_id: string; email?: string; username?: string; groups?: Array<{ id: number; name: string }> }>> {
+  return request("/instructor/students");
+}
+
 export function getInstructorStudentDetail(studentId: string, groupId?: number): Promise<StudentDetail> {
   const query = groupId != null ? `?group_id=${groupId}` : "";
   return request(`/instructor/students/${studentId}${query}`);
@@ -199,18 +203,6 @@ export function getInstructorStudentDetail(studentId: string, groupId?: number):
 
 export function getInstructorFeedback(labId: string): Promise<InstructorFeedbackSummary> {
   return request(`/instructor/feedback/${labId}`);
-}
-
-export function exportEvidence(opts: { csrfToken: string; evaluationId: string; anonymize: boolean }): Promise<unknown> {
-  return request("/instructor/evidence/export", {
-    method: "POST",
-    body: JSON.stringify({
-      csrf_token: opts.csrfToken,
-      evaluation_id: opts.evaluationId,
-      anonymize: opts.anonymize,
-    }),
-    headers: { "Content-Type": "application/json" },
-  });
 }
 
 export function getStudentResults(groupId?: number): Promise<StudentResultsData> {
@@ -269,6 +261,11 @@ async function instructorDelete<T>(path: string): Promise<T> {
   });
 }
 
+/** Builds a pseudonymized evidence archive for one owned group and returns its download URL. */
+export function exportEvidence(groupId: number): Promise<{ ok: boolean; download_url: string }> {
+  return instructorPost("/instructor/evidence/export", { group_id: groupId });
+}
+
 export function createStudent(email: string): Promise<unknown> {
   return instructorPost("/instructor/students", { email });
 }
@@ -292,10 +289,6 @@ export function deleteGroup(groupId: number): Promise<unknown> {
 // Archiving is a one-way action - the backend exposes no reverse route.
 export function archiveGroup(groupId: number): Promise<unknown> {
   return instructorPost(`/instructor/groups/${groupId}/archive`, {});
-}
-
-export function addGroupMember(groupId: number, studentId: string): Promise<unknown> {
-  return instructorPost(`/instructor/groups/${groupId}/members`, { student_id: studentId });
 }
 
 export function removeGroupMember(groupId: number, studentId: string): Promise<unknown> {

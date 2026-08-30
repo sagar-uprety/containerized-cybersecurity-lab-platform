@@ -125,7 +125,7 @@ export default function InstructorGroupSessionDetail({ user, groupId, studentId,
         return t >= sStart && t <= sEnd;
       });
       sessionCheck = sessionChecks.length > 0
-        ? sessionChecks[sessionChecks.length - 1].check_result
+        ? sessionChecks[sessionChecks.length - 1].check_result || sessionChecks[sessionChecks.length - 1] as unknown as CheckResultData
         : null;
 
       sessionStatus = targetSession.outcome;

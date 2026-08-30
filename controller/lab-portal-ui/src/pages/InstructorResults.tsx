@@ -5,7 +5,8 @@ import AlertError from "../components/AlertError";
 import PageHeader from "../components/PageHeader";
 import ProgressRing from "../components/ProgressRing";
 import LastActiveBadge from "../components/LastActiveBadge";
-import { getGroupDetail, getGroupExportCsvUrl, getGroupProgress, getStudentsProgress } from "../api";
+import { exportEvidence, getGroupDetail, getGroupExportCsvUrl, getGroupProgress, getStudentsProgress } from "../api";
+import { showToast } from "../components/Toast";
 import { useDocumentTitle } from "../utils/useDocumentTitle";
 import { fmtTime } from "../utils/time";
 import { navigate } from "../utils/navigate";
@@ -58,6 +59,21 @@ export default function InstructorResults({ user, groupId, onLogout }: Props) {
       .sort((a, b) => (b.review_reasons?.length || 0) - (a.review_reasons?.length || 0) || (a.email || a.student_id).localeCompare(b.email || b.student_id));
   }, [rows, search, status]);
 
+  const [exporting, setExporting] = useState(false);
+
+  async function downloadEvidence() {
+    if (groupId == null) return;
+    setExporting(true);
+    try {
+      const { download_url } = await exportEvidence(groupId);
+      window.location.assign(download_url);
+    } catch (err) {
+      showToast(err instanceof Error ? err.message : "Evidence export failed", "error");
+    } finally {
+      setExporting(false);
+    }
+  }
+
   function openStudent(row: ResultRow) {
     // Scoped to one group, stay in that group's view. Unscoped, go to the
     // all-groups page: a student can be in several groups, and picking one
@@ -75,7 +91,14 @@ export default function InstructorResults({ user, groupId, onLogout }: Props) {
         title={group ? "Student results" : "Student results"}
         description={group ? `Achievement, observable review reasons, and support workflow for ${group.name}.` : "Triage observable support reasons, then inspect criterion and session evidence."}
         breadcrumbs={groupId != null ? [{ label: "Dashboard", href: "/instructor" }, { label: group?.name || "Group", href: `/instructor/groups/${groupId}` }, { label: "Student Results" }] : undefined}
-        actions={groupId != null && rows?.length ? <Button asChild variant="outline" size="sm"><a href={getGroupExportCsvUrl(groupId)} download>Export CSV</a></Button> : undefined}
+        actions={groupId != null && rows?.length ? (
+          <div className="flex gap-2">
+            <Button asChild variant="outline" size="sm"><a href={getGroupExportCsvUrl(groupId)} download>Export CSV</a></Button>
+            <Button variant="outline" size="sm" onClick={downloadEvidence} disabled={exporting} title="Pseudonymized archive of the underlying records">
+              {exporting ? "Exporting…" : "Export evidence"}
+            </Button>
+          </div>
+        ) : undefined}
       />
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <div className="relative w-72">
