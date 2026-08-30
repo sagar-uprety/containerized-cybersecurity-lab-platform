@@ -1,5 +1,8 @@
+import hashlib
+import hmac
 import io
 import json
+import re
 import tarfile
 import uuid
 from datetime import datetime, timezone
@@ -593,20 +596,66 @@ def any_pending_feedback(student_id: str) -> bool:
     return False
 
 
-def build_evidence_export(evaluation_id: str, anonymize: bool = False) -> Path:
+#: A lab's feedback leaves the platform only once it has this many responses,
+#: the same rule the instructor feedback page applies.
+FEEDBACK_MINIMUM_RESPONSES = 5
+
+
+def _pseudonymizer(key: bytes):
+    """Return a function mapping a student identifier to a stable pseudonym.
+
+    The pseudonym is a keyed hash, so the same student carries the same
+    pseudonym in every export, and the identifier cannot be recovered from it.
+    """
+
+    def pseudonym(student_id: str) -> str:
+        digest = hmac.new(key, student_id.encode("utf-8"), hashlib.sha256).hexdigest()
+        return f"p-{digest[:12]}"
+
+    return pseudonym
+
+
+def _replace_identifiers(value, pattern, pseudonym):
+    if isinstance(value, str):
+        return pattern.sub(lambda match: pseudonym(match.group(0)), value)
+    if isinstance(value, dict):
+        return {k: _replace_identifiers(v, pattern, pseudonym) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_replace_identifiers(item, pattern, pseudonym) for item in value]
+    return value
+
+
+def build_evidence_export(export_id: str, group_ids: set[int], pseudonym_key: bytes) -> Path:
+    """Write the evidence archive for the sessions of the given groups.
+
+    Every student identifier is replaced by a stable pseudonym, also inside
+    command text and check output. Feedback carries no student or session
+    identifier, and a lab's feedback is included only once it has at least
+    FEEDBACK_MINIMUM_RESPONSES responses.
+    """
     export_dir = EVIDENCE_DIR / "exports"
     export_dir.mkdir(parents=True, exist_ok=True)
-    export_path = export_dir / f"{evaluation_id}.tar.gz"
+    export_path = export_dir / f"{export_id}.tar.gz"
     with SessionLocal() as session:
+        session_ids = set(
+            session.scalars(
+                select(LabSession.id).where(
+                    LabSession.group_id.in_(group_ids), LabSession.synthetic.is_(False)
+                )
+            ).all()
+        )
         attempts = session.scalars(
             select(CheckAttempt)
-            .where(CheckAttempt.synthetic.is_(False))
+            .where(CheckAttempt.synthetic.is_(False), CheckAttempt.session_id.in_(session_ids))
             .order_by(CheckAttempt.occurred_at)
         ).all()
         checks = [_check_record(session, attempt) for attempt in attempts]
         lifecycle_rows = session.scalars(
             select(LifecycleEvidence)
-            .where(LifecycleEvidence.synthetic.is_(False))
+            .where(
+                LifecycleEvidence.synthetic.is_(False),
+                LifecycleEvidence.session_id.in_(session_ids),
+            )
             .order_by(LifecycleEvidence.occurred_at)
         ).all()
         lifecycle = [
@@ -626,7 +675,10 @@ def build_evidence_export(evaluation_id: str, anonymize: bool = False) -> Path:
         ]
         command_rows = session.scalars(
             select(TerminalCommand)
-            .where(TerminalCommand.synthetic.is_(False))
+            .where(
+                TerminalCommand.synthetic.is_(False),
+                TerminalCommand.lab_session_id.in_(session_ids),
+            )
             .order_by(TerminalCommand.occurred_at)
         ).all()
         commands = [
@@ -643,27 +695,54 @@ def build_evidence_export(evaluation_id: str, anonymize: bool = False) -> Path:
             }
             for record in command_rows
         ]
-    feedback = list_feedback(include_synthetic=False)
-    if anonymize:
-        pseudonyms = {}
 
-        def pseudonym(student_id: str) -> str:
-            if student_id not in pseudonyms:
-                pseudonyms[student_id] = f"student_{len(pseudonyms) + 1:04d}"
-            return pseudonyms[student_id]
+    pseudonym = _pseudonymizer(pseudonym_key)
+    student_ids = {record["student_id"] for record in (*checks, *lifecycle, *commands)}
+    for collection in (checks, lifecycle):
+        for record in collection:
+            # Actors other than the student themselves are reported by type only.
+            if record["actor"] != record["student_id"]:
+                record["actor"] = record["actor_type"]
+    if student_ids:
+        pattern = re.compile(
+            r"\b(?:"
+            + "|".join(re.escape(sid) for sid in sorted(student_ids, key=len, reverse=True))
+            + r")\b"
+        )
+        checks, lifecycle, commands = (
+            _replace_identifiers(collection, pattern, pseudonym)
+            for collection in (checks, lifecycle, commands)
+        )
 
-        for collection in (checks, lifecycle, commands, feedback):
-            for record in collection:
-                record["student_id"] = pseudonym(record["student_id"])
-        for record in feedback:
-            record["section_a"] = "[redacted from anonymized export]"
-            record["comment"] = "[redacted from anonymized export]"
+    scoped_feedback = [
+        record
+        for record in list_feedback(include_synthetic=False)
+        if record["session_id"] in session_ids
+    ]
+    responses_per_lab: dict[str, int] = {}
+    for record in scoped_feedback:
+        responses_per_lab[record["lab_id"]] = responses_per_lab.get(record["lab_id"], 0) + 1
+    feedback = [
+        {
+            "response_id": record["response_id"],
+            "timestamp": record["timestamp"],
+            "lab_id": record["lab_id"],
+            "rating": record["rating"],
+            "section_a": record["section_a"],
+            "comment": record["comment"],
+            "issue_category": record["issue_category"],
+        }
+        for record in scoped_feedback
+        if responses_per_lab[record["lab_id"]] >= FEEDBACK_MINIMUM_RESPONSES
+    ]
 
     manifest = {
-        "evaluation_id": evaluation_id,
+        "export_id": export_id,
         "exported_at": _iso(_utcnow()),
-        "anonymized": anonymize,
+        "group_ids": sorted(group_ids),
+        "pseudonymized": True,
         "synthetic_included": False,
+        "feedback_minimum_responses": FEEDBACK_MINIMUM_RESPONSES,
         "feedback_count": len(feedback),
         "check_count": len(checks),
         "lifecycle_count": len(lifecycle),
@@ -686,4 +765,5 @@ def build_evidence_export(evaluation_id: str, anonymize: bool = False) -> Path:
             info = tarfile.TarInfo(name=name)
             info.size = len(data_bytes)
             tar.addfile(info, io.BytesIO(data_bytes))
+    export_path.chmod(0o600)
     return export_path

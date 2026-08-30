@@ -185,14 +185,13 @@ def main() -> None:
         empty_group_id = empty_group.json()["id"]
         created = client.post(
             "/api/instructor/students",
-            json={"email": "unassigned-roster@example.edu", "csrf_token": csrf},
+            json={
+                "email": "unassigned-roster@example.edu",
+                "group_id": empty_group_id,
+                "csrf_token": csrf,
+            },
         )
         assert created.status_code == 200, created.text
-        added = client.post(
-            f"/api/instructor/groups/{empty_group_id}/members",
-            json={"student_id": created.json()["student_id"], "csrf_token": csrf},
-        )
-        assert added.status_code == 200, added.text
         refreshed_analytics = client.get("/api/instructor/analytics")
         assert refreshed_analytics.status_code == 200
         empty_group_summary = next(

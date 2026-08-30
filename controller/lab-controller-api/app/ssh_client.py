@@ -51,7 +51,11 @@ def run_labctl(verb: str, lab_id: str, student_id: str, lab_password: Optional[s
             input=stdin_input,
             capture_output=True,
             text=True,
-            timeout=settings.SSH_COMMAND_TIMEOUT_SECONDS,
+            timeout=(
+                settings.SSH_LIFECYCLE_TIMEOUT_SECONDS
+                if verb in {"start", "reset"}
+                else settings.SSH_COMMAND_TIMEOUT_SECONDS
+            ),
         )
         if result.returncode != 0:
             logger.error(f"SSH Command Failed. Exit: {result.returncode}, STDERR: {result.stderr}")

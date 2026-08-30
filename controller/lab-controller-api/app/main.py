@@ -68,6 +68,7 @@ from app.runtime_state import (
     update_runtime_state,
 )
 from app.scenarios import (
+    endpoint_owner_for_port,
     endpoint_ports,
     instructor_guide_url,
     is_sample_lab,
@@ -99,7 +100,23 @@ app.mount(
 
 SPA_INDEX = Path(__file__).resolve().parent / "static" / "dist" / "index.html"
 
-SESSION_SECRET = settings.PORTAL_DB_PATH.encode() + b"thesis-lab-portal-session"
+
+def _load_session_secret() -> bytes:
+    """Read the session-signing secret that provisioning generated.
+
+    Without a configured file (local development and tests) the portal uses a
+    random secret per process, so sessions end when the process restarts.
+    """
+    if not settings.PORTAL_SESSION_SECRET_FILE:
+        logger.warning("PORTAL_SESSION_SECRET_FILE not set; using a per-process secret")
+        return os.urandom(32)
+    secret = Path(settings.PORTAL_SESSION_SECRET_FILE).read_bytes().strip()
+    if len(secret) < 32:
+        raise RuntimeError("Session secret file must hold at least 32 bytes")
+    return secret
+
+
+SESSION_SECRET = _load_session_secret()
 SESSION_COOKIE = "portal_session"
 SESSION_MAX_AGE = 86400
 
@@ -435,11 +452,11 @@ def _build_endpoints(scenario: dict, student_id: str, user: dict) -> dict:
     ports = endpoint_ports(scenario, student_id, user)
     endpoints = {
         "browser_terminal": f"/terminal/{ports['terminal']}/",
-        "ssh": f"ssh {student_id}@{settings.WORKER_HOST} -p {ports['ssh']}",
+        "ssh": f"ssh {student_id}@{settings.PORTAL_PUBLIC_HOST} -p {ports['ssh']}",
         "guide_url": student_guide_url(scenario),
     }
     if "app" in ports:
-        endpoints["app"] = f"http://{settings.WORKER_HOST}:{ports['app']}/"
+        endpoints["app"] = f"/lab-app/{ports['app']}/"
     return endpoints
 
 
@@ -1203,6 +1220,17 @@ def terminal_auth(
     return response
 
 
+@app.get("/internal/app-auth")
+def app_auth(request: Request, user: dict = Depends(get_authenticated_user)):
+    """Let nginx forward a lab application request only to the port's owner."""
+    match = re.match(r"^/lab-app/([0-9]+)/", request.headers.get("x-original-uri", ""))
+    if not match:
+        raise HTTPException(status_code=400, detail="Missing application endpoint")
+    if not endpoint_owner_for_port(int(match.group(1)), user, "app"):
+        raise HTTPException(status_code=404, detail="Unknown application endpoint")
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
 # ---------------------------------------------------------------------------
 # Internal / instructor auth (for nginx auth_request)
 # ---------------------------------------------------------------------------
@@ -1643,6 +1671,43 @@ def api_instructor_session_detail(
     }
 
 
+@app.get("/api/instructor/students")
+def api_instructor_students(user: dict = Depends(get_authenticated_user)):
+    require_instructor(user)
+    with SessionLocal() as session:
+        owner_ids = _owner_group_ids(session, user["id"])
+        students = repo.list_students_for_owner(session, user["id"])
+        result = []
+        for s in students:
+            # All the instructor's groups this student belongs to (including
+            # archived ones) -- needed to decide PII suppression: a student
+            # whose ONLY tie to this instructor is an archived cohort must
+            # still show up here (so the account can still be deleted), but
+            # with no archived-group detail and no PII, same as the group's
+            # own roster view would show.
+            member_groups = [
+                m.group for m in s.memberships if m.status == "approved" and m.group_id in owner_ids
+            ]
+            all_archived = bool(member_groups) and all(g.is_archived for g in member_groups)
+            visible_groups = [g for g in member_groups if not g.is_archived]
+            result.append(
+                {
+                    # student_id/username kept for backward compatibility with the UI
+                    "student_id": s.internal_id or s.email,
+                    "username": None if all_archived else s.email,
+                    "email": None if all_archived else s.email,
+                    "number": s.number,
+                    "must_change_password": bool(s.must_change_password),
+                    "active": bool(s.active),
+                    "groups": [
+                        {"id": g.id, "name": g.name, "is_archived": g.is_archived}
+                        for g in visible_groups
+                    ],
+                }
+            )
+        return result
+
+
 @app.get("/api/instructor/students/{student_id}")
 def api_instructor_student_detail(
     student_id: str,
@@ -1815,23 +1880,35 @@ def api_student_lab_results(
 
 @app.post("/api/instructor/evidence/export")
 async def api_export_evidence(request: Request, user: dict = Depends(get_authenticated_user)):
+    """Build a pseudonymized evidence archive for one group the instructor owns."""
     require_instructor(user)
     try:
         body = await request.json()
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON body") from None
     validate_token(body.get("csrf_token", ""), user)
-    evaluation_id = body.get("evaluation_id", "")
-    anonymize = bool(body.get("anonymize", False))
-    if not evaluation_id:
-        raise HTTPException(status_code=400, detail="evaluation_id required")
-    build_evidence_export(evaluation_id, anonymize=anonymize)
-    return {"ok": True, "download_url": f"/api/instructor/evidence/export/{evaluation_id}"}
+    try:
+        group_id = int(body.get("group_id"))
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="group_id required") from None
+    with SessionLocal() as session:
+        if repo.get_owned_group(session, group_id, user["id"]) is None:
+            raise HTTPException(status_code=404, detail="Group not found")
+    # The file name binds the archive to the instructor who requested it.
+    export_id = f"{user['id']}-{uuid.uuid4().hex}"
+    build_evidence_export(
+        export_id,
+        group_ids={group_id},
+        pseudonym_key=hmac.new(SESSION_SECRET, b"evidence-pseudonym", hashlib.sha256).digest(),
+    )
+    return {"ok": True, "download_url": f"/api/instructor/evidence/export/{export_id}"}
 
 
 @app.get("/api/instructor/evidence/export/{export_id}")
 def api_download_export(export_id: str, user: dict = Depends(get_authenticated_user)):
     require_instructor(user)
+    if not re.fullmatch(rf"{user['id']}-[0-9a-f]{{32}}", export_id):
+        raise HTTPException(status_code=404, detail="Export not found")
     export_path = (
         Path(settings.PORTAL_DB_PATH).parent / "evidence" / "exports" / f"{export_id}.tar.gz"
     )
@@ -1840,7 +1917,7 @@ def api_download_export(export_id: str, user: dict = Depends(get_authenticated_u
     return FileResponse(
         str(export_path),
         media_type="application/gzip",
-        filename=f"{export_id}.tar.gz",
+        filename="evidence-export.tar.gz",
     )
 
 
@@ -1892,9 +1969,20 @@ async def api_create_student(request: Request, user: dict = Depends(get_authenti
     email = body.get("email", "").strip()
     if not email:
         raise HTTPException(status_code=400, detail="email is required")
+    group_id = body.get("group_id")
     with SessionLocal() as session:
+        # A directly created account may join one of the creator's own groups
+        # at creation. An existing account joins only through an approved
+        # request, so an instructor cannot pull a registered student in.
+        if (
+            group_id is not None
+            and repo.get_owned_group(session, int(group_id), user["id"]) is None
+        ):
+            raise HTTPException(status_code=404, detail="Group not found")
         try:
             student, initial_password = repo.create_student(session, email)
+            if group_id is not None:
+                repo.add_member(session, int(group_id), student.id)
             session.commit()
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
@@ -2057,35 +2145,6 @@ async def api_rename_group(
             return _group_summary(group)
         except ValueError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
-
-
-@app.post("/api/instructor/groups/{group_id}/members")
-async def api_add_member(
-    group_id: int, request: Request, user: dict = Depends(get_authenticated_user)
-):
-    require_instructor(user)
-    try:
-        body = await request.json()
-    except Exception:
-        raise HTTPException(status_code=400, detail="Invalid JSON body") from None
-    _require_instructor_csrf(request, user, body)
-    student_id = body.get("student_id", "").strip()
-    if not student_id:
-        raise HTTPException(status_code=400, detail="student_id is required")
-    with SessionLocal() as session:
-        if repo.get_owned_group(session, group_id, user["id"]) is None:
-            raise HTTPException(status_code=404, detail="Group not found")
-        target = repo.get_user_by_internal_id(session, student_id)
-        if target is None or target.role != "student":
-            raise HTTPException(status_code=404, detail="Student not found")
-        try:
-            repo.add_member(session, group_id, target.id)
-            session.commit()
-        except ValueError as exc:
-            status_code = 404 if "not found" in str(exc) else 409
-            raise HTTPException(status_code=status_code, detail=str(exc)) from exc
-        group = repo.get_group(session, group_id)
-        return _group_to_dict(group)
 
 
 @app.delete("/api/instructor/groups/{group_id}/members/{student_id}")

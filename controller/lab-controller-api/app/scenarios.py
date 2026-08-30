@@ -175,19 +175,24 @@ def instructor_guide_url(scenario: dict) -> str:
     return documentation.get("instructor_guide_url") or f"/docs/labs/{scenario['id']}-instructor/"
 
 
-def terminal_owner_for_port(terminal_port: int, student: dict):
+def endpoint_owner_for_port(port: int, student: dict, kind: str = "terminal"):
     """Return student only when port belongs to their running lab lease.
 
-    Port bases can overlap across scenarios and student-number ranges. Scanning
-    every account can therefore resolve a valid port to an inactive student.
+    ``kind`` names the endpoint ("terminal" or "app"). Port bases can overlap
+    across scenarios and student-number ranges. Scanning every account can
+    therefore resolve a valid port to an inactive student.
     """
     if student.get("role") != "student":
         return None
     student_id = student["student_id"]
     for scenario in list_scenarios():
-        expected = endpoint_ports(scenario, student_id, student)["terminal"]
-        if expected != terminal_port:
+        expected = endpoint_ports(scenario, student_id, student).get(kind)
+        if expected != port:
             continue
         if runtime_state_for(scenario["id"], student_id).get("status") == "running":
             return student
     return None
+
+
+def terminal_owner_for_port(terminal_port: int, student: dict):
+    return endpoint_owner_for_port(terminal_port, student, "terminal")

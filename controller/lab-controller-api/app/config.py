@@ -22,6 +22,13 @@ class Settings:
     SSH_KNOWN_HOSTS = os.environ.get("SSH_KNOWN_HOSTS", "/var/lib/thesis-labs/known_hosts")
     SSH_STRICT_HOST_KEY_CHECKING = os.environ.get("SSH_STRICT_HOST_KEY_CHECKING", "accept-new")
     SSH_COMMAND_TIMEOUT_SECONDS = _int_from_env("SSH_COMMAND_TIMEOUT_SECONDS", 60)
+    # Start and reset wait for every health check to pass on the worker.
+    SSH_LIFECYCLE_TIMEOUT_SECONDS = _int_from_env("SSH_LIFECYCLE_TIMEOUT_SECONDS", 240)
+    # Host name students use for the optional SSH command. nginx on the
+    # management host forwards the per-student SSH ports to the worker.
+    PORTAL_PUBLIC_HOST = os.environ.get("PORTAL_PUBLIC_HOST", "127.0.0.1")
+    # File holding the session-signing secret, generated at provisioning.
+    PORTAL_SESSION_SECRET_FILE = os.environ.get("PORTAL_SESSION_SECRET_FILE", "")
 
     PORTAL_DB_PATH = os.environ.get("PORTAL_DB_PATH", "/var/lib/thesis-labs/portal.db")
     PORTAL_DEMO_DATA_PATH = os.environ.get(

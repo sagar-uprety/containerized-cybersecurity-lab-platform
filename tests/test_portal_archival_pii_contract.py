@@ -136,19 +136,12 @@ def main() -> None:
 
         csrf_token = payload["csrf_token"]
 
-        # Verify redaction through the instructor add-member response.
+        # An instructor cannot pull an existing student into a group.
         add_member_resp = client.post(
             f"/api/instructor/groups/{group_id}/members",
             json={"student_id": student_internal_id, "csrf_token": csrf_token},
         )
-        assert add_member_resp.status_code == 200, add_member_resp.text
-        add_member_payload = add_member_resp.json()
-        assert add_member_payload["is_archived"] is True
-        members = add_member_payload["members"]
-        assert len(members) == 1
-        assert members[0]["student_id"] == student_internal_id
-        assert members[0]["email"] is None
-        assert student_email not in json.dumps(add_member_payload)
+        assert add_member_resp.status_code in {404, 405}, add_member_resp.text
 
         # --- 6. Permanent: there is no unarchive route any more, and the
         # archived state persists across requests -- nothing can undo it. ---
