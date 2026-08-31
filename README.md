@@ -67,11 +67,13 @@ The deployment uses two trust zones:
 Vulnerable services run only inside lab containers. The management and worker hosts do
 not require vulnerable packages installed directly on their operating systems.
 
-## Dashboard Sample Screenshots
+## Platform Sample Screenshots
+
+![Student Lab Portal](docs/student-lab-dashboard.png)
+![Student Lab Terminal](docs/student-lab-terminal.png)
 
 ![Instructor Dashboard](docs/instructor-dashboard.png)
 ![Instructor Analytics Page](docs/instructor-analytics.png)
-![Student Lab Portal](docs/student-lab-dashboard.png)
 
 ## Technology Stack
 
