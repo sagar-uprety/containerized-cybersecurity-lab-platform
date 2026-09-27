@@ -5,7 +5,6 @@ site/
 
 # Runtime / test output
 test-results/
-resources/
 state/
 
 # Lock files (already formatted by package managers)

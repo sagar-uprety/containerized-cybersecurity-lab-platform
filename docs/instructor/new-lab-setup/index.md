@@ -1,10 +1,10 @@
 # Creating and Shipping a New Security Lab
 
-This guide is for an instructor creating a lab for the first time without an automation
-assistant or prior knowledge of this repository. It explains what the platform
-supports, how to turn a teaching idea into a complete lab package, how to use
-the runnable `sample-a-standalone`, how to validate every artifact, and how you run
-Ansible and `labctl` yourself to deploy and verify the result.
+This guide is for an instructor creating a lab for the first time. It explains
+what the platform supports, how to turn a teaching idea into a complete lab
+package, how to use the runnable `sample-a-standalone`, how to validate every
+artifact, and how you run Ansible and `labctl` yourself to deploy and verify
+the result.
 
 The shortest safe workflow is:
 

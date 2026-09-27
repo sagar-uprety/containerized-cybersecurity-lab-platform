@@ -6,7 +6,6 @@ ignore: |
   site/
   test-results/
   playwright-report/
-  resources/
 
 rules:
   comments:

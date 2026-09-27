@@ -97,7 +97,6 @@ not require vulnerable packages installed directly on their operating systems.
 |-- infra/             Ansible inventory, playbooks, roles, templates, and variables
 |-- labs/              Scenario packages, images, checks, seeds, and co-located guides
 |-- platform-images/   Shared workstation and service base images
-|-- resources/         Research sources and scenario-selection traceability
 |-- tests/             Executable backend and authoring contract checks
 `-- tools/             Scenario scaffolding, fixture generation, and repository validators
 ```

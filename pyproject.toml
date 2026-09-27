@@ -67,7 +67,6 @@ exclude_dirs = [
   "node_modules",
   "site",
   "test-results",
-  "resources",
   "tests",            # test files may use assert / random intentionally
 ]
 skips = [
