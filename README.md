@@ -40,14 +40,17 @@ private Podman environment for each student and lab.
 
 ## Architecture
 
-![Platform architecture showing the x02 control plane and x01 execution plane](docs/platform-architecture.png)
+![Platform architecture showing the management control plane and the lab worker execution plane](docs/platform-architecture.png)
 
 The deployment uses two trust zones:
 
-| Plane                   | Default host | Responsibilities                                                                            |
-| ----------------------- | ------------ | ------------------------------------------------------------------------------------------- |
-| Application and control | `x02`        | Nginx, React SPA, FastAPI, SQLite, MkDocs, scheduler, evidence, and Ansible control         |
-| Lab execution           | `x01`        | Restricted SSH command gateway, `labctl`, Podman/Buildah, images, and isolated student labs |
+| Plane                   | Inventory group | Responsibilities                                                                            |
+| ----------------------- | --------------- | ------------------------------------------------------------------------------------------- |
+| Application and control | `management`    | Nginx, React SPA, FastAPI, SQLite, MkDocs, scheduler, and evidence                          |
+| Lab execution           | `lab_workers`   | Restricted SSH command gateway, `labctl`, Podman/Buildah, images, and isolated student labs |
+
+The architecture figure labels the two hosts with their names in the original deployment,
+`x02` (management) and `x01` (lab worker).
 
 1. Students and instructors access Nginx on the management plane.
 2. Nginx serves the React application and forwards API, documentation, terminal, and
@@ -55,14 +58,15 @@ The deployment uses two trust zones:
    only after FastAPI confirms that the signed-in student owns the port. Nginx also
    forwards the per-student SSH ports to the worker.
 3. FastAPI keeps identity, assignments, lifecycle state, and evidence in local SQLite
-   storage on `x02`.
+   storage on the management host.
 4. Lifecycle mutations cross the host boundary through a forced-command SSH wrapper.
    Only validated lab IDs, student IDs, and approved verbs reach `labctl`.
 5. `labctl` validates the scenario contract, starts the containers in dependency order,
    and waits for each health check. Each student receives a workstation, vulnerable
    service containers, private networking, and resettable persistent data.
-6. `x01` admits new connections to the per-student port ranges only from `x02`
-   (nftables table `thesis_lab_guard`), so every student path runs through Nginx.
+6. The worker admits new connections to the per-student port ranges only from the
+   management host (nftables table `thesis_lab_guard`), so every student path runs
+   through Nginx.
 
 Vulnerable services run only inside lab containers. The management and worker hosts do
 not require vulnerable packages installed directly on their operating systems.
@@ -103,33 +107,43 @@ not require vulnerable packages installed directly on their operating systems.
 
 ## Prerequisites
 
-### Local development
+### Deployment
+
+Two RHEL 9 hosts on a private network, root SSH access from an Ansible control machine,
+and outbound Internet access during provisioning. [`DEPLOYMENT.md`](DEPLOYMENT.md) lists
+the exact host, network, and control-machine requirements.
+
+### Portal development (optional)
 
 -   Python 3.9 or newer
 -   Node.js 20 or newer with npm
 -   A POSIX-compatible shell
 
-### Full deployment
+## Deployment
 
--   Two reachable RHEL 9.6 `ppc64le` hosts
--   Root SSH access from the Ansible control machine
--   Podman and Buildah availability through configured RHEL repositories
--   A private network or VPN between users, management host, and worker host
--   Users reach the management host on 443; the per-student SSH ports (base + student
-    number for every lab's `ssh_port_base`) must also be reachable there for the SSH
-    fallback
--   The management host reaches the worker on 22 and on the per-student lab port ranges
--   SELinux may stay enforcing: provisioning labels the SSH port ranges for Nginx
+[`DEPLOYMENT.md`](DEPLOYMENT.md) is the complete guide from a fresh clone to a running
+platform: host requirements, inventory and credentials, provisioning, HTTPS, the first
+administrator, instructor and student accounts, updates, backups, and troubleshooting.
 
-The committed inventory contains deployment-specific example addresses. Replace them
-before provisioning another environment. Put host credentials in `infra/host_vars/`;
-that directory is ignored by Git.
+In short, after editing `infra/inventory.ini` for your hosts:
 
-## Local Development
+```bash
+ANSIBLE_CONFIG=config/ansible.cfg \
+  .venv/bin/ansible-playbook infra/playbooks/site.yml
 
-Local development runs the real FastAPI and React applications. Worker-dependent
-lifecycle actions still require a reachable lab worker, but authentication, enrollment,
-administration, result views, and most portal behavior can be developed locally.
+ANSIBLE_CONFIG=config/ansible.cfg \
+  .venv/bin/ansible-playbook infra/playbooks/verify-platform.yml
+```
+
+Generated credentials, databases, manifests, logs, evidence exports, and private keys
+must remain outside Git.
+
+## Portal Development (Optional)
+
+This section is only for changing the portal code. It is not needed to deploy or run the
+platform. It runs the FastAPI backend and the React frontend on a development machine.
+Labs cannot run locally because they need the lab worker, but authentication,
+enrollment, administration, and result views work.
 
 ### 1. Install dependencies
 
@@ -215,44 +229,6 @@ ANSIBLE_CONFIG=config/ansible.cfg \
 ```
 
 The Python files in `tests/` are executable contract checks rather than a pytest suite.
-
-## Deployment
-
-Review `infra/inventory.ini` and `infra/group_vars/all.yml`, then provision both hosts:
-
-```bash
-ANSIBLE_CONFIG=config/ansible.cfg \
-  .venv/bin/ansible-playbook infra/playbooks/site.yml --check --diff
-
-ANSIBLE_CONFIG=config/ansible.cfg \
-  .venv/bin/ansible-playbook infra/playbooks/site.yml
-
-ANSIBLE_CONFIG=config/ansible.cfg \
-  .venv/bin/ansible-playbook infra/playbooks/verify-platform.yml
-```
-
-Use targeted deployments during development:
-
-```bash
-# FastAPI, portal Python code, and scenario metadata
-ANSIBLE_CONFIG=config/ansible.cfg \
-  .venv/bin/ansible-playbook infra/playbooks/management.yml --tags portal-api
-
-# React production bundle
-ANSIBLE_CONFIG=config/ansible.cfg \
-  .venv/bin/ansible-playbook infra/playbooks/management.yml --tags portal-ui
-
-# Documentation only
-ANSIBLE_CONFIG=config/ansible.cfg \
-  .venv/bin/ansible-playbook infra/playbooks/management.yml --tags docs
-
-# Worker scenario source and images
-ANSIBLE_CONFIG=config/ansible.cfg \
-  .venv/bin/ansible-playbook infra/playbooks/lab-worker.yml --tags lab-source,lab-images
-```
-
-Generated credentials, databases, manifests, logs, evidence exports, and private keys
-must remain outside Git.
 
 ## Creating a Lab
 

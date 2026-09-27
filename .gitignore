@@ -29,7 +29,8 @@ env/
 
 # Local Ansible runtime cache
 .ansible/
-infra/host_vars/
+infra/host_vars/*
+!infra/host_vars/*.yml.example
 infra/files/controller_key
 infra/files/controller_key.pub
 infra/*-packages.txt

@@ -99,6 +99,7 @@ repos:
     hooks:
       - id: codespell
         args: ["--skip=node_modules,site,test-results,.venv,*.lock,package-lock.json"]
+        exclude: package-lock\.json$
 
   # --------------------------------------------------------------------
   #  JS / JSON / Markdown formatting (Prettier)

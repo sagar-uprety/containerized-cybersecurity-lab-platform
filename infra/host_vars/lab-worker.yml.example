@@ -1,0 +1,4 @@
+---
+# Copy to <inventory host name>.yml in this directory and set the real value.
+# The copy is ignored by Git. Not needed when key-based SSH login works.
+ansible_password: "change-me"

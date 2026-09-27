@@ -13,10 +13,10 @@ management_directories:
   - "{{ management_docs_root }}/source"
   - "{{ management_backup_root }}"
 
-# TLS / Let's Encrypt (M?: public HTTPS access for survey students)
-thesis_portal_public_hostname: x02lp1.ucc.cit.tum.de
+# TLS / Let's Encrypt: public DNS name of the management host
+thesis_portal_public_hostname: portal.example.org
 # Contact address Let's Encrypt uses for expiry/problem notices - set to a real, monitored inbox before requesting.
-thesis_portal_letsencrypt_email: "sagar.uprety@tum.de"
+thesis_portal_letsencrypt_email: "admin@example.org"
 # Explicit gate: only attempt certonly issuance when requested (-e thesis_portal_tls_request=true),
 # so routine deploys never hammer Let's Encrypt with a doomed request while port 80 is still VPN/campus-only.
 thesis_portal_tls_request: false
